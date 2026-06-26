@@ -1,0 +1,16 @@
+{
+  "name": "event-editor",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "workspaces": ["packages/*"],
+  "scripts": {
+    "dev": "EE_DB_PATH=\"$PWD/data/app.db\" npm -w @event-editor/web run dev",
+    "build": "npm -w @event-editor/core run build && npm -w @event-editor/web run build",
+    "test": "npm -ws --if-present run test",
+    "migrate": "EE_DB_PATH=\"$PWD/data/app.db\" npm -w @event-editor/core run migrate"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.0"
+  }
+}
