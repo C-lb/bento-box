@@ -1,0 +1,24 @@
+@import url("https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&display=swap");
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root { color-scheme: dark; }
+
+body {
+  @apply bg-canvas text-ink font-sans text-base antialiased;
+}
+
+/* anti-vibecode button: mostly-grey raised surface, dimmed stroke, Apple-style raised edge */
+.btn {
+  @apply inline-flex items-center gap-2 rounded-lg border border-line bg-raised px-4 py-2
+         text-ink shadow-raisededge transition-colors;
+}
+.btn:hover { @apply border-muted/40 bg-[#22262e]; }
+.btn:active { @apply translate-y-px; }
+.btn-accent { @apply bg-accent border-accent text-white; }
+
+.card {
+  @apply rounded-card border border-line bg-surface p-5 shadow-soft;
+}
+.eyebrow { @apply text-muted text-xs tracking-wide; } /* sentence case, set in markup */
