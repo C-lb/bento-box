@@ -1,4 +1,4 @@
 export * from "./db.js";
 export * from "./schema/index.js";
 export * from "./types.js";
-export * from "./settings.js";
+export * from "./migrate.js";
