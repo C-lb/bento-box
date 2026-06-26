@@ -10,7 +10,7 @@ export default function Settings() {
         {connections.map((c) => (
           <li key={c.id} className="card flex items-center justify-between">
             <span>{c.label}</span>
-            <span className={c.configured ? "text-[#4ade80]" : "text-muted"}>
+            <span className={c.configured ? "text-success" : "text-muted"}>
               {c.configured ? "Connected" : "Not configured"}
             </span>
           </li>

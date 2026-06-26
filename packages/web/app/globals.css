@@ -3,7 +3,7 @@
 @tailwind components;
 @tailwind utilities;
 
-:root { color-scheme: dark; }
+:root { color-scheme: light; }
 
 body {
   @apply bg-canvas text-ink font-sans text-base antialiased;
@@ -14,7 +14,7 @@ body {
   @apply inline-flex items-center gap-2 rounded-lg border border-line bg-raised px-4 py-2
          text-ink shadow-raisededge transition-colors;
 }
-.btn:hover { @apply border-muted/40 bg-[#22262e]; }
+.btn:hover { @apply border-muted/40 bg-[#eef0f3]; }
 .btn:active { @apply translate-y-px; }
 .btn-accent { @apply bg-accent border-accent text-white; }
 
