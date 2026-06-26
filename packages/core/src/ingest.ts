@@ -42,6 +42,7 @@ export async function runIngest(
   jobId: number,
   folderId: string,
   deps: IngestDeps,
+  opts?: { completeStatus?: "done" | "heuristics" },
 ): Promise<void> {
   try {
     const images = await deps.listImages(folderId);
@@ -67,7 +68,7 @@ export async function runIngest(
         .where(eq(jobs.id, jobId))
         .run();
     }
-    touch(db, jobId, { status: "done" });
+    touch(db, jobId, { status: opts?.completeStatus ?? "done" });
   } catch (err) {
     touch(db, jobId, {
       status: "error",

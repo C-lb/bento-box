@@ -14,7 +14,8 @@
     "./settings": "./dist/settings.js",
     "./tokens": "./dist/tokens.js",
     "./ingest": "./dist/ingest.js",
-    "./rank": "./dist/rank.js"
+    "./rank": "./dist/rank.js",
+    "./ranking": "./dist/ranking.js"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
