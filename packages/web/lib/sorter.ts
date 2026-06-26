@@ -1,5 +1,6 @@
 import { mkdir, writeFile, readFile } from "node:fs/promises";
 import { resolve } from "node:path";
+import sharp from "sharp";
 import { eq } from "drizzle-orm";
 import { createScanJob, runIngest } from "@event-editor/core/ingest";
 import { runRanking } from "@event-editor/core/ranking";
@@ -41,8 +42,12 @@ export function startScan(
       {
         listImages: (folderId) => drive.listImages(folderId),
         saveThumbnail: async (jId, pId, image) => {
-          const bytes = await drive.downloadThumbnail(image as DriveImage);
-          if (!bytes) return null;
+          const raw = await drive.downloadThumbnail(image as DriveImage);
+          if (!raw) return null;
+          // Drive thumbnail bytes are often PNG/WebP. Re-encode to JPEG so the
+          // .jpg filename, the /api/thumb content-type, and the vision call's
+          // declared media_type all agree — otherwise Anthropic 400s the image.
+          const bytes = await sharp(raw).jpeg().toBuffer();
           await mkdir(resolve("data/thumbs", String(jId)), { recursive: true });
           await writeFile(resolve("data/thumbs", String(jId), `${pId}.jpg`), bytes);
           return `data/thumbs/${jId}/${pId}.jpg`;
@@ -53,6 +58,17 @@ export function startScan(
 
     const job = db.select().from(jobs).where(eq(jobs.id, jobId)).all()[0];
     if (!job || job.status === "error") return;
+
+    // Preflight the key before constructing the client: `new Anthropic()` throws
+    // synchronously when ANTHROPIC_API_KEY is unset, and that throw would land
+    // outside runRanking's try/catch, stranding the job at "heuristics" forever.
+    if (!process.env.ANTHROPIC_API_KEY) {
+      db.update(jobs)
+        .set({ status: "error", errorMessage: "ANTHROPIC_API_KEY is not set", updatedAt: Date.now() })
+        .where(eq(jobs.id, jobId))
+        .run();
+      return;
+    }
 
     const client = visionClient();
     await runRanking(db, jobId, {

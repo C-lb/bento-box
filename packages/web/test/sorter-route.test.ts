@@ -5,6 +5,10 @@ import { openDb, runMigrations, jobs } from "@event-editor/core";
 import { eq } from "drizzle-orm";
 import { startScan } from "../lib/sorter.js";
 
+// Preflight now errors the job when the key is absent; set a dummy so the async
+// pipeline runs to completion (the lone null-thumbnail photo errors, job -> done).
+process.env.ANTHROPIC_API_KEY ??= "test-key";
+
 function freshDb() {
   const path = join(tmpdir(), `ee-srt-${Math.random().toString(36).slice(2)}.db`);
   const db = openDb(path);

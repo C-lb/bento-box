@@ -25,19 +25,23 @@ export async function runRanking(
   deps: RankingDeps,
 ): Promise<void> {
   try {
-    touch(db, jobId, { status: "heuristics" });
     const pending = db
       .select()
       .from(photos)
       .where(eq(photos.jobId, jobId))
       .all()
       .filter((p) => p.stage === "pending");
+    // Re-base the progress counter for the heuristics pass: ingest left it
+    // pinned at total, which would read as "done" while scoring hasn't started.
+    touch(db, jobId, { status: "heuristics", processed: 0, total: pending.length });
 
     const survivors: RankingPhoto[] = [];
+    let processed = 0;
     for (const p of pending) {
       const photo: RankingPhoto = { id: p.id, name: p.name, mimeType: p.mimeType, thumbnailPath: p.thumbnailPath };
       if (!photo.thumbnailPath) {
         db.update(photos).set({ stage: "errored", errorMessage: "no thumbnail" }).where(eq(photos.id, p.id)).run();
+        touch(db, jobId, { processed: ++processed });
         continue;
       }
       try {
@@ -55,9 +59,13 @@ export async function runRanking(
       } catch (err) {
         db.update(photos).set({ stage: "errored", errorMessage: err instanceof Error ? err.message : String(err) }).where(eq(photos.id, p.id)).run();
       }
+      touch(db, jobId, { processed: ++processed });
     }
 
-    touch(db, jobId, { status: "ranking" });
+    // Vision pass runs only over survivors; re-base the counter again so the UI
+    // reads "scored N of <survivors>", not the heuristics total.
+    touch(db, jobId, { status: "ranking", processed: 0, total: survivors.length });
+    let scored = 0;
     for (const photo of survivors) {
       try {
         const vs = await deps.scoreVision(photo);
@@ -65,6 +73,7 @@ export async function runRanking(
       } catch (err) {
         db.update(photos).set({ stage: "errored", errorMessage: err instanceof Error ? err.message : String(err) }).where(eq(photos.id, photo.id)).run();
       }
+      touch(db, jobId, { processed: ++scored });
     }
 
     const all = db.select().from(photos).where(eq(photos.jobId, jobId)).all();

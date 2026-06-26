@@ -13,6 +13,13 @@ vi.mock("../lib/anthropic.js", () => ({
   visionClient: () => ({}),
   scorePhoto: async () => ({ score: 88, reasons: ["clear face"] }),
 }));
+// startScan re-encodes thumbnails through sharp; stub it so the fake 4-byte
+// "thumbnail" doesn't need to be a decodable image.
+vi.mock("sharp", () => ({
+  default: () => ({ jpeg: () => ({ toBuffer: async () => Buffer.from([1, 2, 3, 4]) }) }),
+}));
+// Preflight requires the key to be present (value is irrelevant — anthropic is mocked).
+process.env.ANTHROPIC_API_KEY ??= "test-key";
 
 const { startScan } = await import("../lib/sorter.js");
 
