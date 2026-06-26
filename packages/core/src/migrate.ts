@@ -50,6 +50,14 @@ const DDL = [
     created_at INTEGER NOT NULL DEFAULT 0,
     updated_at INTEGER NOT NULL DEFAULT 0
   )`,
+  `CREATE TABLE IF NOT EXISTS oauth_tokens (
+    provider TEXT PRIMARY KEY,
+    access_token TEXT NOT NULL,
+    refresh_token TEXT,
+    expiry_ms INTEGER,
+    scope TEXT,
+    updated_at INTEGER NOT NULL DEFAULT 0
+  )`,
 ];
 
 export function runMigrations(db: BetterSQLite3Database<any>): void {

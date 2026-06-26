@@ -11,7 +11,8 @@
     "./db": "./dist/db.js",
     "./types": "./dist/types.js",
     "./migrate": "./dist/migrate.js",
-    "./settings": "./dist/settings.js"
+    "./settings": "./dist/settings.js",
+    "./tokens": "./dist/tokens.js"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",

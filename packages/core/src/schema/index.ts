@@ -49,3 +49,12 @@ export const headshots = sqliteTable("headshots", {
   createdAt: integer("created_at").notNull().default(0),
   updatedAt: integer("updated_at").notNull().default(0),
 });
+
+export const oauthTokens = sqliteTable("oauth_tokens", {
+  provider: text("provider").primaryKey(),
+  accessToken: text("access_token").notNull(),
+  refreshToken: text("refresh_token"),
+  expiryMs: integer("expiry_ms"),
+  scope: text("scope"),
+  updatedAt: integer("updated_at").notNull().default(0),
+});
