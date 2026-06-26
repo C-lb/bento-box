@@ -3,7 +3,16 @@ import { useEffect, useState } from "react";
 
 interface Folder { id: string; name: string; }
 interface Job { id: number; status: string; total: number; processed: number; errorMessage: string | null; }
-interface Photo { id: number; name: string; thumbnailPath: string | null; }
+interface Photo {
+  id: number;
+  name: string;
+  stage: string;
+  score: number | null;
+  rank: number | null;
+  reasons: string[] | null;
+  rejectReason: string | null;
+  errorMessage: string | null;
+}
 
 export function SorterClient() {
   const [connected, setConnected] = useState<boolean | null>(null);
@@ -86,14 +95,38 @@ export function SorterClient() {
             <p className="text-[color:#b42318]">Scan failed: {job.errorMessage}</p>
           ) : (
             <p className="text-muted">
-              {job.status === "done" ? "Done" : "Scanning"} — {job.processed} of {job.total}
+              {phaseLabel(job.status)} — {job.processed} of {job.total}
             </p>
           )}
-          <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-            {photos.map((p) => (
+
+          <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
+            {sortPhotos(photos).map((p) => (
               <div key={p.id} className="rounded-lg border border-line p-2">
-                <div className="aspect-square overflow-hidden rounded bg-canvas" />
-                <p className="mt-2 truncate text-xs text-muted" title={p.name}>{p.name}</p>
+                <div className="aspect-square overflow-hidden rounded bg-canvas">
+                  {p.stage === "ranked" || p.stage === "rejected" ? (
+                    <img src={`/api/thumb/${p.id}`} alt={p.name} className="h-full w-full object-cover" />
+                  ) : null}
+                </div>
+                <div className="mt-2 flex items-center justify-between gap-2">
+                  <p className="truncate text-xs text-muted" title={p.name}>{p.name}</p>
+                  {p.stage === "ranked" && p.score != null && (
+                    <span className="rounded bg-raised px-1.5 py-0.5 text-xs font-medium text-ink shadow-raisededge">{p.score}</span>
+                  )}
+                </div>
+                {p.stage === "ranked" && p.reasons?.length ? (
+                  <p className="mt-1 text-xs text-muted">{p.reasons.join(" · ")}</p>
+                ) : null}
+                {p.stage === "rejected" && (
+                  <p className="mt-1 text-xs text-muted">Skipped: {p.rejectReason}</p>
+                )}
+                {p.stage === "errored" && (
+                  <p className="mt-1 text-xs text-[color:#b42318]">Could not score</p>
+                )}
+                {p.stage === "ranked" && (
+                  <a className="btn mt-2 w-full justify-center text-xs" href={`/studio?photoId=${p.id}`}>
+                    Send to Headshot Studio
+                  </a>
+                )}
               </div>
             ))}
           </div>
@@ -101,4 +134,24 @@ export function SorterClient() {
       )}
     </div>
   );
+}
+
+function phaseLabel(status: string): string {
+  switch (status) {
+    case "scanning": return "Scanning folder";
+    case "heuristics": return "Checking image quality";
+    case "ranking": return "Scoring with Claude";
+    case "done": return "Done";
+    default: return status;
+  }
+}
+
+const STAGE_ORDER: Record<string, number> = { ranked: 0, pending: 1, rejected: 2, errored: 3 };
+function sortPhotos(photos: Photo[]): Photo[] {
+  return [...photos].sort((a, b) => {
+    const s = (STAGE_ORDER[a.stage] ?? 9) - (STAGE_ORDER[b.stage] ?? 9);
+    if (s !== 0) return s;
+    if (a.stage === "ranked") return (a.rank ?? 1e9) - (b.rank ?? 1e9);
+    return a.id - b.id;
+  });
 }
