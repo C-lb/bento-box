@@ -1,10 +1,30 @@
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, writeFile, readFile } from "node:fs/promises";
 import { resolve } from "node:path";
+import { eq } from "drizzle-orm";
 import { createScanJob, runIngest } from "@event-editor/core/ingest";
+import { runRanking } from "@event-editor/core/ranking";
+import { jobs } from "@event-editor/core/schema";
 import type { openDb } from "@event-editor/core/db";
 import type { DriveClient, DriveImage } from "./google/drive.js";
+import { computeMetrics } from "./metrics";
+import { visionClient, scorePhoto } from "./anthropic";
 
 type Db = ReturnType<typeof openDb>;
+
+async function withBackoff<T>(fn: () => Promise<T>, tries = 4): Promise<T> {
+  let lastErr: unknown;
+  for (let i = 0; i < tries; i++) {
+    try {
+      return await fn();
+    } catch (err: any) {
+      lastErr = err;
+      const status = err?.status ?? err?.statusCode;
+      if (status !== 429 && status !== 529) throw err;
+      await new Promise((r) => setTimeout(r, 500 * 2 ** i));
+    }
+  }
+  throw lastErr;
+}
 
 export function startScan(
   db: Db,
@@ -12,18 +32,39 @@ export function startScan(
   args: { folderId: string; folderName: string },
 ): number {
   const jobId = createScanJob(db, { driveFolderId: args.folderId, driveFolderName: args.folderName });
-  // fire-and-forget: ingest runs in the background, mutating the job row
-  void runIngest(db, jobId, args.folderId, {
-    listImages: (folderId) => drive.listImages(folderId),
-    saveThumbnail: async (jId, pId, image) => {
-      const bytes = await drive.downloadThumbnail(image as DriveImage);
-      if (!bytes) return null;
-      const dir = resolve("data/thumbs", String(jId));
-      await mkdir(dir, { recursive: true });
-      const rel = `data/thumbs/${jId}/${pId}.jpg`;
-      await writeFile(resolve("data/thumbs", String(jId), `${pId}.jpg`), bytes);
-      return rel;
-    },
-  });
+
+  void (async () => {
+    await runIngest(
+      db,
+      jobId,
+      args.folderId,
+      {
+        listImages: (folderId) => drive.listImages(folderId),
+        saveThumbnail: async (jId, pId, image) => {
+          const bytes = await drive.downloadThumbnail(image as DriveImage);
+          if (!bytes) return null;
+          await mkdir(resolve("data/thumbs", String(jId)), { recursive: true });
+          await writeFile(resolve("data/thumbs", String(jId), `${pId}.jpg`), bytes);
+          return `data/thumbs/${jId}/${pId}.jpg`;
+        },
+      },
+      { completeStatus: "heuristics" },
+    );
+
+    const job = db.select().from(jobs).where(eq(jobs.id, jobId)).all()[0];
+    if (!job || job.status === "error") return;
+
+    const client = visionClient();
+    await runRanking(db, jobId, {
+      getMetrics: (photo) => computeMetrics(resolve(photo.thumbnailPath!)),
+      scoreVision: async (photo) => {
+        const bytes = await readFile(resolve(photo.thumbnailPath!));
+        return withBackoff(() =>
+          scorePhoto(client, { base64: bytes.toString("base64"), mediaType: "image/jpeg", name: photo.name }),
+        );
+      },
+    });
+  })();
+
   return jobId;
 }
