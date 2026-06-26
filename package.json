@@ -5,6 +5,7 @@
   "type": "module",
   "workspaces": ["packages/*"],
   "scripts": {
+    "predev": "npm -w @event-editor/core run build",
     "dev": "EE_DB_PATH=\"$PWD/data/app.db\" npm -w @event-editor/web run dev",
     "build": "npm -w @event-editor/core run build && npm -w @event-editor/web run build",
     "test": "npm -ws --if-present run test",

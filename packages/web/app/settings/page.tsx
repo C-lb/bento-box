@@ -1,4 +1,4 @@
-import { getConnections } from "@event-editor/core";
+import { getConnections } from "@event-editor/core/settings";
 
 export default function Settings() {
   const connections = getConnections();
