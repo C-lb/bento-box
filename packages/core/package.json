@@ -17,7 +17,8 @@
     "./rank": "./dist/rank.js",
     "./ranking": "./dist/ranking.js",
     "./transcribe": "./dist/transcribe.js",
-    "./transcription": "./dist/transcription.js"
+    "./transcription": "./dist/transcription.js",
+    "./frames": "./dist/frames.js"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
