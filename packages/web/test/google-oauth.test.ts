@@ -18,12 +18,13 @@ vi.mock("googleapis", () => {
   };
 });
 
-const { makeOAuthClient, buildAuthUrl, exchangeCode, DRIVE_SCOPE } = await import("../lib/google/oauth.js");
+const { makeOAuthClient, buildAuthUrl, exchangeCode, DRIVE_SCOPE, DRIVE_FILE_SCOPE } = await import("../lib/google/oauth.js");
 
 describe("google oauth helpers", () => {
   it("builds an offline consent auth url with the drive scope", () => {
     const url = buildAuthUrl(makeOAuthClient());
     expect(url).toContain(encodeURI(DRIVE_SCOPE).replace(/:/g, ":")); // scope present
+    expect(url).toContain("drive.file");
     expect(url).toContain("access_type=offline");
     expect(url).toContain("prompt=consent");
   });
