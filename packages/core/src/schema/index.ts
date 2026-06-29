@@ -35,15 +35,19 @@ export const photos = sqliteTable("photos", {
 
 export const headshots = sqliteTable("headshots", {
   id: integer("id").primaryKey({ autoIncrement: true }),
-  source: text("source").notNull(), // sorter|upload
+  source: text("source").notNull(), // drive|upload|sorter
   sourcePhotoId: integer("source_photo_id").references(() => photos.id),
   sourceUploadPath: text("source_upload_path"),
-  canvaTemplateId: text("canva_template_id").notNull(),
+  sourceDriveFileId: text("source_drive_file_id"),
+  renderer: text("renderer").notNull().default("local"), // local|canva
+  canvaTemplateId: text("canva_template_id"), // nullable now (canva path only)
+  templateId: text("template_id"), // generic frame id, e.g. clean-band
   nameText: text("name_text"),
   titleText: text("title_text"),
   autofillJobId: text("autofill_job_id"),
   designId: text("design_id"),
-  status: text("status").notNull().default("autofilling"), // autofilling|exporting|done|error
+  status: text("status").notNull().default("rendering"), // rendering|autofilling|exporting|done|error
+  outputPath: text("output_path"),
   exportUrl: text("export_url"),
   errorMessage: text("error_message"),
   createdAt: integer("created_at").notNull().default(0),

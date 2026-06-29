@@ -39,12 +39,16 @@ const DDL = [
     source TEXT NOT NULL,
     source_photo_id INTEGER REFERENCES photos(id),
     source_upload_path TEXT,
-    canva_template_id TEXT NOT NULL,
+    source_drive_file_id TEXT,
+    renderer TEXT NOT NULL DEFAULT 'local',
+    canva_template_id TEXT,
+    template_id TEXT,
     name_text TEXT,
     title_text TEXT,
     autofill_job_id TEXT,
     design_id TEXT,
-    status TEXT NOT NULL DEFAULT 'autofilling',
+    status TEXT NOT NULL DEFAULT 'rendering',
+    output_path TEXT,
     export_url TEXT,
     error_message TEXT,
     created_at INTEGER NOT NULL DEFAULT 0,
@@ -74,10 +78,54 @@ const DDL = [
   )`,
 ];
 
+// Legacy DBs created before 4a have a Canva-only headshots table (NOT NULL
+// canva_template_id, missing renderer/template_id/output_path). CREATE TABLE
+// IF NOT EXISTS skips them, so rebuild in place. Detection: the `renderer`
+// column is absent. The copy is explicit (overlapping legacy columns only) so
+// no rows are lost; second run finds `renderer` present and no-ops.
+function migrateHeadshots(db: BetterSQLite3Database<any>): void {
+  const info = db.all(sql.raw("PRAGMA table_info(headshots)")) as Array<{ name: string }>;
+  const names = new Set(info.map((r) => r.name));
+  if (names.size === 0) return; // table didn't exist; DDL already made the new shape
+  if (names.has("renderer")) return; // already migrated
+
+  db.run(sql.raw("ALTER TABLE headshots RENAME TO headshots_legacy"));
+  db.run(sql.raw(`CREATE TABLE headshots (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    source TEXT NOT NULL,
+    source_photo_id INTEGER REFERENCES photos(id),
+    source_upload_path TEXT,
+    source_drive_file_id TEXT,
+    renderer TEXT NOT NULL DEFAULT 'local',
+    canva_template_id TEXT,
+    template_id TEXT,
+    name_text TEXT,
+    title_text TEXT,
+    autofill_job_id TEXT,
+    design_id TEXT,
+    status TEXT NOT NULL DEFAULT 'rendering',
+    output_path TEXT,
+    export_url TEXT,
+    error_message TEXT,
+    created_at INTEGER NOT NULL DEFAULT 0,
+    updated_at INTEGER NOT NULL DEFAULT 0
+  )`));
+  db.run(sql.raw(`INSERT INTO headshots
+    (id, source, source_photo_id, source_upload_path, canva_template_id,
+     name_text, title_text, autofill_job_id, design_id, status, export_url,
+     error_message, created_at, updated_at)
+    SELECT id, source, source_photo_id, source_upload_path, canva_template_id,
+     name_text, title_text, autofill_job_id, design_id, status, export_url,
+     error_message, created_at, updated_at
+    FROM headshots_legacy`));
+  db.run(sql.raw("DROP TABLE headshots_legacy"));
+}
+
 export function runMigrations(db: BetterSQLite3Database<any>): void {
   for (const stmt of DDL) {
     db.run(sql.raw(stmt));
   }
+  migrateHeadshots(db);
 }
 
 // CLI entry: `npm -w @event-editor/core run migrate`
