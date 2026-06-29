@@ -1,7 +1,10 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { buildVisionPrompt, type VisionScore } from "@event-editor/core/rank";
+import { buildSummaryPrompt } from "@event-editor/core/transcribe";
 
 export const VISION_MODEL = process.env.EE_VISION_MODEL ?? "claude-opus-4-8";
+
+export const SUMMARY_MODEL = process.env.EE_SUMMARY_MODEL ?? "claude-opus-4-8";
 
 const SCORE_SCHEMA = {
   type: "object",
@@ -51,4 +54,18 @@ export async function scorePhoto(
     ? parsed.reasons.slice(0, 3).map((r: unknown) => String(r))
     : [];
   return { score, reasons };
+}
+
+export async function summarizeTranscript(client: Anthropic, transcript: string): Promise<string> {
+  const res: any = await client.messages.create({
+    model: SUMMARY_MODEL,
+    max_tokens: 2048,
+    messages: buildSummaryPrompt(transcript),
+  } as any);
+  if (res.stop_reason === "refusal") {
+    throw new Error("summary model refused to summarize this transcript");
+  }
+  const text = (res.content ?? []).find((b: any) => b.type === "text")?.text ?? "";
+  if (!text.trim()) throw new Error("summary model returned empty output");
+  return text.trim();
 }

@@ -11,7 +11,13 @@ function fakeClient(payload: any, stop = "end_turn") {
   } as any;
 }
 
-const { scorePhoto, VISION_MODEL } = await import("../lib/anthropic.js");
+function textClient(text: string, stop = "end_turn") {
+  return {
+    messages: { create: vi.fn(async () => ({ stop_reason: stop, content: [{ type: "text", text }] })) },
+  } as any;
+}
+
+const { scorePhoto, VISION_MODEL, summarizeTranscript, SUMMARY_MODEL } = await import("../lib/anthropic.js");
 
 describe("scorePhoto", () => {
   it("returns the parsed score and reasons", async () => {
@@ -32,5 +38,20 @@ describe("scorePhoto", () => {
   });
   it("defaults the vision model to opus", () => {
     expect(VISION_MODEL).toContain("claude-");
+  });
+});
+
+describe("summarizeTranscript", () => {
+  it("returns the model's summary text", async () => {
+    const client = textClient("Here is a tidy summary.");
+    const out = await summarizeTranscript(client, "lots of words");
+    expect(out).toBe("Here is a tidy summary.");
+  });
+  it("throws on a refusal", async () => {
+    const client = textClient("", "refusal");
+    await expect(summarizeTranscript(client, "x")).rejects.toThrow();
+  });
+  it("defaults the summary model to a claude model", () => {
+    expect(SUMMARY_MODEL).toContain("claude-");
   });
 });
