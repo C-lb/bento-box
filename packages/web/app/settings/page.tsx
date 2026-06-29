@@ -12,7 +12,7 @@ async function SettingsBody({ searchParams }: { searchParams: Promise<{ google?:
   const connections = getConnections();
   const googleToken = getToken(getDb(), "google");
   const needsReauth =
-    googleToken !== null && !(googleToken.scope ?? "").includes("drive.file");
+    googleToken !== null && !(googleToken.scope ?? "").includes(DRIVE_FILE_SCOPE);
   return (
     <div>
       <p className="eyebrow">Settings</p>

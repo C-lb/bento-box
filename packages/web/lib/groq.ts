@@ -26,8 +26,11 @@ export async function transcribeChunk(path: string): Promise<ChunkResult> {
     const body = await res.text().catch(() => "");
     const err: any = new Error(`groq transcription failed: ${res.status} ${body.slice(0, 200)}`);
     err.status = res.status;
-    const retryAfter = Number(res.headers.get("Retry-After"));
-    if (Number.isFinite(retryAfter)) err.retryAfter = retryAfter;
+    const raHeader = res.headers.get("Retry-After");
+    if (raHeader !== null) {
+      const retryAfter = Number(raHeader);
+      if (Number.isFinite(retryAfter)) err.retryAfter = retryAfter;
+    }
     throw err;
   }
   const data: any = await res.json();
