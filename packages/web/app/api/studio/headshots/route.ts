@@ -7,20 +7,9 @@ import { getDb } from "@/lib/db";
 import { startHeadshot } from "@/lib/studio";
 import { authedDriveClient } from "@/lib/google/oauth";
 import { makeDriveClient } from "@/lib/google/drive";
+import { toHeadshotDto } from "@/lib/headshot-dto";
 
 export const runtime = "nodejs";
-
-function toDto(r: any) {
-  return {
-    id: r.id,
-    status: r.status,
-    templateId: r.templateId,
-    nameText: r.nameText,
-    titleText: r.titleText,
-    errorMessage: r.errorMessage,
-    imageUrl: r.status === "done" ? `/api/studio/image/${r.id}` : null,
-  };
-}
 
 export async function POST(request: Request) {
   const body = await request.json().catch(() => null);
@@ -47,5 +36,5 @@ export async function POST(request: Request) {
 
 export async function GET() {
   const rows = getDb().select().from(headshots).orderBy(desc(headshots.id)).limit(24).all();
-  return NextResponse.json({ headshots: rows.map(toDto) });
+  return NextResponse.json({ headshots: rows.map(toHeadshotDto) });
 }

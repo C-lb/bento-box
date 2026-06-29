@@ -16,10 +16,11 @@ function textSvg(line: TextLine, text: string): string {
 
 function buildOverlaySvg(frame: FrameSpec, nameText: string, titleText: string): string {
   const C = frame.canvas;
+  const defs: string[] = [];
   const parts: string[] = [];
   if (frame.plate) {
     const p = frame.plate;
-    parts.push(
+    defs.push(
       `<filter id="plateShadow" x="-20%" y="-20%" width="140%" height="140%">` +
         `<feDropShadow dx="0" dy="6" stdDeviation="12" flood-color="#000000" flood-opacity="0.18"/></filter>`,
     );
@@ -37,7 +38,7 @@ function buildOverlaySvg(frame: FrameSpec, nameText: string, titleText: string):
   }
   parts.push(textSvg(frame.name, nameText));
   parts.push(textSvg(frame.title, titleText));
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${C}" height="${C}"><defs></defs>${parts.join("")}</svg>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${C}" height="${C}"><defs>${defs.join("")}</defs>${parts.join("")}</svg>`;
 }
 
 export async function renderHeadshot(
@@ -53,7 +54,7 @@ export async function renderHeadshot(
   if (frame.photo.shape === "circle") {
     const r = Math.min(frame.photo.w, frame.photo.h) / 2;
     const mask = Buffer.from(
-      `<svg width="${frame.photo.w}" height="${frame.photo.h}">` +
+      `<svg xmlns="http://www.w3.org/2000/svg" width="${frame.photo.w}" height="${frame.photo.h}">` +
         `<circle cx="${frame.photo.w / 2}" cy="${frame.photo.h / 2}" r="${r}" fill="#fff"/></svg>`,
     );
     photoLayer = photoLayer.composite([{ input: mask, blend: "dest-in" }]);

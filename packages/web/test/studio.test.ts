@@ -1,5 +1,5 @@
 // packages/web/test/studio.test.ts
-import { describe, it, expect, beforeAll } from "vitest";
+import { describe, it, expect } from "vitest";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { mkdtempSync, existsSync } from "node:fs";

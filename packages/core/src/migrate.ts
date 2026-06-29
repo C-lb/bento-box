@@ -86,8 +86,9 @@ const DDL = [
 function migrateHeadshots(db: BetterSQLite3Database<any>): void {
   const info = db.all(sql.raw("PRAGMA table_info(headshots)")) as Array<{ name: string }>;
   const names = new Set(info.map((r) => r.name));
-  if (names.size === 0) return; // table didn't exist; DDL already made the new shape
-  if (names.has("renderer")) return; // already migrated
+  // DDL runs first so the table always exists here; skip once it's on the new
+  // shape (idempotent). The size===0 arm is defensive only.
+  if (names.size === 0 || names.has("renderer")) return;
 
   db.run(sql.raw("ALTER TABLE headshots RENAME TO headshots_legacy"));
   db.run(sql.raw(`CREATE TABLE headshots (

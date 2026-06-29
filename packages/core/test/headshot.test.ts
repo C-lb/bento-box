@@ -23,6 +23,8 @@ describe("headshot pipeline", () => {
     expect(r.status).toBe("rendering");
     expect(r.templateId).toBe("circle");
     expect(r.sourceDriveFileId).toBe("f1");
+    expect(r.source).toBe("drive");
+    expect(r.canvaTemplateId).toBeNull();
   });
 
   it("runHeadshotRender drives the row to done with an output path", async () => {
@@ -62,5 +64,6 @@ describe("headshot pipeline", () => {
       save: async () => "x",
     });
     expect(row(db, id).status).toBe("error");
+    expect(row(db, id).errorMessage).toContain("ghost");
   });
 });
