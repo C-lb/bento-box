@@ -58,6 +58,20 @@ const DDL = [
     scope TEXT,
     updated_at INTEGER NOT NULL DEFAULT 0
   )`,
+  `CREATE TABLE IF NOT EXISTS transcriptions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    original_filename TEXT NOT NULL,
+    source_upload_path TEXT NOT NULL,
+    duration_sec REAL,
+    status TEXT NOT NULL DEFAULT 'uploading',
+    transcript_text TEXT,
+    summary_text TEXT,
+    doc_id TEXT,
+    doc_url TEXT,
+    error_message TEXT,
+    created_at INTEGER NOT NULL DEFAULT 0,
+    updated_at INTEGER NOT NULL DEFAULT 0
+  )`,
 ];
 
 export function runMigrations(db: BetterSQLite3Database<any>): void {

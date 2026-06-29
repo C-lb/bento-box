@@ -1,4 +1,4 @@
-import type { jobs, photos, headshots } from "./schema/index.js";
+import type { jobs, photos, headshots, transcriptions } from "./schema/index.js";
 
 export type Job = typeof jobs.$inferSelect;
 export type NewJob = typeof jobs.$inferInsert;
@@ -10,3 +10,12 @@ export type NewHeadshot = typeof headshots.$inferInsert;
 export type JobStatus = "scanning" | "heuristics" | "ranking" | "done" | "error";
 export type PhotoStage = "pending" | "rejected" | "ranked" | "errored";
 export type HeadshotStatus = "autofilling" | "exporting" | "done" | "error";
+export type Transcription = typeof transcriptions.$inferSelect;
+export type NewTranscription = typeof transcriptions.$inferInsert;
+export type TranscriptionStatus =
+  | "uploading"
+  | "transcribing"
+  | "summarizing"
+  | "creating_doc"
+  | "done"
+  | "error";

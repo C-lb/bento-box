@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { sql } from "drizzle-orm";
 import { getTableColumns } from "drizzle-orm";
 import { openDb, runMigrations } from "../src/index.js";
-import { jobs, photos, headshots } from "../src/schema/index.js";
+import { jobs, photos, headshots, transcriptions } from "../src/schema/index.js";
 
 function freshDb() {
   const path = join(tmpdir(), `ee-drift-${Math.random().toString(36).slice(2)}.db`);
@@ -42,6 +42,13 @@ describe("schema drift guard", () => {
     const db = freshDb();
     const ddl = ddlColumns(db, "headshots");
     const schema = schemaColumns(headshots);
+    expect(ddl).toEqual(schema);
+  });
+
+  it("transcriptions DDL matches Drizzle schema", () => {
+    const db = freshDb();
+    const ddl = ddlColumns(db, "transcriptions");
+    const schema = schemaColumns(transcriptions);
     expect(ddl).toEqual(schema);
   });
 });

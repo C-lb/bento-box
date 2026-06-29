@@ -58,3 +58,18 @@ export const oauthTokens = sqliteTable("oauth_tokens", {
   scope: text("scope"),
   updatedAt: integer("updated_at").notNull().default(0),
 });
+
+export const transcriptions = sqliteTable("transcriptions", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  originalFilename: text("original_filename").notNull(),
+  sourceUploadPath: text("source_upload_path").notNull(),
+  durationSec: real("duration_sec"),
+  status: text("status").notNull().default("uploading"), // uploading|transcribing|summarizing|creating_doc|done|error
+  transcriptText: text("transcript_text"),
+  summaryText: text("summary_text"),
+  docId: text("doc_id"),
+  docUrl: text("doc_url"),
+  errorMessage: text("error_message"),
+  createdAt: integer("created_at").notNull().default(0),
+  updatedAt: integer("updated_at").notNull().default(0),
+});
