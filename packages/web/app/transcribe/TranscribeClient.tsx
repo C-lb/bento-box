@@ -15,6 +15,7 @@ export function TranscribeClient() {
   const [id, setId] = useState<number | null>(null);
   const [tx, setTx] = useState<Transcription | null>(null);
   const [busy, setBusy] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -37,14 +38,28 @@ export function TranscribeClient() {
     if (!file) return;
     setBusy(true);
     setTx(null);
-    const r = await fetch("/api/transcribe", {
-      method: "POST",
-      headers: { "x-filename": file.name },
-      body: file,
-    });
-    const data = await r.json();
-    setBusy(false);
-    if (data.id) setId(data.id);
+    setUploadError(null);
+    try {
+      const r = await fetch("/api/transcribe", {
+        method: "POST",
+        headers: { "x-filename": file.name },
+        body: file,
+      });
+      if (!r.ok) {
+        setUploadError("Upload failed. Please try again.");
+        return;
+      }
+      const data = await r.json();
+      if (!data.id) {
+        setUploadError("Upload failed. Please try again.");
+        return;
+      }
+      setId(data.id);
+    } catch (err) {
+      setUploadError(err instanceof Error ? err.message : "Upload failed. Please try again.");
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
@@ -55,6 +70,9 @@ export function TranscribeClient() {
           {busy ? "Uploading…" : "Transcribe"}
         </button>
       </div>
+      {uploadError && (
+        <p className="text-[color:#b42318] mt-3">{uploadError}</p>
+      )}
 
       {tx && (
         <div className="card mt-5">
