@@ -1,5 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
+import { StatusBadge } from "@/components/StatusBadge";
+import { transcriptionStatusView } from "@/lib/status";
 
 interface Transcription {
   id: number;
@@ -15,6 +17,7 @@ export function TranscribeClient() {
   const [id, setId] = useState<number | null>(null);
   const [tx, setTx] = useState<Transcription | null>(null);
   const [busy, setBusy] = useState(false);
+  const [hasFile, setHasFile] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -40,17 +43,9 @@ export function TranscribeClient() {
     setTx(null);
     setUploadError(null);
     try {
-      const r = await fetch("/api/transcribe", {
-        method: "POST",
-        headers: { "x-filename": file.name },
-        body: file,
-      });
-      if (!r.ok) {
-        setUploadError("Upload failed. Please try again.");
-        return;
-      }
-      const data = await r.json();
-      if (!data.id) {
+      const r = await fetch("/api/transcribe", { method: "POST", headers: { "x-filename": file.name }, body: file });
+      const data = await r.json().catch(() => null);
+      if (!r.ok || !data?.id) {
         setUploadError("Upload failed. Please try again.");
         return;
       }
@@ -62,26 +57,62 @@ export function TranscribeClient() {
     }
   }
 
+  async function retry() {
+    if (id == null) return;
+    setBusy(true);
+    try {
+      const r = await fetch(`/api/transcribe/${id}/retry`, { method: "POST" });
+      if (!r.ok) { setUploadError("Could not restart. Please try again."); return; }
+      setTx((t) => (t ? { ...t, status: "transcribing", errorMessage: null } : t));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function startOver() {
+    setId(null);
+    setTx(null);
+    setUploadError(null);
+    setHasFile(false);
+    if (fileRef.current) fileRef.current.value = "";
+  }
+
   return (
     <div className="mt-8">
       <div className="card flex flex-wrap items-center gap-3">
-        <input ref={fileRef} type="file" accept="audio/*,video/*,.m4a,.mp3,.wav,.flac,.ogg,.oga,.aac,.aiff,.wma,.mp4,.mov,.webm,.mkv" className="text-sm text-muted" />
-        <button className="btn btn-accent" onClick={upload} disabled={busy}>
+        <input
+          ref={fileRef}
+          type="file"
+          accept="audio/*,video/*,.m4a,.mp3,.wav,.flac,.ogg,.oga,.aac,.aiff,.wma,.mp4,.mov,.webm,.mkv"
+          className="text-sm text-muted"
+          onChange={(e) => setHasFile(!!e.target.files?.length)}
+        />
+        <button className="btn btn-accent" onClick={upload} disabled={busy || !hasFile}>
           {busy ? "Uploading…" : "Transcribe"}
         </button>
+        {!hasFile && <span className="text-sm text-muted">Add an audio file first</span>}
       </div>
-      {uploadError && (
-        <p className="text-[color:#b42318] mt-3">{uploadError}</p>
-      )}
+      {uploadError && <p className="mt-3 text-danger">{uploadError}</p>}
 
       {tx && (
         <div className="card mt-5">
           <p className="eyebrow">{tx.originalFilename}</p>
-          {tx.status === "error" ? (
-            <p className="text-[color:#b42318]">Failed: {tx.errorMessage}</p>
-          ) : tx.status === "done" ? (
+          <div className="mt-2">
+            <StatusBadge {...transcriptionStatusView(tx.status)} />
+          </div>
+
+          {tx.status === "error" && (
+            <div className="mt-3">
+              <p className="text-sm text-danger">{tx.errorMessage ?? "Something went wrong."}</p>
+              <div className="mt-3 flex gap-2">
+                <button className="btn btn-accent" onClick={retry} disabled={busy}>Try again</button>
+                <button className="btn" onClick={startOver}>Start over</button>
+              </div>
+            </div>
+          )}
+
+          {tx.status === "done" && (
             <>
-              <p className="text-success">Done.</p>
               {tx.docUrl && (
                 <a className="btn btn-accent mt-3" href={tx.docUrl} target="_blank" rel="noreferrer">
                   Open in Google Docs
@@ -94,21 +125,9 @@ export function TranscribeClient() {
                 </div>
               )}
             </>
-          ) : (
-            <p className="text-muted">{phaseLabel(tx.status)}</p>
           )}
         </div>
       )}
     </div>
   );
-}
-
-function phaseLabel(status: string): string {
-  switch (status) {
-    case "uploading": return "Uploading";
-    case "transcribing": return "Transcribing audio";
-    case "summarizing": return "Summarizing with Claude";
-    case "creating_doc": return "Creating the Google Doc";
-    default: return status;
-  }
 }
