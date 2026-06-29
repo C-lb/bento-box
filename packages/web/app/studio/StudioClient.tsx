@@ -85,7 +85,7 @@ export function StudioClient() {
   return (
     <div className="mt-8 space-y-6">
       <div className="card">
-        <p className="eyebrow">Step 1 — choose a photo</p>
+        <p className="eyebrow">Step 1: choose a photo</p>
         <select
           className="mt-3 rounded-lg border border-line bg-surface px-3 py-2"
           value={folderId}
@@ -112,7 +112,7 @@ export function StudioClient() {
       </div>
 
       <div className="card">
-        <p className="eyebrow">Step 2 — pick a frame</p>
+        <p className="eyebrow">Step 2: pick a frame</p>
         <div className="mt-3 flex flex-wrap gap-3">
           {FRAME_LIST.map((f) => (
             <button
@@ -123,12 +123,12 @@ export function StudioClient() {
               {f.label}
             </button>
           ))}
-          <span className="self-center text-muted">Canva brand templates — coming soon</span>
+          <span className="self-center text-muted">Canva brand templates, coming soon</span>
         </div>
       </div>
 
       <div className="card">
-        <p className="eyebrow">Step 3 — details</p>
+        <p className="eyebrow">Step 3: details</p>
         <div className="mt-3 flex flex-col gap-3 sm:max-w-md">
           <input className="rounded-lg border border-line bg-surface px-3 py-2" placeholder="Name"
             value={nameText} onChange={(e) => setNameText(e.target.value)} />
