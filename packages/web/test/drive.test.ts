@@ -27,3 +27,20 @@ describe("drive client adapter", () => {
     expect(imgs[0]).toMatchObject({ name: "a.jpg", mimeType: "image/jpeg", thumbnailLink: "t1" });
   });
 });
+
+describe("downloadFile", () => {
+  it("returns the raw bytes from files.get alt=media", async () => {
+    const fake = {
+      files: {
+        get: async (params: any) => {
+          expect(params.fileId).toBe("F1");
+          expect(params.alt).toBe("media");
+          return { data: new TextEncoder().encode("RAWBYTES").buffer };
+        },
+      },
+      context: { _options: { auth: {} } },
+    };
+    const buf = await makeDriveClient(fake as any).downloadFile("F1");
+    expect(buf.toString()).toBe("RAWBYTES");
+  });
+});

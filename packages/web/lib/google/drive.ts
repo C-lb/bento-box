@@ -14,6 +14,8 @@ export interface DriveClient {
   listFolders(): Promise<DriveFolder[]>;
   listImages(folderId: string): Promise<DriveImage[]>;
   downloadThumbnail(image: DriveImage): Promise<Buffer | null>;
+  downloadFile(fileId: string): Promise<Buffer>;
+  thumbnailFor(fileId: string): Promise<Buffer | null>;
 }
 
 export function makeDriveClient(drive: drive_v3.Drive): DriveClient {
@@ -55,6 +57,24 @@ export function makeDriveClient(drive: drive_v3.Drive): DriveClient {
         // drive client shares the OAuth2 auth; reuse its request to carry credentials
         const res = await (drive.context._options.auth as any).request({
           url: image.thumbnailLink,
+          responseType: "arraybuffer",
+        });
+        return Buffer.from(res.data as ArrayBuffer);
+      } catch {
+        return null;
+      }
+    },
+    async downloadFile(fileId: string) {
+      const res = await drive.files.get({ fileId, alt: "media" }, { responseType: "arraybuffer" });
+      return Buffer.from(res.data as ArrayBuffer);
+    },
+    async thumbnailFor(fileId: string) {
+      const meta = await drive.files.get({ fileId, fields: "thumbnailLink" });
+      const link = meta.data.thumbnailLink;
+      if (!link) return null;
+      try {
+        const res = await (drive.context._options.auth as any).request({
+          url: link,
           responseType: "arraybuffer",
         });
         return Buffer.from(res.data as ArrayBuffer);
