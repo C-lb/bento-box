@@ -10,3 +10,4 @@ export * from "./ranking.js";
 export * from "./transcribe.js";
 export * from "./transcription.js";
 export * from "./frames.js";
+export * from "./headshot.js";
