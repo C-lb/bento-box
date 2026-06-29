@@ -132,9 +132,5 @@ export function runMigrations(db: BetterSQLite3Database<any>): void {
 // CLI entry: `npm -w @event-editor/core run migrate`
 if (import.meta.url === `file://${process.argv[1]}`) {
   runMigrations(openDb());
-  console.log(`migrated ${getDbPathLabel()}`);
-}
-
-function getDbPathLabel(): string {
-  return process.env.EE_DB_PATH ?? "./data/app.db";
+  console.log(`migrated ${process.env.EE_DB_PATH ?? "./data/app.db"}`);
 }

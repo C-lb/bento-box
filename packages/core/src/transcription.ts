@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import type { BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
 import { transcriptions } from "./schema/index.js";
-import { mergeSegments, buildTranscriptHtml, type ChunkResult, type MergedSegment } from "./transcribe.js";
+import { mergeSegments, buildTranscriptHtml, docBaseName, type ChunkResult, type MergedSegment } from "./transcribe.js";
 
 export interface PreparedChunks {
   paths: string[];
@@ -71,7 +71,7 @@ export async function runTranscription(
     touch(db, id, { summaryText: summary, status: "creating_doc" });
 
     const html = buildTranscriptHtml(summary, segments);
-    const docName = row.originalFilename.replace(/\.[^.]+$/, "") + " transcript";
+    const docName = docBaseName(row.originalFilename) + " transcript";
     const doc = await deps.createDoc(html, docName);
     touch(db, id, { docId: doc.id, docUrl: doc.url, status: "done" });
   } catch (err) {

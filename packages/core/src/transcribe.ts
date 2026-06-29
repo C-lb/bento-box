@@ -32,7 +32,7 @@ export function planChunks(durationSec: number, chunkSec: number): PlannedChunk[
 export function mergeSegments(chunkResults: ChunkResult[], offsets: number[]): MergedSegment[] {
   const out: MergedSegment[] = [];
   chunkResults.forEach((chunk, i) => {
-    const offset = offsets[i] ?? i * 0;
+    const offset = offsets[i] ?? 0;
     for (const seg of chunk.segments) {
       const text = seg.text.trim();
       if (!text) continue;
@@ -69,6 +69,20 @@ export function buildTranscriptHtml(summary: string, segments: MergedSegment[]):
     .map((seg) => `<p>[${formatTimestamp(seg.startSec)}] ${escapeHtml(seg.text)}</p>`)
     .join("");
   return `<h1>Summary</h1>${summaryParas}<h1>Transcript</h1>${lines}`;
+}
+
+const MEDIA_EXTS = new Set([
+  "mp3", "m4a", "wav", "flac", "ogg", "oga", "aac", "aiff", "wma",
+  "mp4", "mov", "webm", "mkv", "m4v",
+]);
+
+// Drop a single trailing extension only when it's a recognized audio/video
+// extension, so "notes.txt" and "talk.mp3.bak" are left untouched.
+export function docBaseName(filename: string): string {
+  const dot = filename.lastIndexOf(".");
+  if (dot <= 0) return filename;
+  const ext = filename.slice(dot + 1).toLowerCase();
+  return MEDIA_EXTS.has(ext) ? filename.slice(0, dot) : filename;
 }
 
 export function buildSummaryPrompt(transcript: string): { role: "user"; content: string }[] {

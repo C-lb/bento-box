@@ -5,6 +5,7 @@ import {
   formatTimestamp,
   buildTranscriptHtml,
   buildSummaryPrompt,
+  docBaseName,
 } from "../src/transcribe.js";
 
 describe("planChunks", () => {
@@ -68,5 +69,18 @@ describe("buildSummaryPrompt", () => {
     expect(msgs).toHaveLength(1);
     expect(msgs[0].role).toBe("user");
     expect(msgs[0].content).toContain("the words");
+  });
+});
+
+describe("docBaseName", () => {
+  it("strips a trailing media extension", () => {
+    expect(docBaseName("recording.m4a")).toBe("recording");
+    expect(docBaseName("Team Sync.mp3")).toBe("Team Sync");
+    expect(docBaseName("clip.MP4")).toBe("clip");
+  });
+  it("leaves non-media names unchanged", () => {
+    expect(docBaseName("notes.txt")).toBe("notes.txt");
+    expect(docBaseName("talk.mp3.bak")).toBe("talk.mp3.bak");
+    expect(docBaseName("plain")).toBe("plain");
   });
 });
