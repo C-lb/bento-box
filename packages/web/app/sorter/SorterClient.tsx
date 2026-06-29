@@ -1,5 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
+import { StatusBadge } from "@/components/StatusBadge";
+import { jobStatusView } from "@/lib/status";
 
 interface Folder { id: string; name: string; }
 interface Job { id: number; status: string; total: number; processed: number; errorMessage: string | null; }
@@ -36,12 +38,11 @@ export function SorterClient() {
     if (jobId == null) return;
     const tick = async () => {
       const r = await fetch(`/api/sorter/jobs/${jobId}`);
-      if (!r.ok) return;
+      if (!r.ok) return false;
       const data = await r.json();
       setJob(data.job);
       setPhotos(data.photos ?? []);
-      if (data.job.status === "done" || data.job.status === "error") return true;
-      return false;
+      return data.job.status === "done" || data.job.status === "error";
     };
     let stop = false;
     const loop = async () => { while (!stop) { if (await tick()) break; await new Promise((r) => setTimeout(r, 1000)); } };
@@ -52,15 +53,24 @@ export function SorterClient() {
   async function scan() {
     if (!folderId) return;
     setBusy(true);
-    const folder = folders.find((f) => f.id === folderId);
-    const r = await fetch("/api/sorter/jobs", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ folderId, folderName: folder?.name }),
-    });
-    const data = await r.json();
-    setBusy(false);
-    if (data.jobId) { setJobId(data.jobId); setJob(null); setPhotos([]); }
+    try {
+      const folder = folders.find((f) => f.id === folderId);
+      const r = await fetch("/api/sorter/jobs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ folderId, folderName: folder?.name }),
+      });
+      const data = await r.json();
+      if (data.jobId) { setJobId(data.jobId); setJob(null); setPhotos([]); }
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function startOver() {
+    setJobId(null);
+    setJob(null);
+    setPhotos([]);
   }
 
   if (connected === false) {
@@ -74,7 +84,7 @@ export function SorterClient() {
 
   return (
     <div className="mt-8">
-      <div className="card flex items-center gap-3">
+      <div className="card flex flex-wrap items-center gap-3">
         <select
           className="rounded-lg border border-line bg-surface px-3 py-2"
           value={folderId}
@@ -86,64 +96,65 @@ export function SorterClient() {
         <button className="btn btn-accent" onClick={scan} disabled={!folderId || busy}>
           {busy ? "Starting…" : "Scan folder"}
         </button>
+        {!folderId && <span className="text-sm text-muted">Pick a folder first</span>}
       </div>
 
       {job && (
         <div className="card mt-5">
-          <p className="eyebrow">Scan</p>
-          {job.status === "error" ? (
-            <p className="text-[color:#b42318]">Scan failed: {job.errorMessage}</p>
-          ) : (
-            <p className="text-muted">
-              {phaseLabel(job.status)} — {job.processed} of {job.total}
-            </p>
+          <div className="flex items-center justify-between gap-3">
+            <StatusBadge {...jobStatusView(job.status)} />
+            {job.status !== "error" && (
+              <span className="text-sm text-muted">{job.processed} of {job.total}</span>
+            )}
+          </div>
+
+          {job.status === "error" && (
+            <div className="mt-3">
+              <p className="text-sm text-danger">{job.errorMessage ?? "Something went wrong."}</p>
+              <div className="mt-3 flex gap-2">
+                <button className="btn btn-accent" onClick={scan} disabled={busy}>Scan again</button>
+                <button className="btn" onClick={startOver}>Start over</button>
+              </div>
+            </div>
           )}
 
-          <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
-            {sortPhotos(photos).map((p) => (
-              <div key={p.id} className="rounded-lg border border-line p-2">
-                <div className="aspect-square overflow-hidden rounded bg-canvas">
-                  {p.stage === "ranked" || p.stage === "rejected" ? (
-                    <img src={`/api/thumb/${p.id}`} alt={p.name} className="h-full w-full object-cover" />
+          {job.status !== "error" && (
+            <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
+              {sortPhotos(photos).map((p) => (
+                <div key={p.id} className="rounded-lg border border-line p-2">
+                  <div className="aspect-square overflow-hidden rounded bg-canvas">
+                    {p.stage === "ranked" || p.stage === "rejected" || p.stage === "errored" ? (
+                      <img src={`/api/thumb/${p.id}`} alt={p.name} className="h-full w-full object-cover" />
+                    ) : null}
+                  </div>
+                  <div className="mt-2 flex items-center justify-between gap-2">
+                    <p className="truncate text-xs text-muted" title={p.name}>{p.name}</p>
+                    {p.stage === "ranked" && p.score != null && (
+                      <span className="rounded bg-raised px-1.5 py-0.5 text-xs font-medium text-ink shadow-raisededge">{p.score}</span>
+                    )}
+                  </div>
+                  {p.stage === "ranked" && p.reasons?.length ? (
+                    <p className="mt-1 text-xs text-muted">{p.reasons.join(" · ")}</p>
                   ) : null}
-                </div>
-                <div className="mt-2 flex items-center justify-between gap-2">
-                  <p className="truncate text-xs text-muted" title={p.name}>{p.name}</p>
-                  {p.stage === "ranked" && p.score != null && (
-                    <span className="rounded bg-raised px-1.5 py-0.5 text-xs font-medium text-ink shadow-raisededge">{p.score}</span>
+                  {p.stage === "rejected" && (
+                    <p className="mt-1 text-xs text-muted">Skipped: {p.rejectReason}</p>
+                  )}
+                  {p.stage === "errored" && (
+                    <p className="mt-1 text-xs text-danger">Could not score{p.errorMessage ? `: ${p.errorMessage}` : ""}</p>
+                  )}
+                  {p.stage === "ranked" && (
+                    <a className="btn mt-2 w-full justify-center text-xs" href={`/studio?photoId=${p.id}`}>
+                      Send to Headshot Studio
+                    </a>
                   )}
                 </div>
-                {p.stage === "ranked" && p.reasons?.length ? (
-                  <p className="mt-1 text-xs text-muted">{p.reasons.join(" · ")}</p>
-                ) : null}
-                {p.stage === "rejected" && (
-                  <p className="mt-1 text-xs text-muted">Skipped: {p.rejectReason}</p>
-                )}
-                {p.stage === "errored" && (
-                  <p className="mt-1 text-xs text-[color:#b42318]">Could not score</p>
-                )}
-                {p.stage === "ranked" && (
-                  <a className="btn mt-2 w-full justify-center text-xs" href={`/studio?photoId=${p.id}`}>
-                    Send to Headshot Studio
-                  </a>
-                )}
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>
   );
-}
-
-function phaseLabel(status: string): string {
-  switch (status) {
-    case "scanning": return "Scanning folder";
-    case "heuristics": return "Checking image quality";
-    case "ranking": return "Scoring with Claude";
-    case "done": return "Done";
-    default: return status;
-  }
 }
 
 const STAGE_ORDER: Record<string, number> = { ranked: 0, pending: 1, rejected: 2, errored: 3 };
