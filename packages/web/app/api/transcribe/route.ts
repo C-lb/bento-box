@@ -27,14 +27,27 @@ export async function POST(request: Request) {
 
   const dir = resolve("data/uploads", String(id));
   const path = resolve(dir, filename);
-  await mkdir(dir, { recursive: true });
-  await pipeline(Readable.fromWeb(request.body as any), createWriteStream(path));
 
-  db.update(transcriptions)
-    .set({ sourceUploadPath: `data/uploads/${id}/${filename}`, updatedAt: Date.now() })
-    .where(eq(transcriptions.id, id))
-    .run();
+  try {
+    await mkdir(dir, { recursive: true });
+    await pipeline(Readable.fromWeb(request.body as any), createWriteStream(path));
 
-  startTranscription(db, id);
-  return NextResponse.json({ id });
+    db.update(transcriptions)
+      .set({ sourceUploadPath: `data/uploads/${id}/${filename}`, updatedAt: Date.now() })
+      .where(eq(transcriptions.id, id))
+      .run();
+
+    startTranscription(db, id);
+    return NextResponse.json({ id });
+  } catch (err) {
+    db.update(transcriptions)
+      .set({
+        status: "error",
+        errorMessage: err instanceof Error ? err.message : String(err),
+        updatedAt: Date.now(),
+      })
+      .where(eq(transcriptions.id, id))
+      .run();
+    return NextResponse.json({ id, error: "upload failed" }, { status: 500 });
+  }
 }
