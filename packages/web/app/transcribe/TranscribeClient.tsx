@@ -19,6 +19,7 @@ export function TranscribeClient() {
   const [busy, setBusy] = useState(false);
   const [hasFile, setHasFile] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [retryNonce, setRetryNonce] = useState(0);
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -34,7 +35,7 @@ export function TranscribeClient() {
     const loop = async () => { while (!stop) { if (await tick()) break; await new Promise((r) => setTimeout(r, 1500)); } };
     loop();
     return () => { stop = true; };
-  }, [id]);
+  }, [id, retryNonce]);
 
   async function upload() {
     const file = fileRef.current?.files?.[0];
@@ -64,6 +65,7 @@ export function TranscribeClient() {
       const r = await fetch(`/api/transcribe/${id}/retry`, { method: "POST" });
       if (!r.ok) { setUploadError("Could not restart. Please try again."); return; }
       setTx((t) => (t ? { ...t, status: "transcribing", errorMessage: null } : t));
+      setRetryNonce((n) => n + 1);
     } finally {
       setBusy(false);
     }
