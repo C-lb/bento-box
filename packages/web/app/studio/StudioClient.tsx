@@ -1,6 +1,8 @@
 "use client";
 import { useEffect, useState } from "react";
 import { FRAME_LIST } from "@event-editor/core/frames";
+import { StatusBadge } from "@/components/StatusBadge";
+import { headshotStatusView } from "@/lib/status";
 
 interface Folder { id: string; name: string; }
 interface DriveImg { id: string; name: string; }
@@ -73,6 +75,17 @@ export function StudioClient() {
     }
   }
 
+  function startOver() {
+    setFolderId("");
+    setImages([]);
+    setFileId("");
+    setNameText("");
+    setTitleText("");
+    setHsId(null);
+    setHs(null);
+    setErr(null);
+  }
+
   if (connected === false) {
     return (
       <div className="card mt-8">
@@ -138,22 +151,34 @@ export function StudioClient() {
         <button className="btn btn-accent mt-4" onClick={generate} disabled={!fileId || busy}>
           {busy ? "Starting…" : "Generate headshot"}
         </button>
+        {!fileId && <p className="mt-2 text-sm text-muted">Choose a photo first</p>}
         {err && <p className="mt-3 text-muted">{err}</p>}
       </div>
 
       {hs && (
         <div className="card">
           <p className="eyebrow">Result</p>
-          {hs.status === "error" ? (
-            <p className="mt-3 text-muted">Render failed: {hs.errorMessage}</p>
-          ) : hs.status === "done" && hs.imageUrl ? (
+          <div className="mt-2">
+            <StatusBadge {...headshotStatusView(hs.status)} />
+          </div>
+          {hs.status === "error" && (
+            <div className="mt-3">
+              <p className="text-sm text-danger">{hs.errorMessage ?? "Something went wrong."}</p>
+              <div className="mt-3 flex gap-2">
+                <button className="btn btn-accent" onClick={generate} disabled={busy}>Try again</button>
+                <button className="btn" onClick={startOver}>Start over</button>
+              </div>
+            </div>
+          )}
+          {hs.status === "done" && hs.imageUrl && (
             <div className="mt-3">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={hs.imageUrl} alt="headshot" className="w-72 rounded-lg border border-line" />
-              <a className="btn btn-accent mt-4" href={hs.imageUrl} download={`headshot-${hs.id}.png`}>Download PNG</a>
+              <div className="mt-4 flex gap-2">
+                <a className="btn btn-accent" href={hs.imageUrl} download={`headshot-${hs.id}.png`}>Download PNG</a>
+                <button className="btn" onClick={startOver}>Start over</button>
+              </div>
             </div>
-          ) : (
-            <p className="mt-3 text-muted">Rendering…</p>
           )}
         </div>
       )}
