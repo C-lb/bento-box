@@ -27,7 +27,9 @@ export function makeDriveClient(drive: drive_v3.Drive): DriveClient {
         orderBy: "name",
         pageSize: 100,
       });
-      return (res.data.files ?? []).map((f) => ({ id: f.id!, name: f.name ?? "(untitled)" }));
+      return (res.data.files ?? [])
+        .filter((f): f is typeof f & { id: string } => !!f.id)
+        .map((f) => ({ id: f.id, name: f.name ?? "(untitled)" }));
     },
     async listImages(folderId: string) {
       const out: DriveImage[] = [];
@@ -40,8 +42,9 @@ export function makeDriveClient(drive: drive_v3.Drive): DriveClient {
           pageToken,
         });
         for (const f of res.data.files ?? []) {
+          if (!f.id) continue;
           out.push({
-            id: f.id!,
+            id: f.id,
             name: f.name ?? "(untitled)",
             mimeType: f.mimeType ?? "application/octet-stream",
             thumbnailLink: f.thumbnailLink ?? null,

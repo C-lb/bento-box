@@ -18,7 +18,7 @@ async function SettingsBody({ searchParams }: { searchParams: Promise<{ google?:
       <p className="eyebrow">Settings</p>
       <h1 className="mt-1 text-2xl font-semibold">Connections</h1>
       {google === "connected" && <p className="mt-3 text-success">Google connected.</p>}
-      {google === "error" && <p className="mt-3 text-[color:#b42318]">Google connection failed. Try again.</p>}
+      {google === "error" && <p className="mt-3 text-danger">Google connection failed. Try again.</p>}
       <ul className="mt-8 space-y-3">
         {connections.map((c) => (
           <li key={c.id} className="card flex items-center justify-between">

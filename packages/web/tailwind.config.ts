@@ -13,6 +13,7 @@ export default {
         ink: "#1a1d23",
         muted: "#5f6b7a",
         success: "#16a34a",
+        danger: "#b42318",
       },
       fontFamily: {
         sans: ["DM Sans", "system-ui", "sans-serif"],

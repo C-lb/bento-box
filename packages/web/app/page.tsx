@@ -16,7 +16,7 @@ export default function Home() {
           href="/studio"
           eyebrow="Headshot studio"
           title="Build a branded headshot"
-          body="Drop a photo into a Canva brand template and export a finished headshot."
+          body="Turn a Google Drive photo into a clean, branded headshot you can download."
         />
         <ToolCard
           href="/transcribe"
