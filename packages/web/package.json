@@ -19,6 +19,7 @@
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "sharp": "^0.33.5",
+    "text-to-svg": "^3.1.5",
     "zod": "^3.23.0"
   },
   "devDependencies": {
