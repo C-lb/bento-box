@@ -12,7 +12,7 @@ import { createGoogleDoc } from "./google/docs";
 
 type Db = ReturnType<typeof openDb>;
 
-async function withBackoff<T>(fn: () => Promise<T>, tries = 5): Promise<T> {
+async function withBackoff<T>(fn: () => Promise<T>, tries = 6): Promise<T> {
   let lastErr: unknown;
   for (let i = 0; i < tries; i++) {
     try {
@@ -21,7 +21,11 @@ async function withBackoff<T>(fn: () => Promise<T>, tries = 5): Promise<T> {
       lastErr = err;
       const status = err?.status ?? err?.statusCode;
       if (status !== 429 && status !== 529) throw err;
-      await new Promise((r) => setTimeout(r, 1000 * 2 ** i));
+      const delayMs =
+        typeof err?.retryAfter === "number" && Number.isFinite(err.retryAfter)
+          ? Math.min(err.retryAfter * 1000, 300_000)
+          : 1000 * 2 ** i;
+      await new Promise((r) => setTimeout(r, delayMs));
     }
   }
   throw lastErr;
@@ -42,21 +46,22 @@ export function startTranscription(db: Db, id: number): void {
 
   const client = visionClient();
 
-  void runTranscription(db, id, {
-    prepareChunks: async (sourcePath, chunkSec) => {
-      const durationSec = await probeDuration(resolve(sourcePath));
-      const outDir = resolve(dirname(resolve(sourcePath)), "chunks");
-      const paths = await transcodeAndSegment(resolve(sourcePath), outDir, chunkSec);
-      const offsets = planChunks(durationSec, chunkSec).map((c) => c.startSec);
-      while (offsets.length < paths.length) offsets.push(offsets.length * chunkSec);
-      return { paths, offsets: offsets.slice(0, paths.length), durationSec };
-    },
-    transcribeChunk: (path) => withBackoff(() => transcribeChunk(path)),
-    summarize: (transcript) => withBackoff(() => summarizeTranscript(client, transcript)),
-    createDoc: async (html, name) => {
-      const drive = await authedDriveClient(db);
-      if (!drive) throw new Error("Google is not connected. Re-auth on /settings.");
-      return createGoogleDoc(drive, html, name);
-    },
-  });
+  void (async () => {
+    const drive = await authedDriveClient(db);
+    if (!drive) { fail(db, id, "Google is not connected. Re-auth on /settings."); return; }
+
+    await runTranscription(db, id, {
+      prepareChunks: async (sourcePath, chunkSec) => {
+        const durationSec = await probeDuration(resolve(sourcePath));
+        const outDir = resolve(dirname(resolve(sourcePath)), "chunks");
+        const paths = await transcodeAndSegment(resolve(sourcePath), outDir, chunkSec);
+        const offsets = planChunks(durationSec, chunkSec).map((c) => c.startSec);
+        while (offsets.length < paths.length) offsets.push(offsets.length * chunkSec);
+        return { paths, offsets: offsets.slice(0, paths.length), durationSec };
+      },
+      transcribeChunk: (path) => withBackoff(() => transcribeChunk(path)),
+      summarize: (transcript) => withBackoff(() => summarizeTranscript(client, transcript)),
+      createDoc: (html, name) => createGoogleDoc(drive, html, name),
+    });
+  })();
 }
