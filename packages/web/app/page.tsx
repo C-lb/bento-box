@@ -3,9 +3,9 @@ import { ToolCard } from "@/components/ToolCard";
 export default function Home() {
   return (
     <div>
-      <p className="eyebrow">Two tools, one workspace</p>
+      <p className="eyebrow">Three tools, one workspace</p>
       <h1 className="mt-1 text-2xl font-semibold">What do you want to do</h1>
-      <div className="mt-8 grid gap-5 sm:grid-cols-2">
+      <div className="mt-8 grid gap-5 sm:grid-cols-3">
         <ToolCard
           href="/sorter"
           eyebrow="Photo sorter"
@@ -17,6 +17,12 @@ export default function Home() {
           eyebrow="Headshot studio"
           title="Build a branded headshot"
           body="Drop a photo into a Canva brand template and export a finished headshot."
+        />
+        <ToolCard
+          href="/transcribe"
+          eyebrow="Audio transcriber"
+          title="Transcribe audio to a Google Doc"
+          body="Upload a large audio file and get a Google Doc with a summary and the full timestamped transcript."
         />
       </div>
     </div>
