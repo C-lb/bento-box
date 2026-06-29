@@ -65,7 +65,7 @@ export function TranscribeClient() {
   return (
     <div className="mt-8">
       <div className="card flex flex-wrap items-center gap-3">
-        <input ref={fileRef} type="file" accept="audio/*,video/*" className="text-sm text-muted" />
+        <input ref={fileRef} type="file" accept="audio/*,video/*,.m4a,.mp3,.wav,.flac,.ogg,.oga,.aac,.aiff,.wma,.mp4,.mov,.webm,.mkv" className="text-sm text-muted" />
         <button className="btn btn-accent" onClick={upload} disabled={busy}>
           {busy ? "Uploading…" : "Transcribe"}
         </button>
