@@ -1,4 +1,4 @@
-export type ConnectionId = "google" | "anthropic" | "canva";
+export type ConnectionId = "google" | "anthropic" | "canva" | "groq";
 
 export interface Connection {
   id: ConnectionId;
@@ -12,6 +12,7 @@ const REQUIRED: Record<ConnectionId, { label: string; vars: string[] }> = {
   google: { label: "Google Drive", vars: ["GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET"] },
   anthropic: { label: "Claude (Anthropic)", vars: ["ANTHROPIC_API_KEY"] },
   canva: { label: "Canva", vars: ["CANVA_CLIENT_ID", "CANVA_CLIENT_SECRET"] },
+  groq: { label: "Groq (transcription)", vars: ["GROQ_API_KEY"] },
 };
 
 export function getConnections(env: Env = process.env): Connection[] {
