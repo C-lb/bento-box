@@ -1,6 +1,10 @@
 import { getConnections } from "@event-editor/core/settings";
 import { StudioClient } from "./StudioClient";
 
+// Gates on a runtime API key (process.env); must render per request, not as a
+// build-time static prerender (CI builds with no keys). See transcribe/page.tsx.
+export const dynamic = "force-dynamic";
+
 export default function StudioPage() {
   const google = getConnections().find((c) => c.id === "google");
   return (

@@ -1,6 +1,11 @@
 import { getConnections } from "@event-editor/core/settings";
 import { TranscribeClient } from "./TranscribeClient";
 
+// Reads API keys from process.env at render. Must run per request: the packaged
+// app injects keys at launch from the per-user .env, so a build-time static
+// prerender (no keys in CI) would freeze the "not configured" gate forever.
+export const dynamic = "force-dynamic";
+
 export default function TranscribePage() {
   const conns = getConnections();
   const groq = conns.find((c) => c.id === "groq");
