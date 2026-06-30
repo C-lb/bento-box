@@ -1,6 +1,11 @@
 import type { TokenInput } from "@event-editor/core/tokens";
+import { publicUrl } from "../paths";
 
-export const CANVA_REDIRECT = "http://127.0.0.1:3000/api/canva/callback";
+export function canvaRedirect(): string {
+  // Canva rejects "localhost"; force the loopback host to 127.0.0.1.
+  return `${publicUrl().replace("localhost", "127.0.0.1")}/api/canva/callback`;
+}
+export const CANVA_REDIRECT = canvaRedirect();
 export const CANVA_SCOPES = [
   "brandtemplate:meta:read",
   "brandtemplate:content:read",

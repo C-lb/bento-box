@@ -3,6 +3,7 @@ import type { OAuth2Client } from "google-auth-library";
 import type { drive_v3 } from "googleapis";
 import { getToken, saveToken, type TokenInput } from "@event-editor/core/tokens";
 import { openDb } from "@event-editor/core/db";
+import { publicUrl } from "../paths";
 
 export const DRIVE_SCOPE = "https://www.googleapis.com/auth/drive.readonly";
 export const DRIVE_FILE_SCOPE = "https://www.googleapis.com/auth/drive.file";
@@ -12,7 +13,7 @@ export function makeOAuthClient(): OAuth2Client {
   return new google.auth.OAuth2(
     process.env.GOOGLE_CLIENT_ID,
     process.env.GOOGLE_CLIENT_SECRET,
-    process.env.GOOGLE_REDIRECT_URI ?? "http://localhost:3000/api/google/callback",
+    process.env.GOOGLE_REDIRECT_URI ?? `${publicUrl()}/api/google/callback`,
   );
 }
 
