@@ -1,7 +1,12 @@
-import { getConnections } from "@event-editor/core/settings";
+import { getConnections, ENV_KEYS } from "@event-editor/core/settings";
 import { getToken } from "@event-editor/core/tokens";
 import { getDb } from "@/lib/db";
 import { DRIVE_FILE_SCOPE, SHEETS_SCOPE } from "@/lib/google/oauth";
+import { KeyForm } from "./KeyForm";
+import { envFilePath } from "./env-path";
+
+// Reads keys from process.env per request; must not be statically prerendered.
+export const dynamic = "force-dynamic";
 
 export default function Settings({ searchParams }: { searchParams: Promise<{ google?: string; canva?: string }> }) {
   return <SettingsBody searchParams={searchParams} />;
@@ -15,10 +20,17 @@ async function SettingsBody({ searchParams }: { searchParams: Promise<{ google?:
   const needsReauth = googleToken !== null && (!scope.includes(DRIVE_FILE_SCOPE) || !scope.includes(SHEETS_SCOPE));
   const canvaConfigured = !!process.env.CANVA_CLIENT_ID;
   const canvaToken = getToken(getDb(), "canva");
+  // Only whether each key is set (never the value) crosses to the client.
+  const present = Object.fromEntries(ENV_KEYS.map((k) => [k, !!process.env[k]?.trim()]));
   return (
     <div>
       <p className="eyebrow">Settings</p>
-      <h1 className="mt-1 text-2xl font-semibold">Connections</h1>
+      <h1 className="mt-1 text-2xl font-semibold">Settings</h1>
+
+      <h2 className="mt-8 text-lg font-semibold">API keys</h2>
+      <KeyForm present={present} configPath={envFilePath()} />
+
+      <h2 className="mt-10 text-lg font-semibold">Connections</h2>
       {google === "connected" && <p className="mt-3 text-success">Google connected.</p>}
       {google === "error" && <p className="mt-3 text-danger">Google connection failed. Try again.</p>}
       {canva === "connected" && <p className="mt-3 text-success">Canva connected.</p>}

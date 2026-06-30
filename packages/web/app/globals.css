@@ -22,3 +22,11 @@ body {
   @apply rounded-card border border-line bg-surface p-5 shadow-soft;
 }
 .eyebrow { @apply text-muted text-xs tracking-wide; } /* sentence case, set in markup */
+
+/* anti-vibecode input: raised surface, dimmed stroke, accent focus ring */
+.field {
+  @apply w-full rounded-lg border border-line bg-raised px-3 py-2 text-ink shadow-raisededge
+         outline-none transition-colors placeholder:text-muted/70;
+}
+.field:focus { @apply border-accent ring-2 ring-accent/25; }
+.field:disabled { @apply opacity-50; }

@@ -1,5 +1,5 @@
 // packages/desktop/main.js
-const { app, BrowserWindow, dialog } = require("electron");
+const { app, BrowserWindow, dialog, ipcMain } = require("electron");
 const { fork } = require("node:child_process");
 
 // Force the app name so userData resolves to ".../Application Support/Event Editor"
@@ -50,13 +50,15 @@ function serverEnv() {
   const userData = app.getPath("userData");
   const dataDir = path.join(userData, "data");
   mkdirSync(dataDir, { recursive: true });
-  const keys = loadDotEnv(path.join(userData, ".env"));
+  const envFile = path.join(userData, ".env");
+  const keys = loadDotEnv(envFile);
   const fontPath = app.isPackaged
     ? path.join(process.resourcesPath, "server", "packages", "web", "assets", "fonts", "DMSans-Medium.ttf")
     : path.join(__dirname, "build", "server", "packages", "web", "assets", "fonts", "DMSans-Medium.ttf");
   return {
     ...process.env,
     ...keys,
+    EE_ENV_FILE: envFile, // the in-app Settings key form writes back to this file
     EE_DB_PATH: path.join(dataDir, "app.db"),
     EE_HEADSHOT_DIR: path.join(dataDir, "headshots"),
     EE_THUMBS_DIR: path.join(dataDir, "thumbs"),
@@ -151,6 +153,13 @@ async function boot() {
   await waitForPort();
   createWindow();
 }
+
+// The renderer's Settings page calls window.ee.relaunch() after saving keys, so
+// the forked server reboots and picks up the rewritten per-user .env.
+ipcMain.handle("ee:relaunch", () => {
+  app.relaunch();
+  app.exit(0);
+});
 
 app.whenReady().then(boot).catch((e) => {
   dialog.showErrorBox("event-editor failed to start", String(e && e.stack ? e.stack : e));
