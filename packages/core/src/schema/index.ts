@@ -50,6 +50,7 @@ export const headshots = sqliteTable("headshots", {
   outputPath: text("output_path"),
   exportUrl: text("export_url"),
   errorMessage: text("error_message"),
+  batchId: text("batch_id"),
   createdAt: integer("created_at").notNull().default(0),
   updatedAt: integer("updated_at").notNull().default(0),
 });

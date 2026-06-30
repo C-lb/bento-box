@@ -51,6 +51,7 @@ const DDL = [
     output_path TEXT,
     export_url TEXT,
     error_message TEXT,
+    batch_id TEXT,
     created_at INTEGER NOT NULL DEFAULT 0,
     updated_at INTEGER NOT NULL DEFAULT 0
   )`,
@@ -122,11 +123,19 @@ function migrateHeadshots(db: BetterSQLite3Database<any>): void {
   db.run(sql.raw("DROP TABLE headshots_legacy"));
 }
 
+export function addColumnIfMissing(db: BetterSQLite3Database<any>, table: string, column: string, ddlType: string): void {
+  const info = db.all(sql.raw(`PRAGMA table_info(${table})`)) as Array<{ name: string }>;
+  if (!info.some((r) => r.name === column)) {
+    db.run(sql.raw(`ALTER TABLE ${table} ADD COLUMN ${column} ${ddlType}`));
+  }
+}
+
 export function runMigrations(db: BetterSQLite3Database<any>): void {
   for (const stmt of DDL) {
     db.run(sql.raw(stmt));
   }
   migrateHeadshots(db);
+  addColumnIfMissing(db, "headshots", "batch_id", "TEXT");
 }
 
 // CLI entry: `npm -w @event-editor/core run migrate`
