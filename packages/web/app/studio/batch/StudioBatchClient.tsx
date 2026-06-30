@@ -10,7 +10,7 @@ type MatchStatus = "matched" | "ambiguous" | "unmatched";
 interface RowMatch { status: MatchStatus; driveFileId?: string; candidates?: string[]; }
 interface MatchedRow { index: number; name: string; title: string; match: RowMatch; }
 type Mapping = { name: number | null; title: number | null; photo: number | null };
-interface BatchHeadshot { id: number; status: string; imageUrl: string | null; errorMessage: string | null; }
+interface BatchHeadshot { id: number; status: string; imageUrl: string | null; errorMessage: string | null; nameText: string; }
 interface SubmittedRow { driveFileId: string; nameText: string; titleText: string; }
 
 function StatusChip({ status }: { status: MatchStatus }) {
@@ -124,7 +124,7 @@ export function StudioBatchClient() {
           const r = await fetch(`/api/studio/batch/${batchId}`);
           if (r.ok) {
             const d = await r.json();
-            const hs: BatchHeadshot[] = d.rows ?? [];
+            const hs: BatchHeadshot[] = d.headshots ?? [];
             if (!stop) setBatchHeadshots(hs);
             if (hs.length > 0 && hs.every((h) => h.status === "done" || h.status === "error")) break;
           }
@@ -621,22 +621,21 @@ export function StudioBatchClient() {
           )}
           <div className="mt-5 grid grid-cols-2 gap-4 sm:grid-cols-3">
             {batchHeadshots.length > 0
-              ? batchHeadshots.map((hs, i) => {
-                  const row = submittedRows[i];
+              ? batchHeadshots.map((hs) => {
                   return (
                     <div key={hs.id} className="overflow-hidden rounded-lg border border-line">
                       {hs.status === "done" && hs.imageUrl ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
                           src={hs.imageUrl}
-                          alt={row?.nameText ?? "headshot"}
+                          alt={hs.nameText ?? "headshot"}
                           className="aspect-square w-full object-cover"
                         />
                       ) : (
                         <div className="aspect-square w-full bg-raised" />
                       )}
                       <div className="flex flex-col gap-2 p-3">
-                        <p className="text-sm font-medium">{row?.nameText ?? ""}</p>
+                        <p className="text-sm font-medium">{hs.nameText}</p>
                         <StatusBadge {...headshotStatusView(hs.status)} />
                         {hs.status === "error" && (
                           <>
