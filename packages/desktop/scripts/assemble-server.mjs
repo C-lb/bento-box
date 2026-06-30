@@ -10,13 +10,16 @@ const web = resolve(repo, "packages/web");
 const standalone = resolve(web, ".next/standalone");
 const out = resolve(here, "../build/server");
 
-if (!existsSync(standalone)) {
-  console.error(`Next standalone output not found at ${standalone}. Run \`npm -w @event-editor/web run build\` (needs output:"standalone") before assembling.`);
+// Single guard for standalone: covers both missing dir and missing server.js.
+if (!existsSync(standalone) || !existsSync(resolve(standalone, "packages/web/server.js"))) {
+  console.error(`Next standalone output not found or incomplete at ${standalone}. Run \`npm -w @event-editor/web run build\` (needs output:"standalone") before assembling.`);
   process.exit(1);
 }
 
-if (!existsSync(resolve(standalone, "packages/web/server.js"))) {
-  throw new Error("standalone server.js missing - run `npm -w @event-editor/web run build` first");
+// Guard: core must be built before assemble so its dist is available to copy.
+if (!existsSync(resolve(repo, "packages/core/dist/migrate.js"))) {
+  console.error("packages/core/dist/migrate.js not found - run `npm -w @event-editor/core run build` first.");
+  process.exit(1);
 }
 
 rmSync(out, { recursive: true, force: true });
@@ -35,12 +38,14 @@ cpSync(resolve(web, "assets/fonts"), resolve(out, "packages/web/assets/fonts"), 
 // 4. @event-editor/core is bundled into the .next chunks (not in serverExternalPackages),
 // so output-file-tracing does not emit it. main.js forks core's migrate.js by file path,
 // so copy core's dist + manifest into the server node_modules explicitly.
+// Deps (drizzle-orm, better-sqlite3) resolve via the sibling build/server/node_modules.
 cpSync(resolve(repo, "packages/core/dist"), resolve(out, "node_modules/@event-editor/core/dist"), { recursive: true });
 cpSync(resolve(repo, "packages/core/package.json"), resolve(out, "node_modules/@event-editor/core/package.json"));
 
-// Guard: the forked migrate entry MUST exist after assembly.
+// Post-assembly assertion: the forked migrate entry MUST exist or migrations fail at launch.
 if (!existsSync(resolve(out, "node_modules/@event-editor/core/dist/migrate.js"))) {
-  throw new Error("assembled server is missing @event-editor/core/dist/migrate.js - migrations would fail at launch");
+  console.error("assembled server is missing @event-editor/core/dist/migrate.js - migrations would fail at launch");
+  process.exit(1);
 }
 
 console.log("assembled server ->", out);

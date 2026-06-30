@@ -21,7 +21,8 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: npm -w @event-editor/desktop run dist
+      - shell: bash
+        run: npm -w @event-editor/desktop run dist || npm -w @event-editor/desktop run dist
         env:
           # unsigned builds (personal use) - skip electron-builder code signing
           CSC_IDENTITY_AUTO_DISCOVERY: "false"

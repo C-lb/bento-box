@@ -1,5 +1,5 @@
 // packages/desktop/main.js
-const { app, BrowserWindow, dialog, Menu } = require("electron");
+const { app, BrowserWindow, dialog } = require("electron");
 const { fork } = require("node:child_process");
 const { readFileSync, mkdirSync, existsSync, writeFileSync } = require("node:fs");
 const path = require("node:path");
@@ -10,6 +10,7 @@ const PORT = 4571;
 const BASE = `http://${HOST}:${PORT}`;
 
 let serverProc = null;
+let quitting = false;
 
 // --- per-user env -----------------------------------------------------------
 function loadDotEnv(file) {
@@ -79,6 +80,17 @@ function runMigrations(env) {
 function startServer(env) {
   const entry = path.join(serverRoot(), "packages", "web", "server.js");
   serverProc = fork(entry, [], { env: { ...env, ELECTRON_RUN_AS_NODE: "1" }, stdio: "inherit" });
+  serverProc.on("error", (err) => {
+    if (quitting) return;
+    dialog.showErrorBox("event-editor server stopped", `Server process error: ${err.message}`);
+    app.quit();
+  });
+  serverProc.on("exit", (code) => {
+    if (quitting) return;
+    if (code === 0 || code === null) return; // null = killed by signal during normal shutdown
+    dialog.showErrorBox("event-editor server stopped", `Server exited unexpectedly (code ${code}).`);
+    app.quit();
+  });
 }
 
 function waitForPort(timeoutMs = 20000) {
@@ -120,7 +132,7 @@ async function boot() {
   const devUrl = process.env.EE_DESKTOP_DEV_URL;
   if (devUrl) {
     // dev: assume `npm run dev` is already serving; just open a window on it.
-    new BrowserWindow({ width: 1200, height: 820 }).loadURL(devUrl);
+    new BrowserWindow({ width: 1200, height: 820, webPreferences: { preload: path.join(__dirname, "preload.js"), sandbox: true, nodeIntegration: false } }).loadURL(devUrl);
     return;
   }
   if (await portInUse()) {
@@ -141,4 +153,4 @@ app.whenReady().then(boot).catch((e) => {
 });
 
 app.on("window-all-closed", () => app.quit());
-app.on("before-quit", () => { if (serverProc) serverProc.kill(); });
+app.on("before-quit", () => { quitting = true; if (serverProc) serverProc.kill(); });

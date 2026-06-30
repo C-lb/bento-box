@@ -3,6 +3,8 @@ import { publicUrl } from "../paths";
 
 export function canvaRedirect(): string {
   // Canva rejects "localhost"; force the loopback host to 127.0.0.1.
+  // Safe only because the callback is always the fixed loopback URL; .replace() is not
+  // substring-safe (would corrupt any host that contains "localhost" as a substring).
   return `${publicUrl().replace("localhost", "127.0.0.1")}/api/canva/callback`;
 }
 export const CANVA_REDIRECT = canvaRedirect();
