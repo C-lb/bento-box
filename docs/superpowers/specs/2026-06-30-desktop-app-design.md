@@ -63,13 +63,13 @@ When the four are absolute (as the Electron main sets them), every downstream `r
 
 ### 2. Fixed port + `EE_PUBLIC_URL` (refactor in `web`)
 
-A single `EE_PUBLIC_URL` env becomes the base both callbacks derive from. **Host standardizes on `127.0.0.1`, not `localhost`** — Canva rejects `localhost` outright (a known gotcha in this project), and Google's loopback (desktop-client) flow accepts `127.0.0.1` fine. Using one host for both providers in both environments removes the `localhost`-vs-`127.0.0.1` split that has already bitten this codebase.
+A single `EE_PUBLIC_URL` env becomes the base both callbacks derive from. **Google uses the base host as-is; Canva special-cases the host to `127.0.0.1`** because Canva rejects `localhost` outright (a known gotcha in this project) while Google's dev redirect is registered against `localhost`. Keeping the swap inside Canva alone means the dev Google setup is untouched.
 
-- `EE_PUBLIC_URL` — default `http://127.0.0.1:3000` (dev), set to `http://127.0.0.1:4571` in the bundle.
-- **Google** (`packages/web/lib/google/oauth.ts:15`) already reads `GOOGLE_REDIRECT_URI ?? "http://localhost:3000/api/google/callback"`. Change the fallback to `${EE_PUBLIC_URL}/api/google/callback`, keeping `GOOGLE_REDIRECT_URI` as a higher-priority explicit override for back-compat.
-- **Canva** (`packages/web/lib/canva/oauth.ts:3`) is a hardcoded `export const CANVA_REDIRECT = "http://127.0.0.1:3000/api/canva/callback"`. Change it to derive from `EE_PUBLIC_URL` (`${EE_PUBLIC_URL}/api/canva/callback`); it is consumed at lines 35 and 66 of the same file, so the single constant is the only edit point.
+- `EE_PUBLIC_URL` — default `http://localhost:3000` (dev), set to `http://127.0.0.1:4571` in the bundle.
+- **Google** (`packages/web/lib/google/oauth.ts:15`) already reads `GOOGLE_REDIRECT_URI ?? "http://localhost:3000/api/google/callback"`. Change the fallback to `${EE_PUBLIC_URL}/api/google/callback`, keeping `GOOGLE_REDIRECT_URI` as a higher-priority explicit override for back-compat. Dev resolves to `localhost:3000` (matches the existing registration); the bundle resolves to `127.0.0.1:4571`.
+- **Canva** (`packages/web/lib/canva/oauth.ts:3`) is a hardcoded `export const CANVA_REDIRECT = "http://127.0.0.1:3000/api/canva/callback"`. Change it to derive from `EE_PUBLIC_URL` with the host forced to `127.0.0.1` (e.g. `${EE_PUBLIC_URL.replace("localhost", "127.0.0.1")}/api/canva/callback`); it is consumed at lines 35 and 66 of the same file, so the single constant is the only edit point. Dev resolves to `127.0.0.1:3000` (matches the existing Canva registration); the bundle resolves to `127.0.0.1:4571`. This Canva-only host swap is a binding requirement — deriving Canva's redirect from a `localhost` base would break Canva auth.
 
-**Operator action (documented, one-time):** in the Google console, add `http://127.0.0.1:3000/api/google/callback` (dev, since the default host moves from `localhost` to `127.0.0.1`) and `http://127.0.0.1:4571/api/google/callback` (bundle). In the Canva console, add `http://127.0.0.1:4571/api/canva/callback` (bundle; the `127.0.0.1:3000` dev URI already exists). The old `localhost:3000` Google URI can stay registered harmlessly or be removed.
+**Operator action (documented, one-time):** add `http://127.0.0.1:4571/api/google/callback` to the Google console and `http://127.0.0.1:4571/api/canva/callback` to the Canva console (the bundle URIs). The existing dev URIs (`localhost:3000` Google, `127.0.0.1:3000` Canva) stay as-is — no dev re-registration needed.
 
 ### 3. Electron shell (`packages/desktop`, new)
 
