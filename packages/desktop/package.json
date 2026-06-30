@@ -2,6 +2,8 @@
   "name": "@event-editor/desktop",
   "version": "0.0.1",
   "private": true,
+  "description": "Event Editor desktop app",
+  "author": "Spark",
   "main": "main.js",
   "scripts": {
     "dev": "EE_DESKTOP_DEV_URL=http://localhost:3000 electron .",

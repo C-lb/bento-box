@@ -10,6 +10,11 @@ const web = resolve(repo, "packages/web");
 const standalone = resolve(web, ".next/standalone");
 const out = resolve(here, "../build/server");
 
+if (!existsSync(standalone)) {
+  console.error(`Next standalone output not found at ${standalone}. Run \`npm -w @event-editor/web run build\` (needs output:"standalone") before assembling.`);
+  process.exit(1);
+}
+
 if (!existsSync(resolve(standalone, "packages/web/server.js"))) {
   throw new Error("standalone server.js missing - run `npm -w @event-editor/web run build` first");
 }
