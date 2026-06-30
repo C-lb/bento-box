@@ -4,7 +4,6 @@ import { createReadStream, existsSync } from "node:fs";
 import archiver from "archiver";
 import { headshots } from "@event-editor/core/schema";
 import { getDb } from "@/lib/db";
-import { HEADSHOT_DIR } from "@/lib/studio";
 
 export const runtime = "nodejs";
 
@@ -25,10 +24,17 @@ export async function GET(_req: Request, { params }: { params: Promise<{ batchId
     used.add(fname);
     archive.append(createReadStream(abs), { name: fname });
   }
+
+  const body = new ReadableStream<Uint8Array>({
+    start(controller) {
+      archive.on("data", (chunk) => controller.enqueue(chunk));
+      archive.on("end", () => controller.close());
+      archive.on("error", (err) => controller.error(err));
+    },
+  });
   archive.finalize();
 
-  const stream = archive as unknown as ReadableStream;
-  return new Response(stream as any, {
+  return new Response(body, {
     headers: {
       "Content-Type": "application/zip",
       "Content-Disposition": `attachment; filename="headshots-${batchId}.zip"`,
