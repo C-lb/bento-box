@@ -21,6 +21,10 @@ export function StudioClient() {
   const [hsId, setHsId] = useState<number | null>(null);
   const [hs, setHs] = useState<Headshot | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const [renderer, setRenderer] = useState<"local" | "canva">("local");
+  const [templates, setTemplates] = useState<{ id: string; title: string }[]>([]);
+  const [templateId, setTemplateId] = useState("");
+  const [canvaConnected, setCanvaConnected] = useState<boolean | null>(null);
 
   useEffect(() => {
     fetch("/api/drive/folders").then(async (r) => {
@@ -36,6 +40,15 @@ export function StudioClient() {
     fetch(`/api/studio/images?folderId=${encodeURIComponent(folderId)}`)
       .then((r) => r.json()).then((d) => setImages(d.images ?? [])).catch(() => setImages([]));
   }, [folderId]);
+
+  useEffect(() => {
+    if (renderer !== "canva" || canvaConnected !== null) return;
+    fetch("/api/studio/templates").then(async (r) => {
+      if (r.status === 401) { setCanvaConnected(false); return; }
+      setCanvaConnected(true);
+      setTemplates((await r.json()).templates ?? []);
+    }).catch(() => setCanvaConnected(false));
+  }, [renderer, canvaConnected]);
 
   useEffect(() => {
     if (hsId == null) return;
@@ -56,14 +69,19 @@ export function StudioClient() {
   }, [hsId]);
 
   async function generate() {
-    if (!fileId || !frameId) return;
+    if (!fileId) return;
+    if (renderer === "canva" && !templateId) return;
+    if (renderer === "local" && !frameId) return;
     setBusy(true);
     setErr(null);
     try {
+      const payload = renderer === "canva"
+        ? { renderer, driveFileId: fileId, templateId, nameText, titleText }
+        : { renderer, driveFileId: fileId, frameId, nameText, titleText };
       const r = await fetch("/api/studio/headshots", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ driveFileId: fileId, frameId, nameText, titleText }),
+        body: JSON.stringify(payload),
       });
       const d = await r.json();
       if (!r.ok) throw new Error(d.error ?? "failed to start");
@@ -81,6 +99,7 @@ export function StudioClient() {
     setFileId("");
     setNameText("");
     setTitleText("");
+    setTemplateId("");
     setHsId(null);
     setHs(null);
     setErr(null);
@@ -125,19 +144,53 @@ export function StudioClient() {
       </div>
 
       <div className="card">
-        <p className="eyebrow">Step 2: pick a frame</p>
-        <div className="mt-3 flex flex-wrap gap-3">
-          {FRAME_LIST.map((f) => (
+        <p className="eyebrow">Step 2: renderer</p>
+        <div className="mt-3 inline-flex rounded-lg border border-line p-1">
+          {(["local", "canva"] as const).map((r) => (
             <button
-              key={f.id}
-              onClick={() => setFrameId(f.id)}
-              className={`btn ${frameId === f.id ? "btn-accent" : ""}`}
+              key={r}
+              type="button"
+              onClick={() => setRenderer(r)}
+              className={`px-4 py-1.5 rounded-md text-sm ${renderer === r ? "bg-accent text-white" : "text-muted"}`}
             >
-              {f.label}
+              {r === "local" ? "Local" : "Canva"}
             </button>
           ))}
-          <span className="self-center text-muted">Canva brand templates, coming soon</span>
         </div>
+
+        {renderer === "local" && (
+          <div className="mt-4 flex flex-wrap gap-3">
+            {FRAME_LIST.map((f) => (
+              <button
+                key={f.id}
+                onClick={() => setFrameId(f.id)}
+                className={`btn ${frameId === f.id ? "btn-accent" : ""}`}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {renderer === "canva" && canvaConnected === false && (
+          <p className="mt-4 text-sm text-muted">
+            Canva is not connected. <a className="underline" href="/settings">Connect it in settings</a>.
+          </p>
+        )}
+
+        {renderer === "canva" && canvaConnected && (
+          <label className="mt-4 block">
+            <span className="eyebrow">Brand template</span>
+            <select
+              className="mt-1 rounded-lg border border-line bg-surface px-3 py-2"
+              value={templateId}
+              onChange={(e) => setTemplateId(e.target.value)}
+            >
+              <option value="">Select a template</option>
+              {templates.map((t) => <option key={t.id} value={t.id}>{t.title}</option>)}
+            </select>
+          </label>
+        )}
       </div>
 
       <div className="card">
@@ -148,10 +201,18 @@ export function StudioClient() {
           <input className="rounded-lg border border-line bg-surface px-3 py-2" placeholder="Title"
             value={titleText} onChange={(e) => setTitleText(e.target.value)} />
         </div>
-        <button className="btn btn-accent mt-4" onClick={generate} disabled={!fileId || busy}>
+        <button
+          className="btn btn-accent mt-4"
+          onClick={generate}
+          disabled={busy || !fileId || (renderer === "canva" ? !templateId : !frameId)}
+        >
           {busy ? "Starting…" : "Generate headshot"}
         </button>
-        {!fileId && <p className="mt-2 text-sm text-muted">Choose a photo first</p>}
+        {(!fileId || (renderer === "canva" ? !templateId : !frameId)) && (
+          <p className="mt-2 text-sm text-muted">
+            Pick a photo and a {renderer === "canva" ? "template" : "frame"} first.
+          </p>
+        )}
         {err && <p className="mt-3 text-muted">{err}</p>}
       </div>
 
