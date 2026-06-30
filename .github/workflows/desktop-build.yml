@@ -1,0 +1,35 @@
+# .github/workflows/desktop-build.yml
+name: desktop-build
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm -w @event-editor/desktop run dist
+        env:
+          # unsigned builds (personal use) - skip electron-builder code signing
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            packages/desktop/dist/*.dmg
+            packages/desktop/dist/*.zip
+            packages/desktop/dist/*.exe
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
