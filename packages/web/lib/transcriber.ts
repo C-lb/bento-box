@@ -9,27 +9,9 @@ import { transcribeChunk } from "./groq";
 import { visionClient, summarizeTranscript } from "./anthropic";
 import { authedDriveClient } from "./google/oauth";
 import { createGoogleDoc } from "./google/docs";
+import { withBackoff } from "./backoff";
 
 type Db = ReturnType<typeof openDb>;
-
-async function withBackoff<T>(fn: () => Promise<T>, tries = 6): Promise<T> {
-  let lastErr: unknown;
-  for (let i = 0; i < tries; i++) {
-    try {
-      return await fn();
-    } catch (err: any) {
-      lastErr = err;
-      const status = err?.status ?? err?.statusCode;
-      if (status !== 429 && status !== 529) throw err;
-      const delayMs =
-        typeof err?.retryAfter === "number" && Number.isFinite(err.retryAfter)
-          ? Math.min(err.retryAfter * 1000, 300_000)
-          : 1000 * 2 ** i;
-      await new Promise((r) => setTimeout(r, delayMs));
-    }
-  }
-  throw lastErr;
-}
 
 function fail(db: Db, id: number, message: string) {
   db.update(transcriptions)
