@@ -1,8 +1,9 @@
-import { resolve } from "node:path";
 import TextToSVG from "text-to-svg";
+import { fontPath } from "./paths";
 
-// cwd is packages/web at runtime (Next) and under vitest. Load once.
-const tts = TextToSVG.loadSync(resolve(process.cwd(), "assets/fonts/DMSans-Medium.ttf"));
+// Load once. fontPath() defaults to the cwd-relative ttf for dev and is an
+// absolute bundle path in the packaged app.
+const tts = TextToSVG.loadSync(fontPath());
 
 export function glyphPath(
   text: string,

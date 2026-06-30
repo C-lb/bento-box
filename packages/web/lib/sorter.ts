@@ -9,6 +9,7 @@ import type { openDb } from "@event-editor/core/db";
 import type { DriveClient, DriveImage } from "./google/drive.js";
 import { computeMetrics } from "./metrics";
 import { visionClient, scorePhoto } from "./anthropic";
+import { thumbsDir } from "./paths";
 
 type Db = ReturnType<typeof openDb>;
 
@@ -48,9 +49,10 @@ export function startScan(
           // .jpg filename, the /api/thumb content-type, and the vision call's
           // declared media_type all agree — otherwise Anthropic 400s the image.
           const bytes = await sharp(raw).jpeg().toBuffer();
-          await mkdir(resolve("data/thumbs", String(jId)), { recursive: true });
-          await writeFile(resolve("data/thumbs", String(jId), `${pId}.jpg`), bytes);
-          return `data/thumbs/${jId}/${pId}.jpg`;
+          const root = thumbsDir();
+          await mkdir(resolve(root, String(jId)), { recursive: true });
+          await writeFile(resolve(root, String(jId), `${pId}.jpg`), bytes);
+          return resolve(root, String(jId), `${pId}.jpg`);
         },
       },
       { completeStatus: "heuristics" },
