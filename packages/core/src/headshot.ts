@@ -132,6 +132,13 @@ export async function runHeadshotCanva(
     const path = await deps.save(id, png);
     touch(db, id, { outputPath: path, status: "done" });
   } catch (err) {
-    touch(db, id, { status: "error", errorMessage: err instanceof Error ? err.message : String(err) });
+    const status = (err as any)?.status;
+    const errorMessage =
+      status === 403
+        ? "Canva returned 403. Brand-template autofill and export require a Canva Teams or Enterprise plan."
+        : err instanceof Error
+          ? err.message
+          : String(err);
+    touch(db, id, { status: "error", errorMessage });
   }
 }

@@ -49,14 +49,18 @@ describe("runHeadshotCanva", () => {
     expect(calls).toEqual(["upload", 'autofill:{"type":"image","asset_id":"asset1"}', "export"]);
   });
 
-  it("records error on a 403-style failure", async () => {
+  it("translates a 403 CanvaError to the Teams/Enterprise actionable message", async () => {
     const id = createCanvaHeadshot(db, { driveFileId: "f1", canvaTemplateId: "t1", nameText: "Ada", titleText: "CTO" });
     const deps = happyDeps([]);
-    deps.exportPng = async () => { throw new Error("needs Canva Teams/Enterprise"); };
+    deps.exportPng = async () => {
+      throw Object.assign(new Error("canva POST /exports -> 403"), { status: 403 });
+    };
     await runHeadshotCanva(db, id, deps);
     const row = db.select().from(headshots).where(eq(headshots.id, id)).all()[0];
     expect(row.status).toBe("error");
-    expect(row.errorMessage).toMatch(/Teams\/Enterprise/);
+    expect(row.errorMessage).toBe(
+      "Canva returned 403. Brand-template autofill and export require a Canva Teams or Enterprise plan.",
+    );
   });
 
   it("errors clearly when fields are missing", async () => {
