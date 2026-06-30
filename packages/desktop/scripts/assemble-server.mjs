@@ -32,4 +32,15 @@ if (existsSync(resolve(web, "public"))) {
 // 3. the font (read from disk at runtime via EE_FONT_PATH)
 cpSync(resolve(web, "assets/fonts"), resolve(out, "packages/web/assets/fonts"), { recursive: true });
 
+// 4. @event-editor/core is bundled into the .next chunks (not in serverExternalPackages),
+// so output-file-tracing does not emit it. main.js forks core's migrate.js by file path,
+// so copy core's dist + manifest into the server node_modules explicitly.
+cpSync(resolve(repo, "packages/core/dist"), resolve(out, "node_modules/@event-editor/core/dist"), { recursive: true });
+cpSync(resolve(repo, "packages/core/package.json"), resolve(out, "node_modules/@event-editor/core/package.json"));
+
+// Guard: the forked migrate entry MUST exist after assembly.
+if (!existsSync(resolve(out, "node_modules/@event-editor/core/dist/migrate.js"))) {
+  throw new Error("assembled server is missing @event-editor/core/dist/migrate.js - migrations would fail at launch");
+}
+
 console.log("assembled server ->", out);
