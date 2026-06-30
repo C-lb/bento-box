@@ -20,7 +20,8 @@
     "./transcription": "./dist/transcription.js",
     "./frames": "./dist/frames.js",
     "./headshot": "./dist/headshot.js",
-    "./columns": "./dist/columns.js"
+    "./columns": "./dist/columns.js",
+    "./match": "./dist/match.js"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
