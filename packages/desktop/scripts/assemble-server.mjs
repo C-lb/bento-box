@@ -48,4 +48,18 @@ if (!existsSync(resolve(out, "node_modules/@event-editor/core/dist/migrate.js"))
   process.exit(1);
 }
 
+// 5. The Next standalone trace copies only better-sqlite3's prebuilt .node + lib,
+// not its C++ sources, so @electron/rebuild cannot recompile it for Electron's
+// ABI in place (it silently leaves the system-Node binary, which fails to dlopen
+// under Electron). Replace it with the full source copy from the repo install so
+// rebuild-native can actually rebuild it. (sharp is N-API / ABI-stable, no rebuild needed.)
+const fullSqlite = resolve(repo, "node_modules/better-sqlite3");
+const destSqlite = resolve(out, "node_modules/better-sqlite3");
+if (!existsSync(resolve(fullSqlite, "binding.gyp"))) {
+  console.error(`full better-sqlite3 source not found at ${fullSqlite} - cannot make it rebuildable for Electron`);
+  process.exit(1);
+}
+rmSync(destSqlite, { recursive: true, force: true });
+cpSync(fullSqlite, destSqlite, { recursive: true });
+
 console.log("assembled server ->", out);

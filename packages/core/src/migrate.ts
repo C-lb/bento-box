@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import type { BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
+import { pathToFileURL } from "node:url";
 import { openDb } from "./db.js";
 
 const DDL = [
@@ -138,8 +139,17 @@ export function runMigrations(db: BetterSQLite3Database<any>): void {
   addColumnIfMissing(db, "headshots", "batch_id", "TEXT");
 }
 
-// CLI entry: `npm -w @event-editor/core run migrate`
-if (import.meta.url === `file://${process.argv[1]}`) {
+// True when this module is the process entry point (CLI or forked), false when
+// imported. Compares via pathToFileURL so percent-encoding matches import.meta.url
+// on both sides. A literal `file://${process.argv[1]}` breaks when the path holds
+// a space (e.g. the packaged ".../Event Editor.app/..." bundle), silently skipping
+// migrations.
+export function isMainModule(metaUrl: string, argv1: string | undefined): boolean {
+  return argv1 != null && metaUrl === pathToFileURL(argv1).href;
+}
+
+// CLI entry: `npm -w @event-editor/core run migrate` (also the desktop app's forked migrate step)
+if (isMainModule(import.meta.url, process.argv[1])) {
   runMigrations(openDb());
   console.log(`migrated ${process.env.EE_DB_PATH ?? "./data/app.db"}`);
 }
