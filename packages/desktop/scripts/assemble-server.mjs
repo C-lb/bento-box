@@ -1,6 +1,6 @@
 // packages/desktop/scripts/assemble-server.mjs
 // Assembles a self-contained, runnable Next server tree into build/server.
-import { cpSync, rmSync, mkdirSync, existsSync } from "node:fs";
+import { cpSync, rmSync, mkdirSync, existsSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -75,5 +75,47 @@ if (!existsSync(fullDrizzle)) {
   process.exit(1);
 }
 cpSync(fullDrizzle, resolve(out, "node_modules/drizzle-orm"), { recursive: true });
+
+// 7. Make the standalone relocatable for the externalized native packages.
+// Next records the build-time absolute location of serverExternalPackages
+// (better-sqlite3, sharp, ...) and at runtime loads them (and their .node
+// binaries) from that absolute path, which points back at the build machine's
+// repo once the app is moved. On the build machine that repo copy is the
+// system-Node ABI, so db/image-backed pages 500. Standard Node resolution from
+// the bundle already finds the bundle's own Electron-ABI copies, so inject a
+// module-load shim at the top of server.js that redirects any external-package
+// request (bare specifier OR an absolute `.../node_modules/<pkg>/<subpath>`,
+// including the raw .node file bindings asks for) to the bundle's own copy,
+// preserving the subpath. server.js already imports `path` and `module` and
+// defines `__dirname` (= <bundle>/packages/web) before this point.
+const serverJs = resolve(out, "packages/web/server.js");
+let serverSrc = readFileSync(serverJs, "utf8");
+const anchor = "const __dirname = fileURLToPath(new URL('.', import.meta.url))";
+if (!serverSrc.includes(anchor)) {
+  console.error("could not find the __dirname anchor in server.js to inject the external-resolution shim - Next standalone format changed");
+  process.exit(1);
+}
+const externals = JSON.stringify(["better-sqlite3", "sharp", "@anthropic-ai/sdk", "ffmpeg-static", "ffprobe-static"]);
+const shim = `
+// --- event-editor: force externalized native packages to the bundle's own copies ---
+const __EE_EXTERNALS__ = ${externals};
+const __ee_origLoad = module._load;
+const __ee_bundleRoot = path.join(__dirname, '..', '..');
+function __ee_pkgOf(after){ const p = after.split('/'); return p[0].startsWith('@') ? p.slice(0, 2).join('/') : p[0]; }
+module._load = function (request, parent, isMain) {
+  if (typeof request === 'string') {
+    const i = request.lastIndexOf('/node_modules/');
+    if (i !== -1) {
+      const after = request.slice(i + 14);
+      if (__EE_EXTERNALS__.includes(__ee_pkgOf(after))) return __ee_origLoad.call(this, path.join(__ee_bundleRoot, 'node_modules', after), parent, isMain);
+    } else if (__EE_EXTERNALS__.includes(request)) {
+      return __ee_origLoad.call(this, path.join(__ee_bundleRoot, 'node_modules', request), parent, isMain);
+    }
+  }
+  return __ee_origLoad.apply(this, arguments);
+};
+// --- end event-editor shim ---`;
+serverSrc = serverSrc.replace(anchor, anchor + "\n" + shim);
+writeFileSync(serverJs, serverSrc);
 
 console.log("assembled server ->", out);
