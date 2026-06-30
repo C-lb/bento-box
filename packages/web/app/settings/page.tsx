@@ -1,7 +1,7 @@
 import { getConnections } from "@event-editor/core/settings";
 import { getToken } from "@event-editor/core/tokens";
 import { getDb } from "@/lib/db";
-import { DRIVE_FILE_SCOPE } from "@/lib/google/oauth";
+import { DRIVE_FILE_SCOPE, SHEETS_SCOPE } from "@/lib/google/oauth";
 
 export default function Settings({ searchParams }: { searchParams: Promise<{ google?: string; canva?: string }> }) {
   return <SettingsBody searchParams={searchParams} />;
@@ -11,8 +11,8 @@ async function SettingsBody({ searchParams }: { searchParams: Promise<{ google?:
   const { google, canva } = await searchParams;
   const connections = getConnections();
   const googleToken = getToken(getDb(), "google");
-  const needsReauth =
-    googleToken !== null && !(googleToken.scope ?? "").includes(DRIVE_FILE_SCOPE);
+  const scope = googleToken?.scope ?? "";
+  const needsReauth = googleToken !== null && (!scope.includes(DRIVE_FILE_SCOPE) || !scope.includes(SHEETS_SCOPE));
   const canvaConfigured = !!process.env.CANVA_CLIENT_ID;
   const canvaToken = getToken(getDb(), "canva");
   return (
@@ -33,7 +33,7 @@ async function SettingsBody({ searchParams }: { searchParams: Promise<{ google?:
               </span>
               {c.id === "google" && c.configured && needsReauth && (
                 <span className="text-sm text-muted">
-                  Write access needed for Audio transcriber. Re-auth below.
+                  Write and Sheets access needed for the transcriber and batch headshots. Re-auth below.
                 </span>
               )}
               {c.id === "google" && c.configured && (

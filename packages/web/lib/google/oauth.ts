@@ -6,6 +6,7 @@ import { openDb } from "@event-editor/core/db";
 
 export const DRIVE_SCOPE = "https://www.googleapis.com/auth/drive.readonly";
 export const DRIVE_FILE_SCOPE = "https://www.googleapis.com/auth/drive.file";
+export const SHEETS_SCOPE = "https://www.googleapis.com/auth/spreadsheets.readonly";
 
 export function makeOAuthClient(): OAuth2Client {
   return new google.auth.OAuth2(
@@ -19,7 +20,7 @@ export function buildAuthUrl(client: OAuth2Client): string {
   return client.generateAuthUrl({
     access_type: "offline",
     prompt: "consent",
-    scope: [DRIVE_SCOPE, DRIVE_FILE_SCOPE],
+    scope: [DRIVE_SCOPE, DRIVE_FILE_SCOPE, SHEETS_SCOPE],
   });
 }
 
