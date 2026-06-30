@@ -2,12 +2,16 @@
 import { useEffect, useRef, useState } from "react";
 import { FRAME_LIST } from "@event-editor/core/frames";
 import { detectColumns } from "@event-editor/core/columns";
+import { StatusBadge } from "@/components/StatusBadge";
+import { headshotStatusView } from "@/lib/status";
 
 interface Folder { id: string; name: string; }
 type MatchStatus = "matched" | "ambiguous" | "unmatched";
 interface RowMatch { status: MatchStatus; driveFileId?: string; candidates?: string[]; }
 interface MatchedRow { index: number; name: string; title: string; match: RowMatch; }
 type Mapping = { name: number | null; title: number | null; photo: number | null };
+interface BatchHeadshot { id: number; status: string; imageUrl: string | null; errorMessage: string | null; }
+interface SubmittedRow { driveFileId: string; nameText: string; titleText: string; }
 
 function StatusChip({ status }: { status: MatchStatus }) {
   if (status === "matched") {
@@ -64,6 +68,14 @@ export function StudioBatchClient() {
   const [matchErr, setMatchErr] = useState<string | null>(null);
   const [selected, setSelected] = useState<Set<number>>(new Set());
 
+  // Batch / generate
+  const [batchId, setBatchId] = useState<string | null>(null);
+  const [batchHeadshots, setBatchHeadshots] = useState<BatchHeadshot[]>([]);
+  const [submittedRows, setSubmittedRows] = useState<SubmittedRow[]>([]);
+  const [generating, setGenerating] = useState(false);
+  const [generateErr, setGenerateErr] = useState<string | null>(null);
+  const [pollKey, setPollKey] = useState(0);
+
   const selectAllRef = useRef<HTMLInputElement>(null);
 
   // Load Drive folders on mount
@@ -101,6 +113,30 @@ export function StudioBatchClient() {
     const selectedCount = selectableIndices.filter((i) => selected.has(i)).length;
     el.indeterminate = selectedCount > 0 && selectedCount < selectableIndices.length;
   }, [selected, matched]);
+
+  // Poll batch status while batchId is set; stop when every row is done or error
+  useEffect(() => {
+    if (!batchId) return;
+    let stop = false;
+    const loop = async () => {
+      while (!stop) {
+        try {
+          const r = await fetch(`/api/studio/batch/${batchId}`);
+          if (r.ok) {
+            const d = await r.json();
+            const hs: BatchHeadshot[] = d.rows ?? [];
+            if (!stop) setBatchHeadshots(hs);
+            if (hs.length > 0 && hs.every((h) => h.status === "done" || h.status === "error")) break;
+          }
+        } catch {
+          // continue on transient network error
+        }
+        await new Promise((res) => setTimeout(res, 1500));
+      }
+    };
+    loop();
+    return () => { stop = true; };
+  }, [batchId, pollKey]);
 
   async function loadTabs() {
     const raw = spreadsheetInput.trim();
@@ -175,6 +211,49 @@ export function StudioBatchClient() {
     }
   }
 
+  async function generate() {
+    setGenerating(true);
+    setGenerateErr(null);
+    const submitRows: SubmittedRow[] = [...selected]
+      .sort((a, b) => a - b)
+      .map((i) => matched[i])
+      .map((r) => ({
+        driveFileId: r.match.driveFileId!,
+        nameText: r.name,
+        titleText: r.title,
+      }));
+    try {
+      const r = await fetch("/api/studio/batch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ renderer, styleId, rows: submitRows }),
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error ?? "failed to start batch");
+      setSubmittedRows(submitRows);
+      setBatchHeadshots([]);
+      setBatchId(d.batchId);
+    } catch (e) {
+      setGenerateErr(e instanceof Error ? e.message : String(e));
+    } finally {
+      setGenerating(false);
+    }
+  }
+
+  async function retryRow(id: number) {
+    await fetch(`/api/studio/batch/${batchId}/retry/${id}`, { method: "POST" });
+    setPollKey((k) => k + 1);
+  }
+
+  function startOver() {
+    setBatchId(null);
+    setBatchHeadshots([]);
+    setSubmittedRows([]);
+    setMatched([]);
+    setSelected(new Set());
+    setGenerateErr(null);
+  }
+
   function toggleRow(i: number) {
     setSelected((prev) => {
       const next = new Set(prev);
@@ -203,6 +282,17 @@ export function StudioBatchClient() {
     selectableIndices.every((i) => selected.has(i));
 
   const canMatch = !!(spreadsheetId && tab && mapping.name != null && folderId);
+  const canGenerate = selected.size > 0 && !!styleId && !generating && !batchId;
+  const generateDisabledReason =
+    batchId
+      ? null
+      : selected.size === 0 && !styleId
+      ? "Select rows and a style first."
+      : selected.size === 0
+      ? "Select at least one matched row."
+      : !styleId
+      ? "Choose a style first."
+      : null;
 
   // Google not connected
   if (connected === false) {
@@ -483,6 +573,101 @@ export function StudioBatchClient() {
           </div>
         )}
       </div>
+
+      {/* Step 5: Generate */}
+      <div className="card">
+        <p className="eyebrow">Step 5: generate</p>
+        <div className="mt-3 flex flex-wrap items-center gap-3">
+          <button
+            className="btn btn-accent"
+            onClick={generate}
+            disabled={!canGenerate}
+          >
+            {generating
+              ? "Starting..."
+              : `Generate ${selected.size} headshot${selected.size !== 1 ? "s" : ""}`}
+          </button>
+          {batchId && (
+            <button className="btn" onClick={startOver}>
+              Start over
+            </button>
+          )}
+        </div>
+        {generateDisabledReason && (
+          <p className="mt-2 text-sm text-muted">{generateDisabledReason}</p>
+        )}
+        {generateErr && (
+          <p className="mt-3 text-sm text-danger">{generateErr}</p>
+        )}
+      </div>
+
+      {/* Results */}
+      {batchId && (
+        <div className="card">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="eyebrow">Results</p>
+            <button className="btn" onClick={startOver}>
+              Start over
+            </button>
+          </div>
+          {batchHeadshots.some((r) => r.status === "done") && (
+            <a
+              className="btn btn-accent mt-4 inline-flex"
+              href={`/api/studio/batch/${batchId}/zip`}
+              download={`batch-${batchId}.zip`}
+            >
+              Download all
+            </a>
+          )}
+          <div className="mt-5 grid grid-cols-2 gap-4 sm:grid-cols-3">
+            {batchHeadshots.length > 0
+              ? batchHeadshots.map((hs, i) => {
+                  const row = submittedRows[i];
+                  return (
+                    <div key={hs.id} className="overflow-hidden rounded-lg border border-line">
+                      {hs.status === "done" && hs.imageUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={hs.imageUrl}
+                          alt={row?.nameText ?? "headshot"}
+                          className="aspect-square w-full object-cover"
+                        />
+                      ) : (
+                        <div className="aspect-square w-full bg-raised" />
+                      )}
+                      <div className="flex flex-col gap-2 p-3">
+                        <p className="text-sm font-medium">{row?.nameText ?? ""}</p>
+                        <StatusBadge {...headshotStatusView(hs.status)} />
+                        {hs.status === "error" && (
+                          <>
+                            <p className="text-xs text-danger">
+                              {hs.errorMessage ?? "Something went wrong."}
+                            </p>
+                            <button
+                              className="btn"
+                              onClick={() => retryRow(hs.id)}
+                            >
+                              Retry
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })
+              : submittedRows.map((row, i) => (
+                  <div key={i} className="overflow-hidden rounded-lg border border-line">
+                    <div className="aspect-square w-full bg-raised" />
+                    <div className="flex flex-col gap-2 p-3">
+                      <p className="text-sm font-medium">{row.nameText}</p>
+                      <StatusBadge {...headshotStatusView("pending")} />
+                    </div>
+                  </div>
+                ))
+            }
+          </div>
+        </div>
+      )}
     </div>
   );
 }
