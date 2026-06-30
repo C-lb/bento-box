@@ -62,6 +62,29 @@ if (!existsSync(resolve(fullSqlite, "binding.gyp"))) {
 rmSync(destSqlite, { recursive: true, force: true });
 cpSync(fullSqlite, destSqlite, { recursive: true });
 
+// 5b. sharp loads its native binary from a platform-specific package
+// (@img/sharp-<platform>) via a require whose specifier is built at runtime from
+// process.platform/arch. Next's output-file-tracing can't follow that dynamic
+// specifier, so the standalone trace ships sharp's JS but omits the @img platform
+// package - on macOS the host's darwin @img happens to get traced, but on Windows
+// the win32 binary is absent and sharp fails to dlopen (ERR_DLOPEN_FAILED).
+// Ship sharp + every installed @img/* package from the repo install explicitly;
+// npm ci installs the build host's own platform binaries, so each runner's build
+// gets the right ones. sharp is N-API / ABI-stable, so the prebuilt .node loads
+// under Electron with no rebuild needed.
+const fullSharp = resolve(repo, "node_modules/sharp");
+if (!existsSync(fullSharp)) {
+  console.error(`sharp not found at ${fullSharp} - the web server needs it shipped`);
+  process.exit(1);
+}
+cpSync(fullSharp, resolve(out, "node_modules/sharp"), { recursive: true });
+const imgDir = resolve(repo, "node_modules/@img");
+if (!existsSync(imgDir)) {
+  console.error(`@img platform packages not found at ${imgDir} - sharp's native binary would be missing`);
+  process.exit(1);
+}
+cpSync(imgDir, resolve(out, "node_modules/@img"), { recursive: true });
+
 // 6. The forked migrate.js is core's separately-shipped dist, so it needs core's
 // runtime deps as real modules. The Next server bundles drizzle-orm into its
 // chunks, so output-file-tracing never emits it; without this copy migrate.js

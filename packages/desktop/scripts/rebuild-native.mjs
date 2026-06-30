@@ -15,7 +15,12 @@ const require = createRequire(import.meta.url);
 const electronVersion = require("electron/package.json").version;
 const electronBin = require("electron"); // resolves to the Electron executable path
 const buildPath = resolve(here, "../build/server"); // rebuild the assembled server's node_modules
-const NATIVE = ["better-sqlite3", "sharp"];
+// better-sqlite3 is a NODE_MODULE_VERSION addon and MUST be recompiled for
+// Electron's ABI. sharp is prebuilt N-API (ABI-stable across Node/Electron), so it
+// only needs its platform .node shipped (handled in assemble-server.mjs), not a
+// rebuild - @electron/rebuild can't build it from source anyway. Verify both load.
+const REBUILD = ["better-sqlite3"];
+const VERIFY = ["better-sqlite3", "sharp"];
 
 // @electron/rebuild requires a package.json at buildPath; the Next standalone
 // output ships none. It also walks the dependency tree to find addons, so the
@@ -29,7 +34,7 @@ writeFileSync(
       name: "event-editor-server",
       version: "0.0.1",
       private: true,
-      dependencies: Object.fromEntries(NATIVE.map((m) => [m, "*"])),
+      dependencies: Object.fromEntries(REBUILD.map((m) => [m, "*"])),
     },
     null,
     2,
@@ -39,7 +44,7 @@ writeFileSync(
 await rebuild({
   buildPath,
   electronVersion,
-  onlyModules: NATIVE,
+  onlyModules: REBUILD,
   force: true,
 });
 console.log("rebuilt native modules for electron", electronVersion);
@@ -48,7 +53,7 @@ console.log("rebuilt native modules for electron", electronVersion);
 // addon under Electron-as-node. A silent no-op rebuild (the original bug) would
 // pass the build but crash the app on first db/image use; fail the build here
 // instead.
-for (const mod of NATIVE) {
+for (const mod of VERIFY) {
   const modPath = resolve(buildPath, "node_modules", mod);
   const probe =
     mod === "better-sqlite3"
