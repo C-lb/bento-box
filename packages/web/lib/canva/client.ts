@@ -83,7 +83,7 @@ export function makeCanvaClient(db: Db): CanvaClient {
     },
 
     async getDataset(templateId) {
-      const body = await call(`/brand-templates/${templateId}/dataset`);
+      const body = await withBackoff(() => call(`/brand-templates/${templateId}/dataset`), { retryOn: (s) => s === 429 || (s ?? 0) >= 500 });
       const dataset = body.dataset ?? body;
       const fields = Object.entries(dataset ?? {}).map(([name, def]: [string, any]) => ({
         name,
