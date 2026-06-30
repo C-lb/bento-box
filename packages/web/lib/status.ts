@@ -30,6 +30,8 @@ export function transcriptionStatusView(status: string): StatusView {
 export function headshotStatusView(status: string): StatusView {
   switch (status) {
     case "rendering": return { tone: "active", label: "Rendering" };
+    case "autofilling": return { tone: "active", label: "Filling Canva template" };
+    case "exporting": return { tone: "active", label: "Exporting from Canva" };
     case "done": return { tone: "success", label: "Done" };
     case "error": return { tone: "error", label: "Render failed" };
     default: return { tone: "idle", label: status };

@@ -26,4 +26,10 @@ describe("headshotStatusView", () => {
     expect(headshotStatusView("done")).toEqual({ tone: "success", label: "Done" });
     expect(headshotStatusView("error")).toEqual({ tone: "error", label: "Render failed" });
   });
+  it("maps autofilling", () => {
+    expect(headshotStatusView("autofilling")).toEqual({ tone: "active", label: "Filling Canva template" });
+  });
+  it("maps exporting", () => {
+    expect(headshotStatusView("exporting")).toEqual({ tone: "active", label: "Exporting from Canva" });
+  });
 });
