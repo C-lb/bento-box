@@ -15,6 +15,7 @@ export interface CreateHeadshotArgs {
   frameId: string;
   nameText: string;
   titleText: string;
+  batchId?: string;
 }
 
 function touch(db: BetterSQLite3Database<any>, id: number, set: Record<string, unknown>) {
@@ -34,6 +35,7 @@ export function createHeadshot(db: BetterSQLite3Database<any>, args: CreateHeads
       nameText: args.nameText,
       titleText: args.titleText,
       status: "rendering",
+      batchId: args.batchId ?? null,
       createdAt: now,
       updatedAt: now,
     })
@@ -66,6 +68,7 @@ export interface CreateCanvaHeadshotArgs {
   canvaTemplateId: string;
   nameText: string;
   titleText: string;
+  batchId?: string;
 }
 
 export function createCanvaHeadshot(db: BetterSQLite3Database<any>, args: CreateCanvaHeadshotArgs): number {
@@ -81,6 +84,7 @@ export function createCanvaHeadshot(db: BetterSQLite3Database<any>, args: Create
       nameText: args.nameText,
       titleText: args.titleText,
       status: "autofilling",
+      batchId: args.batchId ?? null,
       createdAt: now,
       updatedAt: now,
     })
@@ -141,4 +145,32 @@ export async function runHeadshotCanva(
           : String(err);
     touch(db, id, { status: "error", errorMessage });
   }
+}
+
+export function createBatchHeadshots(
+  db: BetterSQLite3Database<any>,
+  args: {
+    batchId: string;
+    renderer: "local" | "canva";
+    styleId: string;
+    rows: { driveFileId: string; nameText: string; titleText: string }[];
+  },
+): number[] {
+  return args.rows.map((row) =>
+    args.renderer === "canva"
+      ? createCanvaHeadshot(db, {
+          driveFileId: row.driveFileId,
+          canvaTemplateId: args.styleId,
+          nameText: row.nameText,
+          titleText: row.titleText,
+          batchId: args.batchId,
+        })
+      : createHeadshot(db, {
+          driveFileId: row.driveFileId,
+          frameId: args.styleId,
+          nameText: row.nameText,
+          titleText: row.titleText,
+          batchId: args.batchId,
+        }),
+  );
 }
