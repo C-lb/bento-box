@@ -1,6 +1,11 @@
 // packages/desktop/main.js
 const { app, BrowserWindow, dialog } = require("electron");
 const { fork } = require("node:child_process");
+
+// Force the app name so userData resolves to ".../Application Support/Event Editor"
+// (the package name "@event-editor/desktop" would otherwise create an ugly nested
+// folder and not match the setup docs). Must run before any app.getPath("userData").
+app.setName("Event Editor");
 const { readFileSync, mkdirSync, existsSync, writeFileSync } = require("node:fs");
 const path = require("node:path");
 const net = require("node:net");

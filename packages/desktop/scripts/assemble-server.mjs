@@ -62,4 +62,18 @@ if (!existsSync(resolve(fullSqlite, "binding.gyp"))) {
 rmSync(destSqlite, { recursive: true, force: true });
 cpSync(fullSqlite, destSqlite, { recursive: true });
 
+// 6. The forked migrate.js is core's separately-shipped dist, so it needs core's
+// runtime deps as real modules. The Next server bundles drizzle-orm into its
+// chunks, so output-file-tracing never emits it; without this copy migrate.js
+// only resolves drizzle-orm by walking up to the repo's node_modules, which
+// works from the dev location but breaks once the app is moved to /Applications.
+// drizzle-orm is pure JS with no runtime deps of its own. (better-sqlite3, core's
+// other dep, is handled above.)
+const fullDrizzle = resolve(repo, "node_modules/drizzle-orm");
+if (!existsSync(fullDrizzle)) {
+  console.error(`drizzle-orm not found at ${fullDrizzle} - the forked migrate step needs it shipped`);
+  process.exit(1);
+}
+cpSync(fullDrizzle, resolve(out, "node_modules/drizzle-orm"), { recursive: true });
+
 console.log("assembled server ->", out);
