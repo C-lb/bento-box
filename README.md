@@ -1,3 +1,7 @@
+## Desktop app
+
+Desktop builds (macOS + Windows): see `docs/setup/desktop.md`.
+
 ## Environment
 
 All API keys live in the repo-root `.env` (gitignored). `next.config.ts` loads it
