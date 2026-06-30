@@ -1,0 +1,16 @@
+{
+  "name": "@event-editor/desktop",
+  "version": "0.0.1",
+  "private": true,
+  "main": "main.js",
+  "scripts": {
+    "dev": "EE_DESKTOP_DEV_URL=http://localhost:3000 electron .",
+    "assemble": "node scripts/assemble-server.mjs",
+    "dist": "npm run -w @event-editor/core build && npm run -w @event-editor/web build && npm run assemble && node scripts/rebuild-native.mjs && electron-builder"
+  },
+  "devDependencies": {
+    "electron": "^33.0.0",
+    "electron-builder": "^25.0.0",
+    "@electron/rebuild": "^3.6.0"
+  }
+}
