@@ -9,3 +9,5 @@ No per-package `.env` is needed.
 ### Headshot Studio
 
 Canva renderer setup: see `docs/setup/canva.md`.
+
+Batch from a sheet: see `docs/setup/sheets.md`.
