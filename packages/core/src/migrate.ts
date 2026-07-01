@@ -77,6 +77,11 @@ const DDL = [
     error_message TEXT,
     created_at INTEGER NOT NULL DEFAULT 0,
     updated_at INTEGER NOT NULL DEFAULT 0
+    ,context_file_path TEXT,
+    context_text TEXT,
+    event_details TEXT,
+    summary_linkedin TEXT,
+    summary_article TEXT
   )`,
 ];
 
@@ -137,6 +142,11 @@ export function runMigrations(db: BetterSQLite3Database<any>): void {
   }
   migrateHeadshots(db);
   addColumnIfMissing(db, "headshots", "batch_id", "TEXT");
+  addColumnIfMissing(db, "transcriptions", "context_file_path", "TEXT");
+  addColumnIfMissing(db, "transcriptions", "context_text", "TEXT");
+  addColumnIfMissing(db, "transcriptions", "event_details", "TEXT");
+  addColumnIfMissing(db, "transcriptions", "summary_linkedin", "TEXT");
+  addColumnIfMissing(db, "transcriptions", "summary_article", "TEXT");
 }
 
 // True when this module is the process entry point (CLI or forked), false when

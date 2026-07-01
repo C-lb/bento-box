@@ -77,4 +77,9 @@ export const transcriptions = sqliteTable("transcriptions", {
   errorMessage: text("error_message"),
   createdAt: integer("created_at").notNull().default(0),
   updatedAt: integer("updated_at").notNull().default(0),
+  contextFilePath: text("context_file_path"),
+  contextText: text("context_text"),
+  eventDetails: text("event_details"),
+  summaryLinkedin: text("summary_linkedin"),
+  summaryArticle: text("summary_article"),
 });
