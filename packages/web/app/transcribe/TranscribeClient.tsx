@@ -5,6 +5,7 @@ import { transcriptionStatusView } from "@/lib/status";
 import { Segmented } from "@/components/Segmented";
 import { CopyButton } from "@/components/CopyButton";
 import { EventDetailsPanel } from "./EventDetailsPanel";
+import { FileDrop } from "@/components/FileDrop";
 
 // Anything ffmpeg can decode works — the file is re-encoded to mono 16kHz mp3
 // chunks before transcription. Keep this list in sync with the input's accept.
@@ -132,13 +133,14 @@ export function TranscribeClient() {
   return (
     <div className="mt-8">
       <div className="card flex flex-wrap items-center gap-3">
-        <input
-          ref={fileRef}
-          type="file"
-          accept={ACCEPT}
-          className="text-sm text-muted"
-          onChange={(e) => setHasFile(!!e.target.files?.length)}
-        />
+        <div className="min-w-[260px] flex-1">
+          <FileDrop
+            inputRef={fileRef}
+            accept={ACCEPT}
+            onChange={setHasFile}
+            label="Drop an audio or video file here, or click to browse"
+          />
+        </div>
         <button className="btn btn-accent" onClick={upload} disabled={busy || !hasFile}>
           {busy ? "Uploading…" : "Transcribe"}
         </button>
@@ -149,7 +151,13 @@ export function TranscribeClient() {
         </div>
         <div className="basis-full mt-2">
           <p className="text-sm font-medium">Optional: add context (agenda, deck, or notes)</p>
-          <input ref={ctxRef} type="file" accept={CONTEXT_ACCEPT} className="mt-1 text-sm text-muted" />
+          <div className="mt-1">
+            <FileDrop
+              inputRef={ctxRef}
+              accept={CONTEXT_ACCEPT}
+              label="Drop a context file here, or click to browse"
+            />
+          </div>
           <p className="mt-1 text-sm text-muted">Accepted: Markdown, HTML, PDF, PPTX. Used to ground the summaries with names and sponsors.</p>
         </div>
       </div>
