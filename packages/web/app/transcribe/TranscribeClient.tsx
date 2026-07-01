@@ -2,6 +2,9 @@
 import { useEffect, useRef, useState } from "react";
 import { StatusBadge } from "@/components/StatusBadge";
 import { transcriptionStatusView } from "@/lib/status";
+import { Segmented } from "@/components/Segmented";
+import { CopyButton } from "@/components/CopyButton";
+import { EventDetailsPanel } from "./EventDetailsPanel";
 
 // Anything ffmpeg can decode works — the file is re-encoded to mono 16kHz mp3
 // chunks before transcription. Keep this list in sync with the input's accept.
@@ -17,6 +20,11 @@ interface Transcription {
   summaryText: string | null;
   docUrl: string | null;
   errorMessage: string | null;
+  transcriptText: string | null;
+  hasContext: boolean;
+  eventDetails: { eventName: string; eventDescription: string; speakers: { name: string; company: string }[]; sponsors: { name: string; company: string }[] } | null;
+  summaryLinkedin: string | null;
+  summaryArticle: string | null;
 }
 
 export function TranscribeClient() {
@@ -27,6 +35,13 @@ export function TranscribeClient() {
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [retryNonce, setRetryNonce] = useState(0);
   const fileRef = useRef<HTMLInputElement>(null);
+  const ctxRef = useRef<HTMLInputElement>(null);
+  const CONTEXT_ACCEPT = ".md,.markdown,.html,.pdf,.pptx";
+
+  const [format, setFormat] = useState<"general" | "linkedin" | "article">("general");
+  const [formatText, setFormatText] = useState<Record<string, string>>({});
+  const [formatBusy, setFormatBusy] = useState(false);
+  const [formatError, setFormatError] = useState<string | null>(null);
 
   useEffect(() => {
     if (id == null) return;
@@ -50,7 +65,18 @@ export function TranscribeClient() {
     setTx(null);
     setUploadError(null);
     try {
-      const r = await fetch("/api/transcribe", { method: "POST", headers: { "x-filename": file.name }, body: file });
+      let contextId: string | null = null;
+      const ctxFile = ctxRef.current?.files?.[0];
+      if (ctxFile) {
+        const fd = new FormData();
+        fd.append("file", ctxFile);
+        const cr = await fetch("/api/transcribe/context", { method: "POST", body: fd });
+        const cd = await cr.json().catch(() => null);
+        if (cr.ok && cd?.contextId) contextId = cd.contextId;
+      }
+      const headers: Record<string, string> = { "x-filename": file.name };
+      if (contextId) headers["x-context-id"] = contextId;
+      const r = await fetch("/api/transcribe", { method: "POST", headers, body: file });
       const data = await r.json().catch(() => null);
       if (!r.ok || !data?.id) {
         setUploadError("Upload failed. Please try again.");
@@ -85,6 +111,26 @@ export function TranscribeClient() {
     if (fileRef.current) fileRef.current.value = "";
   }
 
+  async function loadFormat(fmt: "general" | "linkedin" | "article") {
+    setFormat(fmt);
+    setFormatError(null);
+    if (fmt === "general") return;
+    if (formatText[fmt]) return;
+    const cached = fmt === "linkedin" ? tx?.summaryLinkedin : tx?.summaryArticle;
+    if (cached) { setFormatText((m) => ({ ...m, [fmt]: cached })); return; }
+    if (id == null) return;
+    setFormatBusy(true);
+    try {
+      const r = await fetch(`/api/transcribe/${id}/summary`, {
+        method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ format: fmt }),
+      });
+      const d = await r.json().catch(() => null);
+      if (r.ok && d?.text) setFormatText((m) => ({ ...m, [fmt]: d.text }));
+      else setFormatError(d?.error ?? "Could not generate this format.");
+    } catch { setFormatError("Could not generate this format."); }
+    finally { setFormatBusy(false); }
+  }
+
   return (
     <div className="mt-8">
       <div className="card flex flex-wrap items-center gap-3">
@@ -102,6 +148,11 @@ export function TranscribeClient() {
         <div className="basis-full text-sm text-muted">
           <p>Audio: {AUDIO_FORMATS.join(", ")}.</p>
           <p className="mt-1">Video (audio is extracted): {VIDEO_FORMATS.join(", ")}.</p>
+        </div>
+        <div className="basis-full mt-2">
+          <p className="text-sm font-medium">Optional: add context (agenda, deck, or notes)</p>
+          <input ref={ctxRef} type="file" accept={CONTEXT_ACCEPT} className="mt-1 text-sm text-muted" />
+          <p className="mt-1 text-sm text-muted">Accepted: Markdown, HTML, PDF, PPTX. Used to ground the summaries with names and sponsors.</p>
         </div>
       </div>
       {uploadError && <p className="mt-3 text-danger">{uploadError}</p>}
@@ -130,12 +181,39 @@ export function TranscribeClient() {
                   Open in Google Docs
                 </a>
               )}
-              {tx.summaryText && (
-                <div className="mt-4">
-                  <p className="eyebrow">Summary</p>
-                  <p className="mt-1 whitespace-pre-wrap text-ink">{tx.summaryText}</p>
-                </div>
+              {tx.eventDetails && (
+                <EventDetailsPanel
+                  id={id!}
+                  initial={tx.eventDetails}
+                  onSaved={() => { setFormatText({}); setFormat("general"); }}
+                />
               )}
+              <div className="mt-5">
+                <Segmented
+                  options={[{ value: "general", label: "General" }, { value: "linkedin", label: "LinkedIn" }, { value: "article", label: "Article" }]}
+                  value={format}
+                  onChange={(v) => loadFormat(v as any)}
+                />
+                <div className="card mt-3">
+                  {format === "general" && (
+                    <p className="whitespace-pre-wrap text-ink">{tx.summaryText}</p>
+                  )}
+                  {format !== "general" && (
+                    formatBusy ? <p className="text-muted">Generating…</p>
+                    : formatError ? (
+                      <div>
+                        <p className="text-danger">{formatError}</p>
+                        <button className="btn mt-3" onClick={() => loadFormat(format)}>Try again</button>
+                      </div>
+                    ) : (
+                      <>
+                        <p className="whitespace-pre-wrap text-ink">{formatText[format]}</p>
+                        {formatText[format] && <div className="mt-3"><CopyButton text={formatText[format]} /></div>}
+                      </>
+                    )
+                  )}
+                </div>
+              </div>
             </>
           )}
         </div>
