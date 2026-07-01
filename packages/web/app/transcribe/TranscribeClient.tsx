@@ -3,6 +3,12 @@ import { useEffect, useRef, useState } from "react";
 import { StatusBadge } from "@/components/StatusBadge";
 import { transcriptionStatusView } from "@/lib/status";
 
+// Anything ffmpeg can decode works — the file is re-encoded to mono 16kHz mp3
+// chunks before transcription. Keep this list in sync with the input's accept.
+const AUDIO_FORMATS = ["MP3", "M4A", "WAV", "FLAC", "OGG", "AAC", "AIFF", "WMA"];
+const VIDEO_FORMATS = ["MP4", "MOV", "WEBM", "MKV"];
+const ACCEPT = "audio/*,video/*,.m4a,.mp3,.wav,.flac,.ogg,.oga,.aac,.aiff,.wma,.mp4,.mov,.webm,.mkv";
+
 interface Transcription {
   id: number;
   originalFilename: string;
@@ -85,14 +91,18 @@ export function TranscribeClient() {
         <input
           ref={fileRef}
           type="file"
-          accept="audio/*,video/*,.m4a,.mp3,.wav,.flac,.ogg,.oga,.aac,.aiff,.wma,.mp4,.mov,.webm,.mkv"
+          accept={ACCEPT}
           className="text-sm text-muted"
           onChange={(e) => setHasFile(!!e.target.files?.length)}
         />
         <button className="btn btn-accent" onClick={upload} disabled={busy || !hasFile}>
           {busy ? "Uploading…" : "Transcribe"}
         </button>
-        {!hasFile && <span className="text-sm text-muted">Add an audio file first</span>}
+        {!hasFile && <span className="text-sm text-muted">Add a file first</span>}
+        <div className="basis-full text-sm text-muted">
+          <p>Audio: {AUDIO_FORMATS.join(", ")}.</p>
+          <p className="mt-1">Video (audio is extracted): {VIDEO_FORMATS.join(", ")}.</p>
+        </div>
       </div>
       {uploadError && <p className="mt-3 text-danger">{uploadError}</p>}
 
