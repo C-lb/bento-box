@@ -71,7 +71,12 @@ export async function runTranscription(
     const summary = await deps.summarize(transcript);
     touch(db, id, { summaryText: summary, status: "creating_doc" });
 
-    const details = await deps.extractDetails(row.contextText ?? "", transcript);
+    let details: EventDetails;
+    try {
+      details = await deps.extractDetails(row.contextText ?? "", transcript);
+    } catch {
+      details = { eventName: "", eventDescription: "", speakers: [], sponsors: [] };
+    }
     touch(db, id, { eventDetails: JSON.stringify(details) });
 
     const html = buildTranscriptHtml(summary, segments);

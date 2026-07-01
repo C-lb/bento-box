@@ -116,8 +116,6 @@ export function TranscribeClient() {
     setFormatError(null);
     if (fmt === "general") return;
     if (formatText[fmt]) return;
-    const cached = fmt === "linkedin" ? tx?.summaryLinkedin : tx?.summaryArticle;
-    if (cached) { setFormatText((m) => ({ ...m, [fmt]: cached })); return; }
     if (id == null) return;
     setFormatBusy(true);
     try {

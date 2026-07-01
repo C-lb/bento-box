@@ -64,4 +64,23 @@ describe("runTranscription", () => {
     expect(row.status).toBe("error");
     expect(row.errorMessage).toMatch(/groq down/);
   });
+
+  it("still creates the doc and marks done when extraction fails", async () => {
+    const db = freshDb();
+    const id = createTranscription(db, { originalFilename: "extract-fail.mp3" });
+    db.update(transcriptions).set({ sourceUploadPath: "data/uploads/z/extract-fail.mp3" }).where(eq(transcriptions.id, id)).run();
+
+    await runTranscription(
+      db,
+      id,
+      { ...happyDeps, extractDetails: async () => { throw new Error("refused"); } },
+      { chunkSec: 600 },
+    );
+
+    const row = db.select().from(transcriptions).where(eq(transcriptions.id, id)).all()[0];
+    expect(row.status).toBe("done");
+    expect(row.docId).toBe("doc1");
+    expect(row.docUrl).toBe("https://docs/doc1");
+    expect(JSON.parse(row.eventDetails as string).eventName).toBe("");
+  });
 });
