@@ -130,6 +130,8 @@ export function TranscribeClient() {
     finally { setFormatBusy(false); }
   }
 
+  const inProgress = busy || (id != null && tx != null && tx.status !== "done" && tx.status !== "error");
+
   return (
     <div className="mt-8">
       <div className="card flex flex-wrap items-center gap-3">
@@ -141,8 +143,12 @@ export function TranscribeClient() {
             label="Drop an audio or video file here, or click to browse"
           />
         </div>
-        <button className="btn btn-accent" onClick={upload} disabled={busy || !hasFile}>
-          {busy ? "Uploading…" : "Transcribe"}
+        <button
+          className={`btn ${inProgress ? "btn-progress" : "btn-accent"}`}
+          onClick={upload}
+          disabled={inProgress || !hasFile}
+        >
+          {inProgress ? "Transcribing!" : "Transcribe"}
         </button>
         {!hasFile && <span className="text-sm text-muted">Add a file first</span>}
         <div className="basis-full text-sm text-muted">

@@ -4,7 +4,7 @@ import { createWriteStream } from "node:fs";
 import { mkdir } from "node:fs/promises";
 import { pipeline } from "node:stream/promises";
 import { resolve } from "node:path";
-import { eq } from "drizzle-orm";
+import { eq, desc } from "drizzle-orm";
 import { createTranscription } from "@event-editor/core/transcription";
 import { transcriptions } from "@event-editor/core/schema";
 import { getDb } from "@/lib/db";
@@ -12,6 +12,25 @@ import { startTranscription } from "@/lib/transcriber";
 import { linkStash } from "@/lib/context";
 
 export const runtime = "nodejs";
+
+// The 5 most recent transcriptions, newest first, for the history panel.
+export async function GET() {
+  const rows = getDb()
+    .select()
+    .from(transcriptions)
+    .orderBy(desc(transcriptions.createdAt))
+    .limit(5)
+    .all();
+  return NextResponse.json({
+    transcriptions: rows.map((r) => ({
+      id: r.id,
+      originalFilename: r.originalFilename,
+      status: r.status,
+      docUrl: r.docUrl,
+      createdAt: r.createdAt,
+    })),
+  });
+}
 
 function safeName(name: string): string {
   return name.replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 120) || "audio";

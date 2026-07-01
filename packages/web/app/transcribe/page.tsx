@@ -1,5 +1,6 @@
 import { getConnections } from "@event-editor/core/settings";
 import { TranscribeClient } from "./TranscribeClient";
+import { PastTranscriptions } from "./PastTranscriptions";
 
 // Reads API keys from process.env at render. Must run per request: the packaged
 // app injects keys at launch from the per-user .env, so a build-time static
@@ -18,8 +19,13 @@ export default function TranscribePage() {
 
   return (
     <div>
-      <p className="eyebrow">Audio transcriber</p>
-      <h1 className="mt-1 text-2xl font-semibold">Transcribe audio to a Google Doc</h1>
+      <div className="flex items-center justify-between gap-4">
+        <div>
+          <p className="eyebrow">Audio transcriber</p>
+          <h1 className="mt-1 text-2xl font-semibold">Transcribe audio to a Google Doc</h1>
+        </div>
+        <PastTranscriptions />
+      </div>
       {missing.length > 0 ? (
         <div className="card mt-8">
           <p className="text-muted">Set these in .env, then restart:</p>

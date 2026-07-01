@@ -16,7 +16,14 @@ body {
 }
 .btn:hover { @apply border-muted/40 bg-[#eef0f3]; }
 .btn:active { @apply translate-y-px; }
+.btn:disabled { pointer-events: none; }
 .btn-accent { @apply bg-accent border-accent text-white; }
+/* On hover the shared .btn:hover greys the background, so switch the label to
+   ink instead of white to keep it readable. */
+.btn-accent:hover { @apply text-ink; }
+/* In-progress state for the Transcribe action: green, holds through hover. */
+.btn-progress { @apply bg-success border-success text-white; }
+.btn-progress:hover { @apply bg-success border-success text-white; }
 
 .card {
   @apply rounded-card border border-line bg-surface p-5 shadow-soft;
