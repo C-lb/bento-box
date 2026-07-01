@@ -1,6 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { buildVisionPrompt, type VisionScore } from "@event-editor/core/rank";
-import { buildSummaryPrompt } from "@event-editor/core/transcribe";
+import { buildSummaryPrompt, buildEventDetailsPrompt, buildLinkedInPrompt, buildArticlePrompt, type EventDetails } from "@event-editor/core/transcribe";
 
 export const VISION_MODEL = process.env.EE_VISION_MODEL ?? "claude-opus-4-8";
 
@@ -13,6 +13,18 @@ const SCORE_SCHEMA = {
     reasons: { type: "array", items: { type: "string" } },
   },
   required: ["score", "reasons"],
+  additionalProperties: false,
+} as const;
+
+const DETAILS_SCHEMA = {
+  type: "object",
+  properties: {
+    eventName: { type: "string" },
+    eventDescription: { type: "string" },
+    speakers: { type: "array", items: { type: "object", properties: { name: { type: "string" }, company: { type: "string" } }, required: ["name", "company"], additionalProperties: false } },
+    sponsors: { type: "array", items: { type: "object", properties: { name: { type: "string" }, company: { type: "string" } }, required: ["name", "company"], additionalProperties: false } },
+  },
+  required: ["eventName", "eventDescription", "speakers", "sponsors"],
   additionalProperties: false,
 } as const;
 
@@ -54,6 +66,34 @@ export async function scorePhoto(
     ? parsed.reasons.slice(0, 3).map((r: unknown) => String(r))
     : [];
   return { score, reasons };
+}
+
+export async function extractEventDetails(client: Anthropic, contextText: string, transcript: string): Promise<EventDetails> {
+  const res: any = await client.messages.create({
+    model: SUMMARY_MODEL,
+    max_tokens: 1024,
+    output_config: { format: { type: "json_schema", schema: DETAILS_SCHEMA } },
+    messages: buildEventDetailsPrompt(contextText, transcript),
+  } as any);
+  if (res.stop_reason === "refusal") throw new Error("model refused to extract event details");
+  const text = (res.content ?? []).find((b: any) => b.type === "text")?.text ?? "";
+  let parsed: any;
+  try { parsed = JSON.parse(text); } catch { throw new Error("event details model returned unparseable output"); }
+  return {
+    eventName: String(parsed.eventName ?? ""),
+    eventDescription: String(parsed.eventDescription ?? ""),
+    speakers: Array.isArray(parsed.speakers) ? parsed.speakers.map((s: any) => ({ name: String(s.name ?? ""), company: String(s.company ?? "") })) : [],
+    sponsors: Array.isArray(parsed.sponsors) ? parsed.sponsors.map((s: any) => ({ name: String(s.name ?? ""), company: String(s.company ?? "") })) : [],
+  };
+}
+
+export async function generateFormattedSummary(client: Anthropic, format: "linkedin" | "article", transcript: string, details: EventDetails): Promise<string> {
+  const messages = format === "linkedin" ? buildLinkedInPrompt(transcript, details) : buildArticlePrompt(transcript, details);
+  const res: any = await client.messages.create({ model: SUMMARY_MODEL, max_tokens: 4096, messages } as any);
+  if (res.stop_reason === "refusal") throw new Error(`model refused to write the ${format} summary`);
+  const text = (res.content ?? []).find((b: any) => b.type === "text")?.text ?? "";
+  if (!text.trim()) throw new Error(`${format} model returned empty output`);
+  return text.trim();
 }
 
 export async function summarizeTranscript(client: Anthropic, transcript: string): Promise<string> {

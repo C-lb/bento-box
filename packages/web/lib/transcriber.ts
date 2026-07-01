@@ -6,7 +6,7 @@ import { transcriptions } from "@event-editor/core/schema";
 import type { openDb } from "@event-editor/core/db";
 import { transcodeAndSegment, probeDuration } from "./audio";
 import { transcribeChunk } from "./groq";
-import { visionClient, summarizeTranscript } from "./anthropic";
+import { visionClient, summarizeTranscript, extractEventDetails } from "./anthropic";
 import { authedDriveClient } from "./google/oauth";
 import { createGoogleDoc } from "./google/docs";
 import { withBackoff } from "./backoff";
@@ -44,6 +44,7 @@ export function startTranscription(db: Db, id: number): void {
       transcribeChunk: (path) => withBackoff(() => transcribeChunk(path)),
       summarize: (transcript) => withBackoff(() => summarizeTranscript(client, transcript)),
       createDoc: (html, name) => createGoogleDoc(drive, html, name),
+      extractDetails: (contextText, transcript) => withBackoff(() => extractEventDetails(client, contextText, transcript)),
     });
   })();
 }

@@ -1,4 +1,7 @@
 import { parseOfficeAsync } from "officeparser";
+import { randomUUID } from "node:crypto";
+import { mkdir, writeFile, readFile } from "node:fs/promises";
+import { resolve } from "node:path";
 
 export type ContextExt = "md" | "markdown" | "html" | "pdf" | "pptx";
 
@@ -34,4 +37,25 @@ export async function parseContextFile(buffer: Buffer, ext: ContextExt): Promise
   // pdf, pptx: officeparser returns extracted plain text.
   const text = await parseOfficeAsync(buffer);
   return stripMarkup(text);
+}
+
+const STASH_DIR = resolve("data/uploads/context");
+
+export async function stashContext(buffer: Buffer, ext: ContextExt): Promise<string> {
+  const id = randomUUID();
+  await mkdir(STASH_DIR, { recursive: true });
+  const text = await parseContextFile(buffer, ext);
+  await writeFile(resolve(STASH_DIR, `${id}.json`), JSON.stringify({ ext, text }), "utf8");
+  return id;
+}
+
+export async function readStash(contextId: string): Promise<{ ext: ContextExt; text: string } | null> {
+  if (!/^[0-9a-f-]{36}$/i.test(contextId)) return null;
+  try {
+    const raw = await readFile(resolve(STASH_DIR, `${contextId}.json`), "utf8");
+    const obj = JSON.parse(raw);
+    return { ext: obj.ext, text: obj.text };
+  } catch {
+    return null;
+  }
 }

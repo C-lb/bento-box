@@ -24,6 +24,7 @@ const happyDeps = {
   }),
   summarize: async () => "the summary",
   createDoc: async () => ({ id: "doc1", url: "https://docs/doc1" }),
+  extractDetails: async () => ({ eventName: "Demo Event", eventDescription: "", speakers: [], sponsors: [] }),
 };
 
 describe("runTranscription", () => {
@@ -42,6 +43,9 @@ describe("runTranscription", () => {
     expect(row.summaryText).toBe("the summary");
     expect(row.docId).toBe("doc1");
     expect(row.docUrl).toBe("https://docs/doc1");
+
+    const done = db.select().from(transcriptions).where(eq(transcriptions.id, id)).all()[0];
+    expect(JSON.parse(done.eventDetails as string).eventName).toBe("Demo Event");
   });
 
   it("marks the row error when a step throws", async () => {

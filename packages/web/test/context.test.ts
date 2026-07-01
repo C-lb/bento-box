@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { extFromName, stripMarkup, parseContextFile } from "../lib/context";
+import { extFromName, stripMarkup, parseContextFile, stashContext, readStash } from "../lib/context";
 
 describe("extFromName", () => {
   it("maps known extensions and rejects others", () => {
@@ -33,5 +33,17 @@ describe("parseContextFile", () => {
   it("parses md and html in-house", async () => {
     expect(await parseContextFile(Buffer.from("# Hello"), "md")).toContain("Hello");
     expect(await parseContextFile(Buffer.from("<p>Hello</p>"), "html")).toContain("Hello");
+  });
+});
+
+describe("stash round-trip", () => {
+  it("stashes parsed text and reads it back", async () => {
+    const id = await stashContext(Buffer.from("# Kept"), "md");
+    const got = await readStash(id);
+    expect(got?.ext).toBe("md");
+    expect(got?.text).toContain("Kept");
+  });
+  it("returns null for an unknown id", async () => {
+    expect(await readStash("does-not-exist")).toBeNull();
   });
 });
