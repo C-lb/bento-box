@@ -9,6 +9,7 @@ import { createTranscription } from "@event-editor/core/transcription";
 import { transcriptions } from "@event-editor/core/schema";
 import { getDb } from "@/lib/db";
 import { startTranscription } from "@/lib/transcriber";
+import { linkStash } from "@/lib/context";
 
 export const runtime = "nodejs";
 
@@ -36,6 +37,9 @@ export async function POST(request: Request) {
       .set({ sourceUploadPath: `data/uploads/${id}/${filename}`, updatedAt: Date.now() })
       .where(eq(transcriptions.id, id))
       .run();
+
+    const contextId = request.headers.get("x-context-id");
+    if (contextId) await linkStash(db, id, contextId);
 
     startTranscription(db, id);
     return NextResponse.json({ id });

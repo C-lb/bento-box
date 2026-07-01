@@ -2,6 +2,8 @@ import { parseOfficeAsync } from "officeparser";
 import { randomUUID } from "node:crypto";
 import { mkdir, writeFile, readFile } from "node:fs/promises";
 import { resolve } from "node:path";
+import { eq } from "drizzle-orm";
+import { transcriptions } from "@event-editor/core/schema";
 
 export type ContextExt = "md" | "markdown" | "html" | "pdf" | "pptx";
 
@@ -58,4 +60,14 @@ export async function readStash(contextId: string): Promise<{ ext: ContextExt; t
   } catch {
     return null;
   }
+}
+
+export async function linkStash(db: any, id: number, contextId: string): Promise<boolean> {
+  const stash = await readStash(contextId);
+  if (!stash) return false;
+  db.update(transcriptions)
+    .set({ contextText: stash.text, contextFilePath: `data/uploads/context/${contextId}.json`, updatedAt: Date.now() })
+    .where(eq(transcriptions.id, id))
+    .run();
+  return true;
 }

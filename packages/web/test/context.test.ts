@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { extFromName, stripMarkup, parseContextFile, stashContext, readStash } from "../lib/context";
+import { extFromName, stripMarkup, parseContextFile, stashContext, readStash, linkStash } from "../lib/context";
 
 describe("extFromName", () => {
   it("maps known extensions and rejects others", () => {
@@ -45,5 +45,21 @@ describe("stash round-trip", () => {
   });
   it("returns null for an unknown id", async () => {
     expect(await readStash("does-not-exist")).toBeNull();
+  });
+});
+
+describe("linkStash", () => {
+  it("writes context text onto the row", async () => {
+    const id = await stashContext(Buffer.from("<p>Linked ctx</p>"), "html");
+    const set = vi.fn();
+    const where = vi.fn(() => ({ run: vi.fn() }));
+    const db = { update: () => ({ set: (v: any) => { set(v); return { where }; } }) } as any;
+    const ok = await linkStash(db, 7, id);
+    expect(ok).toBe(true);
+    expect(set.mock.calls[0][0].contextText).toContain("Linked ctx");
+  });
+  it("returns false for a missing stash", async () => {
+    const db = { update: () => ({ set: () => ({ where: () => ({ run: vi.fn() }) }) }) } as any;
+    expect(await linkStash(db, 7, "11111111-1111-1111-1111-111111111111")).toBe(false);
   });
 });
