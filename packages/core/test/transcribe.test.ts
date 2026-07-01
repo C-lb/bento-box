@@ -6,6 +6,8 @@ import {
   buildTranscriptHtml,
   buildSummaryPrompt,
   buildEventDetailsPrompt,
+  buildLinkedInPrompt,
+  buildArticlePrompt,
   docBaseName,
 } from "../src/transcribe.js";
 
@@ -86,6 +88,37 @@ describe("buildEventDetailsPrompt", () => {
   it("labels the context as possibly empty without breaking", () => {
     const msgs = buildEventDetailsPrompt("", "ONLY TRANSCRIPT");
     expect(msgs[0].content).toContain("ONLY TRANSCRIPT");
+  });
+});
+
+const DETAILS = {
+  eventName: "SPARK Luncheon",
+  eventDescription: "A closed door session on AI.",
+  speakers: [{ name: "Tom Leighton", company: "Akamai" }],
+  sponsors: [{ name: "Akamai Technologies", company: "" }],
+};
+
+describe("buildLinkedInPrompt", () => {
+  it("encodes the required structure and grounding", () => {
+    const text = buildLinkedInPrompt("TRANSCRIPT", DETAILS)[0].content;
+    expect(text).toContain("Key takeaways from the session:");
+    expect(text).toContain("Our sincere thanks to");
+    expect(text.toLowerCase()).toContain("hashtag");
+    expect(text.toLowerCase()).toContain("no sign-off");
+    expect(text).toContain("em dashes");
+    expect(text).toContain("Tom Leighton");
+    expect(text).toContain("Akamai Technologies");
+    expect(text).toContain("TRANSCRIPT");
+  });
+});
+
+describe("buildArticlePrompt", () => {
+  it("caps length and asks for SEO structure and takeaways", () => {
+    const text = buildArticlePrompt("TRANSCRIPT", DETAILS)[0].content;
+    expect(text).toContain("1000 words");
+    expect(text.toLowerCase()).toContain("seo");
+    expect(text.toLowerCase()).toContain("key takeaways");
+    expect(text).toContain("TRANSCRIPT");
   });
 });
 
