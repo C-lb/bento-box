@@ -5,6 +5,7 @@ import {
   formatTimestamp,
   buildTranscriptHtml,
   buildSummaryPrompt,
+  buildEventDetailsPrompt,
   docBaseName,
 } from "../src/transcribe.js";
 
@@ -69,6 +70,22 @@ describe("buildSummaryPrompt", () => {
     expect(msgs).toHaveLength(1);
     expect(msgs[0].role).toBe("user");
     expect(msgs[0].content).toContain("the words");
+  });
+});
+
+describe("buildEventDetailsPrompt", () => {
+  it("includes context and transcript and asks for speakers and sponsors", () => {
+    const msgs = buildEventDetailsPrompt("AGENDA TEXT", "TRANSCRIPT TEXT");
+    const text = msgs[0].content;
+    expect(msgs[0].role).toBe("user");
+    expect(text).toContain("AGENDA TEXT");
+    expect(text).toContain("TRANSCRIPT TEXT");
+    expect(text.toLowerCase()).toContain("speakers");
+    expect(text.toLowerCase()).toContain("sponsors");
+  });
+  it("labels the context as possibly empty without breaking", () => {
+    const msgs = buildEventDetailsPrompt("", "ONLY TRANSCRIPT");
+    expect(msgs[0].content).toContain("ONLY TRANSCRIPT");
   });
 });
 

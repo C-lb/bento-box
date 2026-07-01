@@ -99,3 +99,31 @@ export function buildSummaryPrompt(transcript: string): { role: "user"; content:
     },
   ];
 }
+
+export interface EventDetails {
+  eventName: string;
+  eventDescription: string;
+  speakers: { name: string; company: string }[];
+  sponsors: { name: string; company: string }[];
+}
+
+export function buildEventDetailsPrompt(
+  contextText: string,
+  transcript: string,
+): { role: "user"; content: string }[] {
+  const context = contextText.trim() || "(no context document was provided)";
+  return [
+    {
+      role: "user",
+      content:
+        "You extract factual event details from a supporting document and a transcript. " +
+        "Return the event name, a one or two sentence event description, the speakers, and the " +
+        "sponsors or partners, with each person's or sponsor's company. Prefer the supporting " +
+        "document for correct spelling of names and companies; fall back to the transcript. " +
+        "If a value is unknown, use an empty string or an empty list. Do not invent names. " +
+        "Do not use em dashes.\n\n" +
+        "Supporting document:\n" + context + "\n\n" +
+        "Transcript:\n" + transcript,
+    },
+  ];
+}
