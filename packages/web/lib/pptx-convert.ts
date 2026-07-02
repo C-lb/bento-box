@@ -6,7 +6,7 @@ import JSZip from "jszip";
 import { slideTextFromXml, slideNumberFromPath, orderSlidePaths, type SlideText } from "@event-editor/core/pptx";
 
 /** Likely soffice locations for the current platform, with an env override first. */
-export function sofficeCandidates(platform: NodeJS.Platform, env: NodeJS.ProcessEnv): string[] {
+export function sofficeCandidates(platform: NodeJS.Platform, env: Record<string, string | undefined>): string[] {
   const list: string[] = [];
   if (env.EE_SOFFICE_PATH) list.push(env.EE_SOFFICE_PATH);
   if (platform === "darwin") {
