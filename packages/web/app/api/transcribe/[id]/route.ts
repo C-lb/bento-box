@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
+import { rm } from "node:fs/promises";
+import { resolve } from "node:path";
 import { transcriptions } from "@event-editor/core/schema";
 import { isLiked } from "@event-editor/core/style-examples";
 import { getDb } from "@/lib/db";
@@ -28,4 +30,14 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       likedArticle: !!row.summaryArticle && isLiked(getDb(), "article", row.summaryArticle),
     },
   });
+}
+
+export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const nid = Number(id);
+  const db = getDb();
+  db.delete(transcriptions).where(eq(transcriptions.id, nid)).run();
+  // Best-effort cleanup of the upload dir; ignore if absent.
+  await rm(resolve("data/uploads", String(nid)), { recursive: true, force: true }).catch(() => {});
+  return NextResponse.json({ ok: true });
 }

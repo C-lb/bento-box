@@ -13,13 +13,12 @@ import { linkStash } from "@/lib/context";
 
 export const runtime = "nodejs";
 
-// The 5 most recent transcriptions, newest first, for the history panel.
+// All transcriptions, newest first, for the history panel.
 export async function GET() {
   const rows = getDb()
     .select()
     .from(transcriptions)
     .orderBy(desc(transcriptions.createdAt))
-    .limit(5)
     .all();
   return NextResponse.json({
     transcriptions: rows.map((r) => ({
@@ -28,6 +27,8 @@ export async function GET() {
       status: r.status,
       docUrl: r.docUrl,
       createdAt: r.createdAt,
+      hasLinkedin: !!r.summaryLinkedin,
+      hasArticle: !!r.summaryArticle,
     })),
   });
 }
