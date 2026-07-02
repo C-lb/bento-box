@@ -27,9 +27,11 @@ export function PastTranscriptions() {
   const [clearingId, setClearingId] = useState<number | null>(null);
   const [confirmingId, setConfirmingId] = useState<number | null>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [rowError, setRowError] = useState<{ id: number; message: string } | null>(null);
 
   async function reload() {
     setLoading(true);
+    setRowError(null);
     try {
       const r = await fetch("/api/transcribe");
       const d = await r.json().catch(() => null);
@@ -54,9 +56,13 @@ export function PastTranscriptions() {
 
   async function clearDrafts(id: number) {
     setClearingId(id);
+    setRowError(null);
     try {
-      await fetch(`/api/transcribe/${id}/summary`, { method: "DELETE" });
+      const r = await fetch(`/api/transcribe/${id}/summary`, { method: "DELETE" });
+      if (!r.ok) throw new Error();
       await reload();
+    } catch {
+      setRowError({ id, message: "Could not clear drafts." });
     } finally {
       setClearingId(null);
     }
@@ -64,10 +70,14 @@ export function PastTranscriptions() {
 
   async function doDelete(id: number) {
     setDeletingId(id);
+    setRowError(null);
     try {
-      await fetch(`/api/transcribe/${id}`, { method: "DELETE" });
+      const r = await fetch(`/api/transcribe/${id}`, { method: "DELETE" });
+      if (!r.ok) throw new Error();
       setConfirmingId(null);
       await reload();
+    } catch {
+      setRowError({ id, message: "Could not delete." });
     } finally {
       setDeletingId(null);
     }
@@ -164,6 +174,9 @@ export function PastTranscriptions() {
                           </button>
                         )}
                       </div>
+                      {rowError?.id === it.id && (
+                        <p className="mt-2 text-xs text-danger">{rowError.message}</p>
+                      )}
                     </li>
                   );
                 })}

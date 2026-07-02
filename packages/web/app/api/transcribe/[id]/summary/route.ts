@@ -42,10 +42,12 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     // Regenerate a selected span within the provided draft.
     if (typeof body.draft === "string" && Number.isInteger(body.selStart) && Number.isInteger(body.selEnd)) {
       const draft: string = body.draft;
-      const selection = draft.slice(body.selStart, body.selEnd);
+      const start = Math.max(0, Math.min(body.selStart, draft.length));
+      const end = Math.max(start, Math.min(body.selEnd, draft.length));
+      const selection = draft.slice(start, end);
       if (!selection.trim()) return NextResponse.json({ error: "empty selection" }, { status: 400 });
       const rewritten = await regenerateSelection(visionClient(), format, draft, selection, details, examples);
-      const next = spliceSelection(draft, body.selStart, body.selEnd, rewritten);
+      const next = spliceSelection(draft, start, end, rewritten);
       saveDraft(db, nid, format, next);
       return NextResponse.json({ text: next });
     }

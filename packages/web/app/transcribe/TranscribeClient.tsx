@@ -90,7 +90,14 @@ export function TranscribeClient() {
     let stop = false;
     const tick = async () => {
       const r = await fetch(`/api/transcribe/${id}`);
-      if (!r.ok) return false;
+      if (!r.ok) {
+        setTx((t) => ({
+          ...(t ?? ({} as Transcription)),
+          status: "error",
+          errorMessage: "This transcription is no longer available.",
+        } as Transcription));
+        return true;
+      }
       const data = await r.json();
       setTx(data.transcription);
       return data.transcription.status === "done" || data.transcription.status === "error";
