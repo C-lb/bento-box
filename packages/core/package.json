@@ -18,6 +18,7 @@
     "./ranking": "./dist/ranking.js",
     "./transcribe": "./dist/transcribe.js",
     "./transcription": "./dist/transcription.js",
+    "./style-examples": "./dist/style-examples.js",
     "./frames": "./dist/frames.js",
     "./headshot": "./dist/headshot.js",
     "./columns": "./dist/columns.js",
