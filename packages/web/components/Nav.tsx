@@ -19,6 +19,8 @@ const STAR = '<svg viewBox="0 0 24 24" fill="#1a1d23" width="100%" height="100%"
 export function Nav() {
   const path = usePathname();
   const activeIdx = bestMatchIndex(LINKS.map((l) => l.href), path);
+  const activeIdxRef = useRef(activeIdx);
+  activeIdxRef.current = activeIdx;
   const linkRefs = useRef<(HTMLAnchorElement | null)[]>([]);
   const thumbRef = useRef<HTMLSpanElement | null>(null);
   const fxRef = useRef<HTMLSpanElement | null>(null);
@@ -26,6 +28,7 @@ export function Nav() {
   const prevPath = useRef<string | null>(null);
   const enabled = useRef(false);
   const [motionOK, setMotionOK] = useState(false);
+  const [settledIdx, setSettledIdx] = useState(activeIdx);
 
   useEffect(() => {
     setMotionOK(!window.matchMedia("(prefers-reduced-motion: reduce)").matches);
@@ -42,10 +45,13 @@ export function Nav() {
     thumb.style.top = `${el.offsetTop}px`;
     thumb.style.height = `${el.offsetHeight}px`;
     if (!willAnimate) {
+      setSettledIdx(activeIdx);
       requestAnimationFrame(() => {
         if (thumbRef.current) thumbRef.current.style.transition = "";
         enabled.current = true;
       });
+    } else {
+      setSettledIdx(-1);
     }
     prevPath.current = path;
   }, [path, activeIdx, motionOK]);
@@ -54,7 +60,10 @@ export function Nav() {
     const thumb = thumbRef.current;
     if (!thumb) return;
     const onEnd = (e: TransitionEvent) => {
-      if (e.propertyName === "transform" && motionOK) burst();
+      if (e.propertyName === "transform") {
+        setSettledIdx(activeIdxRef.current);
+        if (motionOK) burst();
+      }
     };
     thumb.addEventListener("transitionend", onEnd);
     return () => thumb.removeEventListener("transitionend", onEnd);
@@ -62,7 +71,7 @@ export function Nav() {
   }, [motionOK]);
 
   function burst() {
-    const el = linkRefs.current[activeIdx];
+    const el = linkRefs.current[activeIdxRef.current];
     const fx = fxRef.current;
     const header = headerRef.current;
     if (!el || !fx || !header) return;
@@ -98,6 +107,7 @@ export function Nav() {
         <span ref={thumbRef} aria-hidden className="nav-thumb pointer-events-none absolute left-0 top-0 z-0 rounded-lg bg-ink" />
         {LINKS.map(({ href, label, Icon }, i) => {
           const active = i === activeIdx;
+          const settled = i === settledIdx;
           return (
             <Link
               key={href}
@@ -107,7 +117,7 @@ export function Nav() {
               }}
               aria-current={active ? "page" : undefined}
               className={`relative z-10 inline-flex items-center gap-2 whitespace-nowrap rounded-lg px-3 py-2 text-sm transition-colors ${
-                active ? "text-white" : "text-muted hover:text-ink"
+                settled ? "text-white" : active ? "text-ink" : "text-muted hover:text-ink"
               }`}
             >
               <Icon size={18} strokeWidth={1.75} aria-hidden />

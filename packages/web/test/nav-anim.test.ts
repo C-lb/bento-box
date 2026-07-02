@@ -28,4 +28,7 @@ describe("bestMatchIndex", () => {
   it("does not treat home as a prefix of everything", () => {
     expect(bestMatchIndex(HREFS, "/sorter")).toBe(1);
   });
+  it("returns -1 when nothing matches", () => {
+    expect(bestMatchIndex(HREFS, "/nonexistent")).toBe(-1);
+  });
 });

@@ -3,7 +3,7 @@ export function navShouldAnimate(prev: string | null, next: string): boolean {
 }
 
 export function bestMatchIndex(hrefs: string[], path: string): number {
-  let idx = 0;
+  let idx = -1;
   let best = -1;
   hrefs.forEach((href, i) => {
     const match = href === "/" ? path === "/" : path === href || path.startsWith(href + "/");
