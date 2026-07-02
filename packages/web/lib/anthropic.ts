@@ -1,6 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { buildVisionPrompt, type VisionScore } from "@event-editor/core/rank";
-import { buildSummaryPrompt, buildEventDetailsPrompt, buildLinkedInPrompt, buildArticlePrompt, type EventDetails } from "@event-editor/core/transcribe";
+import { buildSummaryPrompt, buildEventDetailsPrompt, buildLinkedInPrompt, buildArticlePrompt, buildSelectionRewritePrompt, type EventDetails } from "@event-editor/core/transcribe";
 
 export const VISION_MODEL = process.env.EE_VISION_MODEL ?? "claude-opus-4-8";
 
@@ -87,12 +87,21 @@ export async function extractEventDetails(client: Anthropic, contextText: string
   };
 }
 
-export async function generateFormattedSummary(client: Anthropic, format: "linkedin" | "article", transcript: string, details: EventDetails): Promise<string> {
-  const messages = format === "linkedin" ? buildLinkedInPrompt(transcript, details) : buildArticlePrompt(transcript, details);
+export async function generateFormattedSummary(client: Anthropic, format: "linkedin" | "article", transcript: string, details: EventDetails, examples: string[]): Promise<string> {
+  const messages = format === "linkedin" ? buildLinkedInPrompt(transcript, details, examples) : buildArticlePrompt(transcript, details, examples);
   const res: any = await client.messages.create({ model: SUMMARY_MODEL, max_tokens: 4096, messages } as any);
   if (res.stop_reason === "refusal") throw new Error(`model refused to write the ${format} summary`);
   const text = (res.content ?? []).find((b: any) => b.type === "text")?.text ?? "";
   if (!text.trim()) throw new Error(`${format} model returned empty output`);
+  return text.trim();
+}
+
+export async function regenerateSelection(client: Anthropic, format: "linkedin" | "article", fullDraft: string, selection: string, details: EventDetails, examples: string[]): Promise<string> {
+  const messages = buildSelectionRewritePrompt(format, fullDraft, selection, details, examples);
+  const res: any = await client.messages.create({ model: SUMMARY_MODEL, max_tokens: 2048, messages } as any);
+  if (res.stop_reason === "refusal") throw new Error("model refused to rewrite the selection");
+  const text = (res.content ?? []).find((b: any) => b.type === "text")?.text ?? "";
+  if (!text.trim()) throw new Error("selection rewrite returned empty output");
   return text.trim();
 }
 
