@@ -35,6 +35,30 @@ export async function exchangeCode(client: OAuth2Client, code: string): Promise<
   };
 }
 
+export async function googleAccessToken(
+  db: ReturnType<typeof openDb>,
+): Promise<{ token: string; expiresAt: number | null } | null> {
+  const stored = getToken(db, "google");
+  if (!stored) return null;
+  const client = makeOAuthClient();
+  client.setCredentials({
+    access_token: stored.accessToken,
+    refresh_token: stored.refreshToken ?? undefined,
+    expiry_date: stored.expiryMs ?? undefined,
+  });
+  client.on("tokens", (t) => {
+    saveToken(db, "google", {
+      accessToken: t.access_token ?? stored.accessToken,
+      refreshToken: t.refresh_token ?? null,
+      expiryMs: t.expiry_date ?? null,
+      scope: t.scope ?? null,
+    });
+  });
+  const res = await client.getAccessToken();
+  if (!res.token) return null;
+  return { token: res.token, expiresAt: client.credentials.expiry_date ?? null };
+}
+
 export async function authedDriveClient(
   db: ReturnType<typeof openDb>,
 ): Promise<drive_v3.Drive | null> {
