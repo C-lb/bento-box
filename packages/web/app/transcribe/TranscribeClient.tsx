@@ -156,6 +156,8 @@ export function TranscribeClient() {
   async function loadFormat(fmt: "general" | "linkedin" | "article") {
     setFormat(fmt);
     setFormatError(null);
+    setSelRange(null);
+    setDraftMode("preview");
     if (fmt === "general") return;
     if (formatText[fmt]) return;
     if (id == null) return;
@@ -180,7 +182,7 @@ export function TranscribeClient() {
         body: JSON.stringify({ format: fmt, regenerate: true }),
       });
       const d = await r.json().catch(() => null);
-      if (r.ok && d?.text) { setFormatText((m) => ({ ...m, [fmt]: d.text })); setLiked((l) => ({ ...l, [fmt]: false })); }
+      if (r.ok && d?.text) { setFormatText((m) => ({ ...m, [fmt]: d.text })); setLiked((l) => ({ ...l, [fmt]: false })); setSelRange(null); }
       else setFormatError(d?.error ?? "Could not regenerate.");
     } catch { setFormatError("Could not regenerate."); }
     finally { setActionBusy(false); }
