@@ -27,18 +27,22 @@ export function SliceClient({ hasAi }: { hasAi: boolean }) {
   const [files, setFiles] = useState<OutFile[]>([]);
   const [warnings, setWarnings] = useState<string[]>([]);
   const [driveFolder, setDriveFolder] = useState("");
+  const [driveFileId, setDriveFileId] = useState("");
   const [saved, setSaved] = useState<{ filename: string; url: string }[]>([]);
 
   const busy = ["converting", "reading", "segmenting", "exporting", "saving"].includes(status);
 
   async function convert() {
     const f = fileRef.current?.files?.[0];
-    if (!f) { setError("Choose a .pptx file first."); return; }
+    const driveId = driveFileId.trim();
+    if (!f && !driveId) { setError("Choose a .pptx file or enter a Drive file id first."); return; }
     setError(null);
     setStatus("converting");
     setFiles([]); setSaved([]); setWarnings([]);
     try {
-      const r = await fetch("/api/slice/convert", { method: "POST", headers: { "x-filename": f.name }, body: f });
+      const r = f
+        ? await fetch("/api/slice/convert", { method: "POST", headers: { "x-filename": f.name }, body: f })
+        : await fetch("/api/slice/convert", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ driveFileId: driveId }) });
       const data = await r.json();
       if (!r.ok) throw new Error(data.error ?? "Conversion failed");
       setRunId(data.runId);
@@ -115,6 +119,7 @@ export function SliceClient({ hasAi }: { hasAi: boolean }) {
     setRunId(null); setPageCount(0); setSlides([]); setFiles([]); setSaved([]);
     setWarnings([]); setStatus("idle"); setError(null);
     setRows([{ label: "Part 1", ranges: "" }]);
+    setDriveFileId("");
     if (fileRef.current) fileRef.current.value = "";
   }
 
@@ -126,9 +131,10 @@ export function SliceClient({ hasAi }: { hasAi: boolean }) {
         <div className="mt-3">
           <FileDrop inputRef={fileRef} accept=".pptx" label="Drop a .pptx here, or click to browse" />
         </div>
-        <p className="mt-2 text-xs text-muted">
-          Prefer Google Drive? Paste a deck file id here and it converts the same way. Drive-picker UI can come later.
-        </p>
+        <label className="mt-3 block text-sm font-medium">Or a Google Drive file id
+          <input className="field mt-1 w-full max-w-md" placeholder="Drive .pptx file id" value={driveFileId} onChange={(e) => setDriveFileId(e.target.value)} />
+        </label>
+        <p className="mt-1 text-xs text-muted">Uses your connected Google account. Leave blank if you dropped a file above.</p>
         <div className="mt-3 flex items-center gap-3">
           <button type="button" className="btn btn-accent" onClick={convert} disabled={busy}>
             {status === "converting" ? "Converting…" : "Convert to PDF"}

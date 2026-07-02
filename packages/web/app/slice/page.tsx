@@ -25,9 +25,9 @@ export default function SlicePage() {
           </p>
         </div>
       ) : !anthropic?.configured ? (
-        <div className="card mt-8">
+        <div className="mt-8">
           <p className="text-muted">Set ANTHROPIC_API_KEY in .env to use speaker segmentation, then restart. Manual page slicing works without it.</p>
-          <SliceClient hasAi={false} />
+          <div className="mt-5"><SliceClient hasAi={false} /></div>
         </div>
       ) : (
         <div className="mt-8">
