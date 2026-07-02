@@ -13,7 +13,7 @@ export async function GET(_req: Request, ctx: { params: Promise<{ runId: string;
     return new NextResponse(new Uint8Array(bytes), {
       headers: {
         "content-type": "application/pdf",
-        "content-disposition": `attachment; filename="${safe}"`,
+        "content-disposition": `attachment; filename="${safe.replace(/[^a-zA-Z0-9._-]/g, "_")}"`,
       },
     });
   } catch {

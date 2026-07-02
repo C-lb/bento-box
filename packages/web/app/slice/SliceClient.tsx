@@ -49,6 +49,7 @@ export function SliceClient({ hasAi }: { hasAi: boolean }) {
       setPageCount(data.pageCount);
       setSlides(data.slides);
       setRows([{ label: "Part 1", ranges: `1-${data.pageCount}` }]);
+      setWarnings(data.warnings ?? []);
       setStatus("idle");
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -116,10 +117,14 @@ export function SliceClient({ hasAi }: { hasAi: boolean }) {
   }
 
   function reset() {
+    if (runId) {
+      fetch(`/api/slice/${runId}/cleanup`, { method: "POST" }).catch(() => {});
+    }
     setRunId(null); setPageCount(0); setSlides([]); setFiles([]); setSaved([]);
     setWarnings([]); setStatus("idle"); setError(null);
     setRows([{ label: "Part 1", ranges: "" }]);
     setDriveFileId("");
+    setMode("manual"); setConfidential(false); setWatermark("CONFIDENTIAL"); setDriveFolder("");
     if (fileRef.current) fileRef.current.value = "";
   }
 

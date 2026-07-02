@@ -26,21 +26,15 @@ export async function watermarkPdf(bytes: Uint8Array, text: string): Promise<Uin
   const label = text.trim() || "CONFIDENTIAL";
   for (const page of doc.getPages()) {
     const { width, height } = page.getSize();
-    const size = Math.min(width, height) * 0.16;
-    const textWidth = font.widthOfTextAtSize(label, size);
     const angle = Math.PI / 4; // 45 degrees
-    // Center the rotated string roughly on the page middle.
+    // Scale the font so the stamp runs most of the way across the page diagonal.
+    const target = Math.hypot(width, height) * 0.9;
+    const probe = font.widthOfTextAtSize(label, 100);
+    const size = (100 * target) / probe;
+    const textWidth = font.widthOfTextAtSize(label, size);
     const x = width / 2 - (Math.cos(angle) * textWidth) / 2;
     const y = height / 2 - (Math.sin(angle) * textWidth) / 2;
-    page.drawText(label, {
-      x,
-      y,
-      size,
-      font,
-      color: rgb(0.6, 0.6, 0.6),
-      rotate: degrees(45),
-      opacity: 0.25,
-    });
+    page.drawText(label, { x, y, size, font, color: rgb(0.6, 0.6, 0.6), rotate: degrees(45), opacity: 0.22 });
   }
   return doc.save();
 }

@@ -3,7 +3,7 @@ import { readdir } from "node:fs/promises";
 import { createReadStream } from "node:fs";
 import { join } from "node:path";
 import archiver from "archiver";
-import { outDir } from "@/lib/slice";
+import { outDir, sanitizeRunId } from "@/lib/slice";
 
 export const runtime = "nodejs";
 
@@ -33,7 +33,7 @@ export async function GET(_req: Request, ctx: { params: Promise<{ runId: string 
   return new Response(body, {
     headers: {
       "Content-Type": "application/zip",
-      "Content-Disposition": `attachment; filename="slices-${runId}.zip"`,
+      "Content-Disposition": `attachment; filename="slices-${sanitizeRunId(runId)}.zip"`,
     },
   });
 }

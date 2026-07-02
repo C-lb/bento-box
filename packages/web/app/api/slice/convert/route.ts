@@ -3,7 +3,7 @@ import { Readable } from "node:stream";
 import { createWriteStream } from "node:fs";
 import { mkdir, writeFile, readFile } from "node:fs/promises";
 import { pipeline } from "node:stream/promises";
-import { newRunId, runDir, deckPath, masterPdfPath } from "@/lib/slice";
+import { newRunId, runDir, deckPath, masterPdfPath, cleanupRun, sweepOldRuns } from "@/lib/slice";
 import { convertToPdf, readSlides, findSoffice } from "@/lib/pptx-convert";
 import { pdfPageCount } from "@/lib/pdf-slice";
 import { getDb } from "@/lib/db";
@@ -25,6 +25,7 @@ export async function POST(request: Request) {
   const runId = newRunId();
   const dir = runDir(runId);
   await mkdir(dir, { recursive: true });
+  try { await sweepOldRuns(6 * 60 * 60 * 1000); } catch { /* best-effort */ }
   const pptx = deckPath(runId);
   let filename = "deck.pptx";
 
@@ -50,8 +51,13 @@ export async function POST(request: Request) {
     const slides = await readSlides(pptx);
     const pageCount = await pdfPageCount(await readFile(masterPdfPath(runId)));
 
-    return NextResponse.json({ runId, pageCount, slides, filename });
+    const warnings: string[] = [];
+    if (slides.length !== pageCount) {
+      warnings.push(`This deck has ${slides.length} slides but the PDF has ${pageCount} pages, so slide numbers may not line up with page numbers. Double-check your ranges.`);
+    }
+    return NextResponse.json({ runId, pageCount, slides, filename, warnings });
   } catch (err) {
+    try { await cleanupRun(runId); } catch { /* best-effort */ }
     return NextResponse.json({ error: err instanceof Error ? err.message : String(err) }, { status: 500 });
   }
 }
