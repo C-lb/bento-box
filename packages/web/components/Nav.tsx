@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Images, Mic, UserRound, Settings, LayoutGrid, type LucideIcon } from "lucide-react";
+import { Home, Images, Mic, UserRound, Settings, LayoutGrid, Scissors, type LucideIcon } from "lucide-react";
 
 const LINKS: { href: string; label: string; Icon: LucideIcon }[] = [
   { href: "/", label: "Home", Icon: Home },
@@ -9,6 +9,7 @@ const LINKS: { href: string; label: string; Icon: LucideIcon }[] = [
   { href: "/transcribe", label: "Audio transcriber", Icon: Mic },
   { href: "/studio", label: "Headshot studio", Icon: UserRound },
   { href: "/studio/batch", label: "Batch", Icon: LayoutGrid },
+  { href: "/slice", label: "Slide slicer", Icon: Scissors },
   { href: "/settings", label: "Settings", Icon: Settings },
 ];
 
