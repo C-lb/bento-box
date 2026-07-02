@@ -28,6 +28,7 @@ export function SliceClient({ hasAi }: { hasAi: boolean }) {
   const [warnings, setWarnings] = useState<string[]>([]);
   const [driveFolder, setDriveFolder] = useState("");
   const [driveFileId, setDriveFileId] = useState("");
+  const [pickedName, setPickedName] = useState<string | null>(null);
   const [saved, setSaved] = useState<{ filename: string; url: string }[]>([]);
 
   const busy = ["converting", "reading", "segmenting", "exporting", "saving"].includes(status);
@@ -116,6 +117,54 @@ export function SliceClient({ hasAi }: { hasAi: boolean }) {
     }
   }
 
+  function loadGapiPicker(): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const w = window as any;
+      if (w.google?.picker) return resolve();
+      const onload = () => w.gapi.load("picker", { callback: () => resolve() });
+      const existing = document.getElementById("gapi-js") as HTMLScriptElement | null;
+      if (existing) { onload(); return; }
+      const s = document.createElement("script");
+      s.id = "gapi-js";
+      s.src = "https://apis.google.com/js/api.js";
+      s.onload = onload;
+      s.onerror = () => reject(new Error("Failed to load the Google Picker"));
+      document.body.appendChild(s);
+    });
+  }
+
+  async function chooseFromDrive() {
+    setError(null);
+    try {
+      const r = await fetch("/api/drive/token");
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.error ?? "Could not open the Drive picker");
+      await loadGapiPicker();
+      const w = window as any;
+      const view = new w.google.picker.DocsView(w.google.picker.ViewId.DOCS)
+        .setMimeTypes("application/vnd.openxmlformats-officedocument.presentationml.presentation,application/vnd.ms-powerpoint")
+        .setIncludeFolders(true);
+      const picker = new w.google.picker.PickerBuilder()
+        .addView(view)
+        .setOAuthToken(data.access_token)
+        .setDeveloperKey(data.apiKey)
+        .setAppId(data.appId)
+        .setCallback((res: any) => {
+          if (res.action === w.google.picker.Action.PICKED) {
+            const doc = res.docs?.[0];
+            if (doc) {
+              setDriveFileId(doc.id);
+              setPickedName(doc.name ?? doc.id);
+            }
+          }
+        })
+        .build();
+      picker.setVisible(true);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    }
+  }
+
   function reset() {
     if (runId) {
       fetch(`/api/slice/${runId}/cleanup`, { method: "POST" }).catch(() => {});
@@ -136,10 +185,22 @@ export function SliceClient({ hasAi }: { hasAi: boolean }) {
         <div className="mt-3">
           <FileDrop inputRef={fileRef} accept=".pptx" label="Drop a .pptx here, or click to browse" />
         </div>
-        <label className="mt-3 block text-sm font-medium">Or a Google Drive file id
-          <input className="field mt-1 w-full max-w-md" placeholder="Drive .pptx file id" value={driveFileId} onChange={(e) => setDriveFileId(e.target.value)} />
-        </label>
-        <p className="mt-1 text-xs text-muted">Uses your connected Google account. Leave blank if you dropped a file above.</p>
+        <div className="mt-3">
+          <button type="button" className="btn" onClick={chooseFromDrive}>
+            {pickedName ? "Change Drive file" : "Choose from Drive"}
+          </button>
+          {pickedName && <span className="ml-2 text-sm text-muted">{pickedName}</span>}
+          <p className="mt-1 text-xs text-muted">Uses your connected Google account. Or drop a file above.</p>
+          <details className="mt-2">
+            <summary className="cursor-pointer text-xs text-muted">Paste a Drive file id instead</summary>
+            <input
+              className="field mt-1 w-full max-w-md"
+              placeholder="Drive .pptx file id"
+              value={driveFileId}
+              onChange={(e) => { setDriveFileId(e.target.value); setPickedName(null); }}
+            />
+          </details>
+        </div>
         <div className="mt-3 flex items-center gap-3">
           <button type="button" className="btn btn-accent" onClick={convert} disabled={busy}>
             {status === "converting" ? "Converting…" : "Convert to PDF"}
