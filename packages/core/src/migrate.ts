@@ -2,6 +2,7 @@ import { sql } from "drizzle-orm";
 import type { BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
 import { pathToFileURL } from "node:url";
 import { openDb } from "./db.js";
+import { LINKEDIN_EXAMPLES, ARTICLE_EXAMPLES } from "./summary-examples.js";
 
 const DDL = [
   `CREATE TABLE IF NOT EXISTS jobs (
@@ -83,6 +84,13 @@ const DDL = [
     summary_linkedin TEXT,
     summary_article TEXT
   )`,
+  `CREATE TABLE IF NOT EXISTS style_examples (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    format TEXT NOT NULL,
+    kind TEXT NOT NULL,
+    text TEXT NOT NULL,
+    created_at INTEGER NOT NULL DEFAULT 0
+  )`,
 ];
 
 // Legacy DBs created before 4a have a Canva-only headshots table (NOT NULL
@@ -136,6 +144,25 @@ export function addColumnIfMissing(db: BetterSQLite3Database<any>, table: string
   }
 }
 
+export function seedStyleExamples(db: BetterSQLite3Database<any>): void {
+  const seed = (format: "linkedin" | "article", texts: string[]) => {
+    const rows = db.all(
+      sql.raw(`SELECT COUNT(*) AS n FROM style_examples WHERE format = '${format}'`),
+    ) as Array<{ n: number }>;
+    if ((rows[0]?.n ?? 0) > 0) return;
+    let now = Date.now();
+    for (const t of texts) {
+      const esc = t.replace(/'/g, "''");
+      db.run(sql.raw(
+        `INSERT INTO style_examples (format, kind, text, created_at) VALUES ('${format}', 'seed', '${esc}', ${now})`,
+      ));
+      now += 1; // preserve insertion order via distinct created_at
+    }
+  };
+  seed("linkedin", LINKEDIN_EXAMPLES);
+  seed("article", ARTICLE_EXAMPLES);
+}
+
 export function runMigrations(db: BetterSQLite3Database<any>): void {
   for (const stmt of DDL) {
     db.run(sql.raw(stmt));
@@ -147,6 +174,7 @@ export function runMigrations(db: BetterSQLite3Database<any>): void {
   addColumnIfMissing(db, "transcriptions", "event_details", "TEXT");
   addColumnIfMissing(db, "transcriptions", "summary_linkedin", "TEXT");
   addColumnIfMissing(db, "transcriptions", "summary_article", "TEXT");
+  seedStyleExamples(db);
 }
 
 // True when this module is the process entry point (CLI or forked), false when

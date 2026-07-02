@@ -83,3 +83,11 @@ export const transcriptions = sqliteTable("transcriptions", {
   summaryLinkedin: text("summary_linkedin"),
   summaryArticle: text("summary_article"),
 });
+
+export const styleExamples = sqliteTable("style_examples", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  format: text("format").notNull(), // linkedin|article
+  kind: text("kind").notNull(),     // seed|custom|liked
+  text: text("text").notNull(),
+  createdAt: integer("created_at").notNull().default(0),
+});
