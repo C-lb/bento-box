@@ -22,28 +22,39 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "LibreOffice is not installed. See the tool page for install steps." }, { status: 400 });
   }
 
+  // Validate everything cheap BEFORE creating the run dir, so early 400s never leak a dir.
+  const ct = request.headers.get("content-type") ?? "";
+  let driveFileId: string | null = null;
+  let filename = "deck.pptx";
+  if (ct.includes("application/json")) {
+    const body = (await request.json()) as { driveFileId?: string };
+    driveFileId = body?.driveFileId ?? null;
+    if (!driveFileId) return NextResponse.json({ error: "driveFileId required" }, { status: 400 });
+  } else {
+    const raw = request.headers.get("x-filename");
+    if (!raw) return NextResponse.json({ error: "x-filename header required" }, { status: 400 });
+    if (!request.body) return NextResponse.json({ error: "empty body" }, { status: 400 });
+    filename = safeName(raw);
+  }
+
+  // Drive connection is a validation too — check it before we create anything.
+  let drive: Awaited<ReturnType<typeof authedDriveClient>> = null;
+  if (driveFileId) {
+    drive = await authedDriveClient(getDb());
+    if (!drive) return NextResponse.json({ error: "Google is not connected. Re-auth on settings." }, { status: 400 });
+  }
+
   const runId = newRunId();
   const dir = runDir(runId);
   await mkdir(dir, { recursive: true });
   try { await sweepOldRuns(6 * 60 * 60 * 1000); } catch { /* best-effort */ }
   const pptx = deckPath(runId);
-  let filename = "deck.pptx";
 
   try {
-    const ct = request.headers.get("content-type") ?? "";
-    if (ct.includes("application/json")) {
-      const { driveFileId } = await request.json();
-      if (!driveFileId) return NextResponse.json({ error: "driveFileId required" }, { status: 400 });
-      const drive = await authedDriveClient(getDb());
-      if (!drive) return NextResponse.json({ error: "Google is not connected. Re-auth on settings." }, { status: 400 });
-      const bytes = await makeDriveClient(drive).downloadFile(driveFileId);
+    if (driveFileId) {
+      const bytes = await makeDriveClient(drive!).downloadFile(driveFileId);
       await writeFile(pptx, bytes);
-      filename = "deck.pptx";
     } else {
-      const raw = request.headers.get("x-filename");
-      if (!raw) return NextResponse.json({ error: "x-filename header required" }, { status: 400 });
-      if (!request.body) return NextResponse.json({ error: "empty body" }, { status: 400 });
-      filename = safeName(raw);
       await pipeline(Readable.fromWeb(request.body as any), createWriteStream(pptx));
     }
 
