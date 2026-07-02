@@ -1,5 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { Smile } from "lucide-react";
 import { StatusBadge } from "@/components/StatusBadge";
 import { transcriptionStatusView } from "@/lib/status";
 import { Segmented } from "@/components/Segmented";
@@ -27,6 +29,8 @@ interface Transcription {
   eventDetails: { eventName: string; eventDescription: string; speakers: { name: string; company: string }[]; sponsors: { name: string; company: string }[] } | null;
   summaryLinkedin: string | null;
   summaryArticle: string | null;
+  likedLinkedin?: boolean;
+  likedArticle?: boolean;
 }
 
 export function TranscribeClient() {
@@ -44,6 +48,42 @@ export function TranscribeClient() {
   const [formatText, setFormatText] = useState<Record<string, string>>({});
   const [formatBusy, setFormatBusy] = useState(false);
   const [formatError, setFormatError] = useState<string | null>(null);
+
+  const [draftMode, setDraftMode] = useState<"edit" | "preview">("preview");
+  const [liked, setLiked] = useState<{ linkedin: boolean; article: boolean }>({ linkedin: false, article: false });
+  const [selRange, setSelRange] = useState<{ start: number; end: number } | null>(null);
+  const [actionBusy, setActionBusy] = useState(false);
+  const draftRef = useRef<HTMLTextAreaElement | null>(null);
+
+  const searchParams = useSearchParams();
+
+  async function loadExisting(openId: number) {
+    setId(openId);
+    setFormat("general");
+    setFormatText({});
+    setUploadError(null);
+    try {
+      const r = await fetch(`/api/transcribe/${openId}`);
+      const d = await r.json().catch(() => null);
+      const t = d?.transcription;
+      if (!t) return;
+      setTx({ ...t });
+      setFormatText({
+        ...(t.summaryLinkedin ? { linkedin: t.summaryLinkedin } : {}),
+        ...(t.summaryArticle ? { article: t.summaryArticle } : {}),
+      });
+      setLiked({ linkedin: !!t.likedLinkedin, article: !!t.likedArticle });
+    } catch { /* ignore */ }
+  }
+
+  useEffect(() => {
+    const openId = searchParams.get("id");
+    if (!openId) return;
+    const n = Number(openId);
+    if (!Number.isFinite(n) || n === id) return;
+    loadExisting(n);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
 
   useEffect(() => {
     if (id == null) return;
@@ -131,6 +171,58 @@ export function TranscribeClient() {
     finally { setFormatBusy(false); }
   }
 
+  async function regenerateAll(fmt: "linkedin" | "article") {
+    if (id == null) return;
+    setActionBusy(true); setFormatError(null);
+    try {
+      const r = await fetch(`/api/transcribe/${id}/summary`, {
+        method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify({ format: fmt, regenerate: true }),
+      });
+      const d = await r.json().catch(() => null);
+      if (r.ok && d?.text) { setFormatText((m) => ({ ...m, [fmt]: d.text })); setLiked((l) => ({ ...l, [fmt]: false })); }
+      else setFormatError(d?.error ?? "Could not regenerate.");
+    } catch { setFormatError("Could not regenerate."); }
+    finally { setActionBusy(false); }
+  }
+
+  async function regenerateSelection(fmt: "linkedin" | "article") {
+    if (id == null || !selRange || selRange.end <= selRange.start) return;
+    const draft = formatText[fmt] ?? "";
+    setActionBusy(true); setFormatError(null);
+    try {
+      const r = await fetch(`/api/transcribe/${id}/summary`, {
+        method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify({ format: fmt, draft, selStart: selRange.start, selEnd: selRange.end }),
+      });
+      const d = await r.json().catch(() => null);
+      if (r.ok && d?.text) { setFormatText((m) => ({ ...m, [fmt]: d.text })); setLiked((l) => ({ ...l, [fmt]: false })); setSelRange(null); }
+      else setFormatError(d?.error ?? "Could not regenerate the selection.");
+    } catch { setFormatError("Could not regenerate the selection."); }
+    finally { setActionBusy(false); }
+  }
+
+  async function saveEdits(fmt: "linkedin" | "article") {
+    if (id == null) return;
+    const draft = formatText[fmt] ?? "";
+    await fetch(`/api/transcribe/${id}/summary`, {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ format: fmt, draft, save: true }),
+    }).catch(() => {});
+    setLiked((l) => ({ ...l, [fmt]: false })); // edited text is no longer the liked text
+  }
+
+  async function toggleLike(fmt: "linkedin" | "article") {
+    if (id == null) return;
+    await saveEdits(fmt); // ensure the saved draft matches what is on screen
+    const r = await fetch(`/api/transcribe/${id}/like`, {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ format: fmt }),
+    });
+    const d = await r.json().catch(() => null);
+    if (r.ok) setLiked((l) => ({ ...l, [fmt]: !!d.liked }));
+  }
+
   const inProgress = busy || (id != null && tx != null && tx.status !== "done" && tx.status !== "error");
 
   return (
@@ -212,7 +304,7 @@ export function TranscribeClient() {
                     <p className="whitespace-pre-wrap text-ink">{tx.summaryText}</p>
                   )}
                   {format !== "general" && (
-                    formatBusy ? <p className="text-muted">Generating…</p>
+                    formatBusy ? <p className="text-muted">Generating!</p>
                     : formatError ? (
                       <div>
                         <p className="text-danger">{formatError}</p>
@@ -220,8 +312,69 @@ export function TranscribeClient() {
                       </div>
                     ) : (
                       <>
-                        <div className="text-ink" dangerouslySetInnerHTML={{ __html: summaryToHtml(formatText[format] ?? "") }} />
-                        {formatText[format] && <div className="mt-3"><CopyButton text={summaryToPlain(formatText[format]!)} html={summaryToHtml(formatText[format]!)} /></div>}
+                        <Segmented
+                          options={[{ value: "preview", label: "Preview" }, { value: "edit", label: "Edit" }]}
+                          value={draftMode}
+                          onChange={(v) => setDraftMode(v as "edit" | "preview")}
+                        />
+                        <div className="mt-3">
+                          {draftMode === "preview" ? (
+                            <div className="text-ink" dangerouslySetInnerHTML={{ __html: summaryToHtml(formatText[format] ?? "") }} />
+                          ) : (
+                            <textarea
+                              ref={draftRef}
+                              className="w-full min-h-[220px] rounded-[10px] border-0 bg-[var(--surface-2,#ececec)] p-3 text-ink"
+                              value={formatText[format] ?? ""}
+                              onChange={(e) => setFormatText((m) => ({ ...m, [format]: e.target.value }))}
+                              onSelect={() => {
+                                const el = draftRef.current;
+                                if (!el) return;
+                                setSelRange({ start: el.selectionStart ?? 0, end: el.selectionEnd ?? 0 });
+                              }}
+                              onKeyUp={() => {
+                                const el = draftRef.current;
+                                if (!el) return;
+                                setSelRange({ start: el.selectionStart ?? 0, end: el.selectionEnd ?? 0 });
+                              }}
+                              onMouseUp={() => {
+                                const el = draftRef.current;
+                                if (!el) return;
+                                setSelRange({ start: el.selectionStart ?? 0, end: el.selectionEnd ?? 0 });
+                              }}
+                              onBlur={() => saveEdits(format as "linkedin" | "article")}
+                            />
+                          )}
+                        </div>
+                        {formatText[format] && (
+                          <div className="mt-3 flex flex-wrap items-center gap-2">
+                            <button
+                              className="btn"
+                              onClick={() => regenerateAll(format as "linkedin" | "article")}
+                              disabled={actionBusy}
+                              title="Regenerate the whole draft"
+                            >
+                              {actionBusy ? "Regenerating!" : "Regenerate all"}
+                            </button>
+                            <button
+                              className="btn"
+                              onClick={() => regenerateSelection(format as "linkedin" | "article")}
+                              disabled={actionBusy || draftMode !== "edit" || !selRange || selRange.end <= selRange.start}
+                              title="Regenerate only the selected text"
+                            >
+                              Regenerate selection
+                            </button>
+                            <CopyButton text={summaryToPlain(formatText[format]!)} html={summaryToHtml(formatText[format]!)} />
+                            <button
+                              type="button"
+                              title="Mark this draft as good. Future drafts will use it as inspiration."
+                              aria-pressed={liked[format as "linkedin" | "article"]}
+                              className={`btn inline-flex items-center gap-2 ${liked[format as "linkedin" | "article"] ? "text-accent" : ""}`}
+                              onClick={() => toggleLike(format as "linkedin" | "article")}
+                            >
+                              <Smile className="w-4 h-4" />
+                            </button>
+                          </div>
+                        )}
                       </>
                     )
                   )}
