@@ -1,7 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { buildVisionPrompt, type VisionScore } from "@event-editor/core/rank";
 import { buildSummaryPrompt, buildEventDetailsPrompt, buildLinkedInPrompt, buildArticlePrompt, buildSelectionRewritePrompt, type EventDetails } from "@event-editor/core/transcribe";
-import { buildSpeakerSegmentPrompt, normalizeSpeakerGroups, type SlideText, type SpeakerGroup } from "@event-editor/core/pptx";
+import { buildSpeakerSegmentPrompt, buildTopicSegmentPrompt, normalizeSpeakerGroups, type SlideText, type SpeakerGroup } from "@event-editor/core/pptx";
 
 export const VISION_MODEL = process.env.EE_VISION_MODEL ?? "claude-opus-4-8";
 
@@ -148,4 +148,17 @@ export async function segmentSpeakers(client: Anthropic, slides: SlideText[]): P
   const text = (res.content ?? []).find((b: any) => b.type === "text")?.text ?? "";
   const parsed = JSON.parse(text) as { groups: SpeakerGroup[] };
   return normalizeSpeakerGroups(parsed.groups, slides.length);
+}
+
+export async function segmentByTopic(client: Anthropic, slides: SlideText[]): Promise<SpeakerGroup[]> {
+  const res: any = await client.messages.create({
+    model: SUMMARY_MODEL,
+    max_tokens: 2048,
+    output_config: { format: { type: "json_schema", schema: SEGMENT_SCHEMA } },
+    messages: [{ role: "user", content: [{ type: "text", text: buildTopicSegmentPrompt(slides) }] }],
+  } as any);
+  if (res.stop_reason === "refusal") throw new Error("model refused to segment the deck");
+  const text = (res.content ?? []).find((b: any) => b.type === "text")?.text ?? "";
+  const parsed = JSON.parse(text) as { groups: SpeakerGroup[] };
+  return normalizeSpeakerGroups(parsed.groups, slides.length, "Section");
 }
