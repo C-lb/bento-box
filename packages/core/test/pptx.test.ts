@@ -4,6 +4,7 @@ import {
   slideNumberFromPath,
   orderSlidePaths,
   buildSpeakerSegmentPrompt,
+  buildTopicSegmentPrompt,
   normalizeSpeakerGroups,
 } from "../src/pptx.js";
 
@@ -54,5 +55,26 @@ describe("normalizeSpeakerGroups", () => {
       { speaker: "Ada", startSlide: 1, endSlide: 2 },
       { speaker: "Speaker 2", startSlide: 4, endSlide: 5 },
     ]);
+  });
+});
+
+describe("buildTopicSegmentPrompt", () => {
+  it("frames topics, states the slide count, and includes slide bodies and notes", () => {
+    const slides = [
+      { index: 1, text: "Welcome", notes: "" },
+      { index: 2, text: "Revenue", notes: "up 20%" },
+    ];
+    const p = buildTopicSegmentPrompt(slides);
+    expect(p).toContain("topic sections");
+    expect(p).toContain("covering slides 1 to 2");
+    expect(p).toContain("Slide 1: Welcome");
+    expect(p).toContain("Notes: up 20%");
+  });
+});
+
+describe("normalizeSpeakerGroups labelPrefix", () => {
+  it("names blank labels with the supplied prefix", () => {
+    const out = normalizeSpeakerGroups([{ speaker: "", startSlide: 1, endSlide: 2 }], 3, "Section");
+    expect(out[0].speaker).toBe("Section 1");
   });
 });

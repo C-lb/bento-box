@@ -51,8 +51,28 @@ export function buildSpeakerSegmentPrompt(slides: SlideText[]): string {
   ].join("\n");
 }
 
+/** Prompt asking Claude to group contiguous slides into distinct topic sections. */
+export function buildTopicSegmentPrompt(slides: SlideText[]): string {
+  const body = slides
+    .map((s) => {
+      const notes = s.notes ? `\n  Notes: ${s.notes}` : "";
+      return `Slide ${s.index}: ${s.text || "(no visible text)"}${notes}`;
+    })
+    .join("\n");
+  return [
+    "You are segmenting a slide deck into its distinct topic sections.",
+    "Read the slide text and speaker notes below. Group consecutive slides that cover the same topic into one section.",
+    "Rules:",
+    "- Sections must be contiguous and non-overlapping, covering slides 1 to " + slides.length + " in order.",
+    "- Label each section with a short topic title (for example \"Market overview\", \"Q and A\").",
+    "- Return startSlide and endSlide as 1-based slide numbers.",
+    "",
+    body,
+  ].join("\n");
+}
+
 /** Clamp AI-proposed groups to the slide range, fix reversed bounds, order, and name blanks. */
-export function normalizeSpeakerGroups(groups: SpeakerGroup[], slideCount: number): SpeakerGroup[] {
+export function normalizeSpeakerGroups(groups: SpeakerGroup[], slideCount: number, labelPrefix = "Speaker"): SpeakerGroup[] {
   const clamp = (n: number) => Math.max(1, Math.min(Math.round(n), slideCount));
   const out = groups.map((g) => {
     let s = clamp(g.startSlide);
@@ -61,5 +81,5 @@ export function normalizeSpeakerGroups(groups: SpeakerGroup[], slideCount: numbe
     return { speaker: g.speaker.trim(), startSlide: s, endSlide: e };
   });
   out.sort((a, b) => a.startSlide - b.startSlide);
-  return out.map((g, i) => ({ ...g, speaker: g.speaker || `Speaker ${i + 1}` }));
+  return out.map((g, i) => ({ ...g, speaker: g.speaker || `${labelPrefix} ${i + 1}` }));
 }
