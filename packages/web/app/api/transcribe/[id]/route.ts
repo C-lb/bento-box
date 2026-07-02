@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
 import { transcriptions } from "@event-editor/core/schema";
+import { isLiked } from "@event-editor/core/style-examples";
 import { getDb } from "@/lib/db";
 
 export const runtime = "nodejs";
@@ -23,6 +24,8 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       eventDetails: row.eventDetails ? JSON.parse(row.eventDetails) : null,
       summaryLinkedin: row.summaryLinkedin,
       summaryArticle: row.summaryArticle,
+      likedLinkedin: !!row.summaryLinkedin && isLiked(getDb(), "linkedin", row.summaryLinkedin),
+      likedArticle: !!row.summaryArticle && isLiked(getDb(), "article", row.summaryArticle),
     },
   });
 }
