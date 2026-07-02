@@ -54,8 +54,8 @@ export async function googleAccessToken(
       scope: t.scope ?? null,
     });
   });
-  const res = await client.getAccessToken();
-  if (!res.token) return null;
+  const res = await client.getAccessToken().catch(() => null);
+  if (!res?.token) return null;
   return { token: res.token, expiresAt: client.credentials.expiry_date ?? null };
 }
 

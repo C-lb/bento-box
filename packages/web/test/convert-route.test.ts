@@ -10,6 +10,10 @@ vi.mock("@/lib/pptx-convert", () => ({
   readSlides: vi.fn(),
 }));
 
+vi.mock("@/lib/google/oauth", () => ({
+  authedDriveClient: vi.fn(async () => null),
+}));
+
 import { POST } from "@/app/api/slice/convert/route";
 
 async function sliceEntries(): Promise<string[]> {
@@ -27,6 +31,19 @@ describe("convert route validation ordering", () => {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({}),
+    });
+    const res = await POST(req);
+    expect(res.status).toBe(400);
+    const after = await sliceEntries();
+    expect(after).toEqual(before);
+  });
+
+  it("returns 400 and creates no run dir when Google is not connected", async () => {
+    const before = await sliceEntries();
+    const req = new Request("http://x/api/slice/convert", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ driveFileId: "abc" }),
     });
     const res = await POST(req);
     expect(res.status).toBe(400);

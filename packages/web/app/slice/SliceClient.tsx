@@ -36,7 +36,7 @@ export function SliceClient({ hasAi }: { hasAi: boolean }) {
   async function convert() {
     const f = fileRef.current?.files?.[0];
     const driveId = driveFileId.trim();
-    if (!f && !driveId) { setError("Choose a .pptx file or enter a Drive file id first."); return; }
+    if (!f && !driveId) { setError("Drop a .pptx file or choose one from Drive first."); return; }
     setError(null);
     setStatus("converting");
     setFiles([]); setSaved([]); setWarnings([]);
@@ -172,7 +172,7 @@ export function SliceClient({ hasAi }: { hasAi: boolean }) {
     setRunId(null); setPageCount(0); setSlides([]); setFiles([]); setSaved([]);
     setWarnings([]); setStatus("idle"); setError(null);
     setRows([{ label: "Part 1", ranges: "" }]);
-    setDriveFileId("");
+    setDriveFileId(""); setPickedName(null);
     setMode("manual"); setConfidential(false); setWatermark("CONFIDENTIAL"); setDriveFolder("");
     if (fileRef.current) fileRef.current.value = "";
   }

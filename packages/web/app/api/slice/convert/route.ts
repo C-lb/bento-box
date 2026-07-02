@@ -37,7 +37,7 @@ export async function POST(request: Request) {
     filename = safeName(raw);
   }
 
-  // Drive connection is a validation too — check it before we create anything.
+  // Drive connection is a validation too, check it before we create anything.
   let drive: Awaited<ReturnType<typeof authedDriveClient>> = null;
   if (driveFileId) {
     drive = await authedDriveClient(getDb());
