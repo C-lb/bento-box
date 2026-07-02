@@ -2,14 +2,28 @@
 import { useState } from "react";
 import { Copy, Check } from "lucide-react";
 
-export function CopyButton({ text }: { text: string }) {
+export function CopyButton({ text, html }: { text: string; html?: string }) {
   const [done, setDone] = useState(false);
   async function copy() {
     try {
-      await navigator.clipboard.writeText(text);
+      if (html && typeof ClipboardItem !== "undefined" && navigator.clipboard?.write) {
+        // Write both flavours: rich targets (docs, email) take text/html and keep
+        // the bold headers; plain targets (LinkedIn's editor) take text/plain.
+        await navigator.clipboard.write([
+          new ClipboardItem({
+            "text/html": new Blob([html], { type: "text/html" }),
+            "text/plain": new Blob([text], { type: "text/plain" }),
+          }),
+        ]);
+      } else {
+        await navigator.clipboard.writeText(text);
+      }
       setDone(true);
       setTimeout(() => setDone(false), 1200);
-    } catch { /* clipboard blocked; ignore */ }
+    } catch {
+      try { await navigator.clipboard.writeText(text); setDone(true); setTimeout(() => setDone(false), 1200); }
+      catch { /* clipboard blocked; ignore */ }
+    }
   }
   return (
     <button type="button" className="btn inline-flex items-center gap-2" onClick={copy}>

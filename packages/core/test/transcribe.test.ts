@@ -103,7 +103,8 @@ describe("buildLinkedInPrompt", () => {
     const text = buildLinkedInPrompt("TRANSCRIPT", DETAILS)[0].content;
     expect(text).toContain("Key takeaways from the session:");
     expect(text).toContain("Our sincere thanks to");
-    expect(text.toLowerCase()).toContain("hashtag");
+    expect(text).toContain("#Topic");
+    expect(text.toLowerCase()).not.toContain("hashtag#");
     expect(text.toLowerCase()).toContain("no sign-off");
     expect(text).toContain("em dashes");
     expect(text).toContain("Tom Leighton");
@@ -118,6 +119,7 @@ describe("buildArticlePrompt", () => {
     expect(text).toContain("1000 words");
     expect(text.toLowerCase()).toContain("seo");
     expect(text.toLowerCase()).toContain("key takeaways");
+    expect(text).toContain("**Header**");
     expect(text).toContain("TRANSCRIPT");
   });
 });

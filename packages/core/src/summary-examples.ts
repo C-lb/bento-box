@@ -17,7 +17,7 @@ Key takeaways from the session:
 
 Our sincere thanks to Dr. Tom Leighton for sharing his insights and perspectives, and to Akamai Technologies for their partnership and support in making this important conversation possible.
 
-hashtag#AI hashtag#DistributedIntelligence hashtag#EnterpriseAI hashtag#AIGovernance hashtag#Cybersecurity hashtag#ZeroTrust hashtag#SovereignAI hashtag#DigitalInfrastructure hashtag#AgenticAI hashtag#SingaporeTech`,
+#AI #DistributedIntelligence #EnterpriseAI #AIGovernance #Cybersecurity #ZeroTrust #SovereignAI #DigitalInfrastructure #AgenticAI #SingaporeTech`,
   `As organisations move from AI experimentation into enterprise-wide deployment, one message is becoming increasingly clear: the future of AI will not be defined by capability alone, but by trust.
 
 At the recent SPARK Leaders' Circle, held in partnership with Veeam Software, senior leaders came together for a private dinner to explore trusted AI deployment, resilient governance, and future-ready transformation.
@@ -34,7 +34,7 @@ Our sincere thanks to Kelly Forbes, Cheri L., Luis Carlos Cruz Huertas, Stanley 
 
 We would also like to thank Veeam for their partnership and support in making this important conversation possible.
 
-hashtag#SafeAI hashtag#TrustedAI hashtag#ResponsibleAI hashtag#AIGovernance hashtag#AIResilience hashtag#EnterpriseAI hashtag#CyberResilience hashtag#DigitalTrust hashtag#AgenticAI hashtag#SingaporeTech`,
+#SafeAI #TrustedAI #ResponsibleAI #AIGovernance #AIResilience #EnterpriseAI #CyberResilience #DigitalTrust #AgenticAI #SingaporeTech`,
 ];
 
 export const ARTICLE_EXAMPLES: string[] = [
@@ -42,7 +42,7 @@ export const ARTICLE_EXAMPLES: string[] = [
 
 The discussion brought together enterprise, government, and technology leaders to examine the key enablers of AI at scale, from governance frameworks and runtime validation to low-latency infrastructure, external observability, narrative intelligence, and the growing shift toward agentic systems.
 
-Key takeaways:
+**Key takeaways:**
 - AI governance must extend across the full lifecycle, from data and models to runtime controls and production approval gates.
 - Low-latency, high-availability infrastructure is critical for real-world deployment.
 - External observability is becoming increasingly important for detecting trust, reputational, and adversarial risks early.

@@ -157,8 +157,8 @@ export function buildLinkedInPrompt(
         "3. Bullet pointers (use the bullet character) drawn from what the key speakers said.\n" +
         "4. A line starting: Our sincere thanks to ... naming the speakers for sharing their insights, " +
         "and separately thanking the sponsors and partners for their support.\n" +
-        "5. A final line of topic hashtags. Write each hashtag as hashtag#Topic (the literal word " +
-        "hashtag followed by #), matching the examples.\n\n" +
+        "5. A final line of topic hashtags, written plainly as #Topic with no spaces inside each tag " +
+        "(for example: #AI #EnterpriseAI). Never prefix a hashtag with the literal word hashtag.\n\n" +
         "Rules: no sign-off, no closing salutation, no author name at the end. No em dashes. " +
         "Only thank people and sponsors named in the details below; do not invent names.\n\n" +
         "Event details:\n" + detailsBlock(details) + "\n\n" +
@@ -179,9 +179,10 @@ export function buildArticlePrompt(
       content:
         "Write an article recapping this event, in the style of the examples below.\n\n" +
         "Requirements: at most 1000 words. Follow SEO best practices: a clear title, descriptive " +
-        "section headers, and natural use of the event's key topics as keywords. Include a clear " +
-        "key takeaways treatment (a short list or a dedicated section). No em dashes. Only reference " +
-        "people and sponsors named in the details below; do not invent names.\n\n" +
+        "section headers, and natural use of the event's key topics as keywords. Write every section " +
+        "header in bold using **Header** on its own line. Do not use Markdown number-sign (#) headers. " +
+        "Include a clear key takeaways treatment (a short list or a dedicated section). No em dashes. " +
+        "Only reference people and sponsors named in the details below; do not invent names.\n\n" +
         "Event details:\n" + detailsBlock(details) + "\n\n" +
         "Transcript:\n" + transcript + "\n\n" +
         "Style examples:\n" + examples,

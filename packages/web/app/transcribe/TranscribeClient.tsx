@@ -4,6 +4,7 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { transcriptionStatusView } from "@/lib/status";
 import { Segmented } from "@/components/Segmented";
 import { CopyButton } from "@/components/CopyButton";
+import { summaryToHtml, summaryToPlain } from "@/lib/render-summary";
 import { EventDetailsPanel } from "./EventDetailsPanel";
 import { FileDrop } from "@/components/FileDrop";
 
@@ -219,8 +220,8 @@ export function TranscribeClient() {
                       </div>
                     ) : (
                       <>
-                        <p className="whitespace-pre-wrap text-ink">{formatText[format]}</p>
-                        {formatText[format] && <div className="mt-3"><CopyButton text={formatText[format]} /></div>}
+                        <div className="text-ink" dangerouslySetInnerHTML={{ __html: summaryToHtml(formatText[format] ?? "") }} />
+                        {formatText[format] && <div className="mt-3"><CopyButton text={summaryToPlain(formatText[format]!)} html={summaryToHtml(formatText[format]!)} /></div>}
                       </>
                     )
                   )}
