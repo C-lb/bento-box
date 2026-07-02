@@ -8,6 +8,7 @@ import {
   buildEventDetailsPrompt,
   buildLinkedInPrompt,
   buildArticlePrompt,
+  buildSelectionRewritePrompt,
   docBaseName,
 } from "../src/transcribe.js";
 
@@ -100,7 +101,7 @@ const DETAILS = {
 
 describe("buildLinkedInPrompt", () => {
   it("encodes the required structure and grounding", () => {
-    const text = buildLinkedInPrompt("TRANSCRIPT", DETAILS)[0].content;
+    const text = buildLinkedInPrompt("TRANSCRIPT", DETAILS, ["EX_ONE"])[0].content;
     expect(text).toContain("Key takeaways from the session:");
     expect(text).toContain("Our sincere thanks to");
     expect(text).toContain("#Topic");
@@ -110,17 +111,33 @@ describe("buildLinkedInPrompt", () => {
     expect(text).toContain("Tom Leighton");
     expect(text).toContain("Akamai Technologies");
     expect(text).toContain("TRANSCRIPT");
+    expect(text).toContain("EX_ONE");
   });
 });
 
 describe("buildArticlePrompt", () => {
   it("caps length and asks for SEO structure and takeaways", () => {
-    const text = buildArticlePrompt("TRANSCRIPT", DETAILS)[0].content;
+    const text = buildArticlePrompt("TRANSCRIPT", DETAILS, ["EX_ONE"])[0].content;
     expect(text).toContain("1000 words");
     expect(text.toLowerCase()).toContain("seo");
     expect(text.toLowerCase()).toContain("key takeaways");
     expect(text).toContain("**Header**");
     expect(text).toContain("TRANSCRIPT");
+    expect(text).toContain("EX_ONE");
+  });
+});
+
+describe("buildSelectionRewritePrompt", () => {
+  it("includes the selection, full draft, and format rules", () => {
+    const text = buildSelectionRewritePrompt("linkedin", "FULL DRAFT", "THE SPAN", DETAILS, ["EX_ONE"])[0].content;
+    expect(text).toContain("THE SPAN");
+    expect(text).toContain("FULL DRAFT");
+    expect(text).toContain("#Topic");
+    expect(text).toContain("EX_ONE");
+  });
+  it("uses bold-header rule for article", () => {
+    const text = buildSelectionRewritePrompt("article", "FULL", "SPAN", DETAILS, [])[0].content;
+    expect(text).toContain("**Header**");
   });
 });
 

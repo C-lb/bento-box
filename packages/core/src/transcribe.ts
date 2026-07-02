@@ -1,5 +1,3 @@
-import { LINKEDIN_EXAMPLES, ARTICLE_EXAMPLES } from "./summary-examples.js";
-
 export interface PlannedChunk {
   index: number;
   startSec: number;
@@ -144,8 +142,9 @@ function detailsBlock(details: EventDetails): string {
 export function buildLinkedInPrompt(
   transcript: string,
   details: EventDetails,
+  examples: string[],
 ): { role: "user"; content: string }[] {
-  const examples = LINKEDIN_EXAMPLES.map((e, i) => `Example ${i + 1}:\n${e}`).join("\n\n---\n\n");
+  const examplesBlock = examples.map((e, i) => `Example ${i + 1}:\n${e}`).join("\n\n---\n\n");
   return [
     {
       role: "user",
@@ -163,7 +162,7 @@ export function buildLinkedInPrompt(
         "Only thank people and sponsors named in the details below; do not invent names.\n\n" +
         "Event details:\n" + detailsBlock(details) + "\n\n" +
         "Transcript:\n" + transcript + "\n\n" +
-        "Style examples:\n" + examples,
+        "Style examples:\n" + examplesBlock,
     },
   ];
 }
@@ -171,8 +170,9 @@ export function buildLinkedInPrompt(
 export function buildArticlePrompt(
   transcript: string,
   details: EventDetails,
+  examples: string[],
 ): { role: "user"; content: string }[] {
-  const examples = ARTICLE_EXAMPLES.map((e, i) => `Example ${i + 1}:\n${e}`).join("\n\n---\n\n");
+  const examplesBlock = examples.map((e, i) => `Example ${i + 1}:\n${e}`).join("\n\n---\n\n");
   return [
     {
       role: "user",
@@ -185,7 +185,37 @@ export function buildArticlePrompt(
         "Only reference people and sponsors named in the details below; do not invent names.\n\n" +
         "Event details:\n" + detailsBlock(details) + "\n\n" +
         "Transcript:\n" + transcript + "\n\n" +
-        "Style examples:\n" + examples,
+        "Style examples:\n" + examplesBlock,
+    },
+  ];
+}
+
+export function buildSelectionRewritePrompt(
+  format: "linkedin" | "article",
+  fullDraft: string,
+  selection: string,
+  details: EventDetails,
+  examples: string[],
+): { role: "user"; content: string }[] {
+  const examplesBlock = examples.map((e, i) => `Example ${i + 1}:\n${e}`).join("\n\n---\n\n");
+  const kind = format === "linkedin" ? "LinkedIn post" : "article";
+  const hashtagRule = format === "linkedin"
+    ? "If the selection contains hashtags, write them plainly as #Topic, never the literal word hashtag. "
+    : "Write any section header in bold using **Header**, never a Markdown number-sign header. ";
+  return [
+    {
+      role: "user",
+      content:
+        `You are revising one selected passage of an existing ${kind} draft. ` +
+        "Rewrite ONLY the selected passage so it reads better while keeping the same meaning, tone, " +
+        "and the surrounding draft's style. Keep it roughly the same length and role in the draft. " +
+        hashtagRule +
+        "No em dashes. Only reference people and sponsors named in the details; do not invent names. " +
+        "Return only the rewritten passage, with no preamble, quotes, or explanation.\n\n" +
+        "Event details:\n" + detailsBlock(details) + "\n\n" +
+        "Full draft (for context):\n" + fullDraft + "\n\n" +
+        "Selected passage to rewrite:\n" + selection + "\n\n" +
+        "Style examples:\n" + examplesBlock,
     },
   ];
 }
