@@ -22,7 +22,8 @@
     "./frames": "./dist/frames.js",
     "./headshot": "./dist/headshot.js",
     "./columns": "./dist/columns.js",
-    "./match": "./dist/match.js"
+    "./match": "./dist/match.js",
+    "./slice-plan": "./dist/slice-plan.js"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
