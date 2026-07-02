@@ -37,3 +37,7 @@ body {
 }
 .field:focus { @apply border-accent ring-2 ring-accent/25; }
 .field:disabled { @apply opacity-50; }
+
+.nav-thumb {
+  transition: transform .52s cubic-bezier(.25, 1.12, .32, 1), width .52s cubic-bezier(.3, .8, .3, 1);
+}
