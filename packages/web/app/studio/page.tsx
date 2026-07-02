@@ -1,5 +1,5 @@
 import { getConnections } from "@event-editor/core/settings";
-import { StudioClient } from "./StudioClient";
+import { StudioTabs } from "./StudioTabs";
 
 // Gates on a runtime API key (process.env); must render per request, not as a
 // build-time static prerender (CI builds with no keys). See transcribe/page.tsx.
@@ -10,14 +10,14 @@ export default function StudioPage() {
   return (
     <div>
       <p className="eyebrow">Headshot studio</p>
-      <h1 className="mt-1 text-2xl font-semibold">Turn a Drive photo into a branded headshot</h1>
+      <h1 className="mt-1 text-2xl font-semibold">Build branded headshots</h1>
       {!google?.configured ? (
         <div className="card mt-8">
           <p className="text-muted">Google credentials are not set in your environment yet.</p>
           <p className="mt-2 text-muted">Add GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET to .env, then restart.</p>
         </div>
       ) : (
-        <StudioClient />
+        <StudioTabs />
       )}
     </div>
   );
