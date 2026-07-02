@@ -59,12 +59,12 @@ export function FileDrop({
         <>
           <span className="flex-1 truncate text-sm text-ink">{name}</span>
           <button type="button" onClick={clear} className="btn" aria-label="Remove file">
-            <X className="w-4 h-4" />
+            <X className="w-4 h-4" strokeWidth={1.75} />
           </button>
         </>
       ) : (
         <>
-          <Upload className="w-4 h-4 text-muted" />
+          <Upload className="w-4 h-4 text-muted" strokeWidth={1.75} />
           <span className="text-sm text-muted">{label}</span>
         </>
       )}

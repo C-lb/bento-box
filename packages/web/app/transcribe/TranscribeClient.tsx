@@ -380,7 +380,7 @@ export function TranscribeClient() {
                               className={`btn inline-flex items-center gap-2 ${liked[format as "linkedin" | "article"] ? "text-accent" : ""}`}
                               onClick={() => toggleLike(format as "linkedin" | "article")}
                             >
-                              <Smile className="w-4 h-4" />
+                              <Smile className="w-4 h-4" strokeWidth={1.75} />
                             </button>
                           </div>
                         )}

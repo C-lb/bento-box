@@ -12,7 +12,7 @@ export function StatusBadge({ tone, label }: { tone: Tone; label: string }) {
   const { color, Icon, spin } = TONE[tone];
   return (
     <span className={`inline-flex items-center gap-2 ${color}`}>
-      <Icon size={16} aria-hidden className={spin ? "animate-spin" : ""} />
+      <Icon size={16} strokeWidth={1.75} aria-hidden className={spin ? "animate-spin" : ""} />
       <span className="text-sm font-medium">{label}</span>
     </span>
   );

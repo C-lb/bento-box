@@ -27,7 +27,7 @@ export function CopyButton({ text, html }: { text: string; html?: string }) {
   }
   return (
     <button type="button" className="btn inline-flex items-center gap-2" onClick={copy}>
-      {done ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+      {done ? <Check className="w-4 h-4" strokeWidth={1.75} /> : <Copy className="w-4 h-4" strokeWidth={1.75} />}
       {done ? "Copied!" : "Copy"}
     </button>
   );

@@ -252,11 +252,11 @@ export function SliceClient({ hasAi }: { hasAi: boolean }) {
                     onChange={(e) => setRows(rows.map((r, j) => j === i ? { ...r, label: e.target.value } : r))} />
                   <input className="field w-40" placeholder="Pages e.g. 1-5, 8" value={row.ranges}
                     onChange={(e) => setRows(rows.map((r, j) => j === i ? { ...r, ranges: e.target.value } : r))} />
-                  <button type="button" className="btn" onClick={() => setRows(rows.filter((_, j) => j !== i))}><X className="w-4 h-4" /></button>
+                  <button type="button" className="btn" onClick={() => setRows(rows.filter((_, j) => j !== i))}><X className="w-4 h-4" strokeWidth={1.75} /></button>
                 </div>
               ))}
               <button type="button" className="btn inline-flex items-center gap-2" onClick={() => setRows([...rows, { label: `Part ${rows.length + 1}`, ranges: "" }])}>
-                <Plus className="w-4 h-4" /> Add portion
+                <Plus className="w-4 h-4" strokeWidth={1.75} /> Add portion
               </button>
             </div>
           </div>
@@ -298,12 +298,12 @@ export function SliceClient({ hasAi }: { hasAi: boolean }) {
                   <div key={f.filename} className="flex items-center justify-between rounded-lg border border-line px-3 py-2">
                     <span className="text-sm">{f.label} <span className="text-muted">({f.filename})</span></span>
                     <a className="btn inline-flex items-center gap-2" href={`/api/slice/${runId}/file/${encodeURIComponent(f.filename)}`}>
-                      <Download className="w-4 h-4" /> Download
+                      <Download className="w-4 h-4" strokeWidth={1.75} /> Download
                     </a>
                   </div>
                 ))}
                 <a className="btn btn-accent inline-flex items-center gap-2" href={`/api/slice/${runId}/zip`}>
-                  <FileArchive className="w-4 h-4" /> Download all as zip
+                  <FileArchive className="w-4 h-4" strokeWidth={1.75} /> Download all as zip
                 </a>
 
                 <div className="mt-4 border-t border-line pt-4">
@@ -312,7 +312,7 @@ export function SliceClient({ hasAi }: { hasAi: boolean }) {
                   <div className="mt-2 flex gap-2">
                     <input className="field flex-1" placeholder="Drive folder id" value={driveFolder} onChange={(e) => setDriveFolder(e.target.value)} />
                     <button type="button" className="btn inline-flex items-center gap-2" onClick={saveToDrive} disabled={busy}>
-                      <UploadCloud className="w-4 h-4" /> Save
+                      <UploadCloud className="w-4 h-4" strokeWidth={1.75} /> Save
                     </button>
                   </div>
                   {saved.length > 0 && (

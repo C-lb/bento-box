@@ -16,11 +16,11 @@ function PeopleEditor({ label, rows, onChange }: { label: string; rows: Person[]
               onChange={(e) => onChange(rows.map((x, j) => j === i ? { ...x, name: e.target.value } : x))} />
             <input className="field flex-1" placeholder="Company" value={r.company}
               onChange={(e) => onChange(rows.map((x, j) => j === i ? { ...x, company: e.target.value } : x))} />
-            <button type="button" className="btn" onClick={() => onChange(rows.filter((_, j) => j !== i))}><X className="w-4 h-4" /></button>
+            <button type="button" className="btn" onClick={() => onChange(rows.filter((_, j) => j !== i))}><X className="w-4 h-4" strokeWidth={1.75} /></button>
           </div>
         ))}
         <button type="button" className="btn inline-flex items-center gap-2" onClick={() => onChange([...rows, { name: "", company: "" }])}>
-          <Plus className="w-4 h-4" /> Add
+          <Plus className="w-4 h-4" strokeWidth={1.75} /> Add
         </button>
       </div>
     </div>
@@ -71,7 +71,7 @@ export function EventDetailsPanel({ id, initial, onSaved }: { id: number; initia
         <button type="button" className="btn btn-accent" onClick={save} disabled={saving || !dirty}>{saving ? "Saving…" : "Save details"}</button>
         {dirty && !saving && (
           <span className="inline-flex items-center gap-1.5 text-sm text-amber-600">
-            <AlertTriangle className="w-4 h-4" aria-hidden /> Unsaved changes. Press Save details.
+            <AlertTriangle className="w-4 h-4" strokeWidth={1.75} aria-hidden /> Unsaved changes. Press Save details.
           </span>
         )}
         {saved && <span className="text-sm text-success">Saved.</span>}
