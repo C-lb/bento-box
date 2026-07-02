@@ -18,7 +18,7 @@ export function SliceClient({ hasAi }: { hasAi: boolean }) {
   const [pageCount, setPageCount] = useState(0);
   const [slides, setSlides] = useState<SlideText[]>([]);
 
-  const [mode, setMode] = useState<"manual" | "speaker">("manual");
+  const [mode, setMode] = useState<"manual" | "speaker" | "topic">("manual");
   const [rows, setRows] = useState<GroupRow[]>([{ label: "Part 1", ranges: "" }]);
 
   const [confidential, setConfidential] = useState(false);
@@ -63,7 +63,7 @@ export function SliceClient({ hasAi }: { hasAi: boolean }) {
     setStatus("segmenting");
     try {
       const r = await fetch("/api/slice/segment", {
-        method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ slides }),
+        method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ slides, by: mode === "topic" ? "topic" : "speaker" }),
       });
       const data = await r.json();
       if (!r.ok) throw new Error(data.error ?? "Segmentation failed");
@@ -164,12 +164,20 @@ export function SliceClient({ hasAi }: { hasAi: boolean }) {
                 className={`rounded-md px-3 py-1.5 text-sm ${mode === "speaker" ? "bg-raised text-ink shadow-raisededge" : "text-muted"}`}>
                 By speaker
               </button>
+              <button type="button" onClick={() => setMode("topic")}
+                className={`rounded-md px-3 py-1.5 text-sm ${mode === "topic" ? "bg-raised text-ink shadow-raisededge" : "text-muted"}`}>
+                By topic
+              </button>
             </div>
 
-            {mode === "speaker" && (
+            {(mode === "speaker" || mode === "topic") && (
               <div className="mt-3">
                 <button type="button" className="btn" onClick={segment} disabled={busy || !hasAi}>
-                  {status === "segmenting" ? "Finding portions…" : "Suggest speaker portions"}
+                  {status === "segmenting"
+                    ? "Finding portions…"
+                    : mode === "topic"
+                      ? "Suggest topic sections"
+                      : "Suggest speaker portions"}
                 </button>
                 {!hasAi && <span className="ml-2 text-sm text-muted">Set ANTHROPIC_API_KEY to enable this.</span>}
                 <p className="mt-2 text-xs text-muted">Suggestions drop into the rows below. Review and adjust before exporting.</p>
