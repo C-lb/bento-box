@@ -15,7 +15,7 @@ describe("segmentSpeakers", () => {
     ]);
 
     expect(groups).toEqual([{ speaker: "Ada", startSlide: 1, endSlide: 2 }]); // clamped to 2 slides
-    const arg = create.mock.calls[0][0];
+    const arg = (create.mock.calls[0] as any[])[0];
     expect(arg.output_config.format.type).toBe("json_schema");
     const promptText = arg.messages[0].content.find((b: any) => b.type === "text").text;
     expect(promptText).toContain("Slide 1");
