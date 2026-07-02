@@ -37,3 +37,16 @@ export function headshotStatusView(status: string): StatusView {
     default: return { tone: "idle", label: status };
   }
 }
+
+export function sliceStatusView(status: string): StatusView {
+  switch (status) {
+    case "converting": return { tone: "active", label: "Converting with LibreOffice" };
+    case "reading": return { tone: "active", label: "Reading slides" };
+    case "segmenting": return { tone: "active", label: "Finding speaker portions" };
+    case "exporting": return { tone: "active", label: "Building PDFs" };
+    case "saving": return { tone: "active", label: "Saving to Drive" };
+    case "done": return { tone: "success", label: "Done" };
+    case "error": return { tone: "error", label: "Slicing failed" };
+    default: return { tone: "idle", label: status };
+  }
+}

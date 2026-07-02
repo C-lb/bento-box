@@ -1,6 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { buildVisionPrompt, type VisionScore } from "@event-editor/core/rank";
 import { buildSummaryPrompt, buildEventDetailsPrompt, buildLinkedInPrompt, buildArticlePrompt, buildSelectionRewritePrompt, type EventDetails } from "@event-editor/core/transcribe";
+import { buildSpeakerSegmentPrompt, normalizeSpeakerGroups, type SlideText, type SpeakerGroup } from "@event-editor/core/pptx";
 
 export const VISION_MODEL = process.env.EE_VISION_MODEL ?? "claude-opus-4-8";
 
@@ -25,6 +26,23 @@ const DETAILS_SCHEMA = {
     sponsors: { type: "array", items: { type: "object", properties: { name: { type: "string" }, company: { type: "string" } }, required: ["name", "company"], additionalProperties: false } },
   },
   required: ["eventName", "eventDescription", "speakers", "sponsors"],
+  additionalProperties: false,
+} as const;
+
+const SEGMENT_SCHEMA = {
+  type: "object",
+  properties: {
+    groups: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: { speaker: { type: "string" }, startSlide: { type: "integer" }, endSlide: { type: "integer" } },
+        required: ["speaker", "startSlide", "endSlide"],
+        additionalProperties: false,
+      },
+    },
+  },
+  required: ["groups"],
   additionalProperties: false,
 } as const;
 
@@ -117,4 +135,17 @@ export async function summarizeTranscript(client: Anthropic, transcript: string)
   const text = (res.content ?? []).find((b: any) => b.type === "text")?.text ?? "";
   if (!text.trim()) throw new Error("summary model returned empty output");
   return text.trim();
+}
+
+export async function segmentSpeakers(client: Anthropic, slides: SlideText[]): Promise<SpeakerGroup[]> {
+  const res: any = await client.messages.create({
+    model: SUMMARY_MODEL,
+    max_tokens: 2048,
+    output_config: { format: { type: "json_schema", schema: SEGMENT_SCHEMA } },
+    messages: [{ role: "user", content: [{ type: "text", text: buildSpeakerSegmentPrompt(slides) }] }],
+  } as any);
+  if (res.stop_reason === "refusal") throw new Error("model refused to segment the deck");
+  const text = (res.content ?? []).find((b: any) => b.type === "text")?.text ?? "";
+  const parsed = JSON.parse(text) as { groups: SpeakerGroup[] };
+  return normalizeSpeakerGroups(parsed.groups, slides.length);
 }
