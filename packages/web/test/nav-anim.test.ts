@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { navShouldAnimate, bestMatchIndex } from "@/components/nav-anim";
+import { navShouldAnimate, bestMatchIndex, shouldUnsettle } from "@/components/nav-anim";
 
 const HREFS = ["/", "/sorter", "/transcribe", "/studio", "/slice", "/settings"];
 
@@ -30,5 +30,17 @@ describe("bestMatchIndex", () => {
   });
   it("returns -1 when nothing matches", () => {
     expect(bestMatchIndex(HREFS, "/nonexistent")).toBe(-1);
+  });
+});
+
+describe("shouldUnsettle", () => {
+  it("unsettles when the active index changes during an animated nav", () => {
+    expect(shouldUnsettle(0, 3, true)).toBe(true);
+  });
+  it("stays settled when the path changes but the active index does not (within-tab nav)", () => {
+    expect(shouldUnsettle(3, 3, true)).toBe(false);
+  });
+  it("stays settled when not animating (reduced motion / snap)", () => {
+    expect(shouldUnsettle(0, 3, false)).toBe(false);
   });
 });

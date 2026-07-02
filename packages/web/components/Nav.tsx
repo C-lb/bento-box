@@ -3,7 +3,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Home, Images, Mic, UserRound, Settings, Scissors, type LucideIcon } from "lucide-react";
-import { navShouldAnimate, bestMatchIndex } from "@/components/nav-anim";
+import { navShouldAnimate, bestMatchIndex, shouldUnsettle } from "@/components/nav-anim";
 
 const LINKS: { href: string; label: string; Icon: LucideIcon }[] = [
   { href: "/", label: "Home", Icon: Home },
@@ -26,6 +26,7 @@ export function Nav() {
   const fxRef = useRef<HTMLSpanElement | null>(null);
   const headerRef = useRef<HTMLElement | null>(null);
   const prevPath = useRef<string | null>(null);
+  const prevActiveIdx = useRef(activeIdx);
   const enabled = useRef(false);
   const [motionOK, setMotionOK] = useState(false);
   const [settledIdx, setSettledIdx] = useState(activeIdx);
@@ -45,15 +46,14 @@ export function Nav() {
     thumb.style.top = `${el.offsetTop}px`;
     thumb.style.height = `${el.offsetHeight}px`;
     if (!willAnimate) {
-      setSettledIdx(activeIdx);
       requestAnimationFrame(() => {
         if (thumbRef.current) thumbRef.current.style.transition = "";
         enabled.current = true;
       });
-    } else {
-      setSettledIdx(-1);
     }
+    setSettledIdx(shouldUnsettle(prevActiveIdx.current, activeIdx, willAnimate) ? -1 : activeIdx);
     prevPath.current = path;
+    prevActiveIdx.current = activeIdx;
   }, [path, activeIdx, motionOK]);
 
   useEffect(() => {
