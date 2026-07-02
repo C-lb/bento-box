@@ -1,6 +1,6 @@
 "use client";
-import { useState } from "react";
-import { Plus, X } from "lucide-react";
+import { useState, useEffect, useMemo } from "react";
+import { Plus, X, AlertTriangle } from "lucide-react";
 
 interface Person { name: string; company: string }
 export interface Details { eventName: string; eventDescription: string; speakers: Person[]; sponsors: Person[] }
@@ -29,8 +29,20 @@ function PeopleEditor({ label, rows, onChange }: { label: string; rows: Person[]
 
 export function EventDetailsPanel({ id, initial, onSaved }: { id: number; initial: Details; onSaved: () => void }) {
   const [d, setD] = useState<Details>(initial);
+  const [baseline, setBaseline] = useState<Details>(initial);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+
+  // Dirty when the current form differs from the last-saved snapshot.
+  const dirty = useMemo(() => JSON.stringify(d) !== JSON.stringify(baseline), [d, baseline]);
+
+  // Warn before leaving/reloading the page with unsaved edits.
+  useEffect(() => {
+    if (!dirty) return;
+    const onBeforeUnload = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = ""; };
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, [dirty]);
 
   async function save() {
     setSaving(true);
@@ -39,14 +51,14 @@ export function EventDetailsPanel({ id, initial, onSaved }: { id: number; initia
       const r = await fetch(`/api/transcribe/${id}/details`, {
         method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify(d),
       });
-      if (r.ok) { setSaved(true); onSaved(); setTimeout(() => setSaved(false), 1500); }
+      if (r.ok) { setBaseline(d); setSaved(true); onSaved(); setTimeout(() => setSaved(false), 1500); }
     } finally { setSaving(false); }
   }
 
   return (
     <div className="card mt-5">
       <p className="eyebrow">Event details</p>
-      <p className="mt-2 text-sm text-muted">Correct anything below. Saving updates the LinkedIn and Article versions.</p>
+      <p className="mt-2 text-sm text-muted">Correct anything below, then press Save details. Edits are not applied until you save. Saving updates the LinkedIn and Article versions.</p>
       <label className="mt-4 block text-sm font-medium">Event name
         <input className="field mt-1 w-full" value={d.eventName} onChange={(e) => setD({ ...d, eventName: e.target.value })} />
       </label>
@@ -56,7 +68,12 @@ export function EventDetailsPanel({ id, initial, onSaved }: { id: number; initia
       <PeopleEditor label="Speakers" rows={d.speakers} onChange={(speakers) => setD({ ...d, speakers })} />
       <PeopleEditor label="Sponsors and partners" rows={d.sponsors} onChange={(sponsors) => setD({ ...d, sponsors })} />
       <div className="mt-4 flex items-center gap-3">
-        <button type="button" className="btn btn-accent" onClick={save} disabled={saving}>{saving ? "Saving…" : "Save details"}</button>
+        <button type="button" className="btn btn-accent" onClick={save} disabled={saving || !dirty}>{saving ? "Saving…" : "Save details"}</button>
+        {dirty && !saving && (
+          <span className="inline-flex items-center gap-1.5 text-sm text-amber-600">
+            <AlertTriangle className="w-4 h-4" aria-hidden /> Unsaved changes. Press Save details.
+          </span>
+        )}
         {saved && <span className="text-sm text-success">Saved.</span>}
       </div>
     </div>
