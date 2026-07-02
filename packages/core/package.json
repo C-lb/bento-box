@@ -23,7 +23,8 @@
     "./headshot": "./dist/headshot.js",
     "./columns": "./dist/columns.js",
     "./match": "./dist/match.js",
-    "./slice-plan": "./dist/slice-plan.js"
+    "./slice-plan": "./dist/slice-plan.js",
+    "./pptx": "./dist/pptx.js"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
