@@ -1,5 +1,5 @@
 export function SorterIllus() {
-  // Hover: the #1 tile scales up, siblings dim — reads as ranked best-first.
+  // Hover: the #1 tile scales up, siblings dim, reads as ranked best-first.
   return (
     <div className="grid h-full grid-cols-3 grid-rows-2 gap-2 motion-safe:[.group:hover_&>div:not(:first-child)]:opacity-50">
       <div className="relative rounded-lg bg-[#e4e7ec] transition-transform duration-300 motion-safe:group-hover:scale-110">
@@ -35,14 +35,14 @@ export function TranscribeIllus() {
         {bars.map((h, i) => (
           <span
             key={i}
-            className="w-1.5 rounded-full bg-[#e4e7ec] motion-safe:group-hover:animate-[eq_0.7s_ease-in-out_infinite]"
+            className="w-1.5 origin-bottom rounded-full bg-[#e4e7ec] motion-safe:group-hover:animate-[eq_0.7s_ease-in-out_infinite]"
             style={{ height: h, animationDelay: `${i * 60}ms` }}
           />
         ))}
       </div>
       <div className="mt-4 flex flex-col gap-2">
-        <div className="h-2 rounded-full bg-[#e4e7ec] transition-[width] duration-500 motion-safe:[.group:hover_&]:w-[92%]" style={{ width: "0%" }} />
-        <div className="h-2 rounded-full bg-[#e4e7ec] transition-[width] delay-100 duration-500 motion-safe:[.group:hover_&]:w-[76%]" style={{ width: "0%" }} />
+        <div className="h-2 rounded-full bg-[#e4e7ec] transition-[width] duration-500 motion-safe:w-0 motion-safe:[.group:hover_&]:w-[92%] motion-reduce:w-[92%]" />
+        <div className="h-2 rounded-full bg-[#e4e7ec] transition-[width] delay-100 duration-500 motion-safe:w-0 motion-safe:[.group:hover_&]:w-[76%] motion-reduce:w-[76%]" />
       </div>
     </div>
   );
