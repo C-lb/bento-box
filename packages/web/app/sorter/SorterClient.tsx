@@ -24,6 +24,7 @@ export function SorterClient() {
   const [job, setJob] = useState<Job | null>(null);
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [busy, setBusy] = useState(false);
+  const [platform, setPlatform] = useState<"instagram" | "linkedin" | "profile">("linkedin");
 
   useEffect(() => {
     fetch("/api/drive/folders").then(async (r) => {
@@ -58,7 +59,7 @@ export function SorterClient() {
       const r = await fetch("/api/sorter/jobs", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ folderId, folderName: folder?.name }),
+        body: JSON.stringify({ folderId, folderName: folder?.name, platform }),
       });
       const data = await r.json();
       if (data.jobId) { setJobId(data.jobId); setJob(null); setPhotos([]); }
@@ -93,6 +94,28 @@ export function SorterClient() {
           <option value="">Choose a folder</option>
           {folders.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
         </select>
+        <div className="mb-3">
+          <span className="mb-1.5 block text-sm text-muted">Rank photos for</span>
+          <div className="inline-flex rounded-lg border border-line bg-[#eef0f3] p-0.5">
+            {([
+              { id: "instagram", label: "Instagram" },
+              { id: "linkedin", label: "LinkedIn" },
+              { id: "profile", label: "Profile picture" },
+            ] as const).map((opt) => (
+              <button
+                key={opt.id}
+                type="button"
+                onClick={() => setPlatform(opt.id)}
+                disabled={busy}
+                className={`rounded-md px-3 py-1.5 text-sm transition-colors ${
+                  platform === opt.id ? "bg-surface text-ink shadow-soft" : "text-muted hover:text-ink"
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        </div>
         <button className="btn btn-accent" onClick={scan} disabled={!folderId || busy}>
           {busy ? "Starting…" : "Scan folder"}
         </button>
