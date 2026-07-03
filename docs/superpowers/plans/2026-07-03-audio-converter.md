@@ -16,9 +16,11 @@
 - Core test files live in `packages/core/test/*.test.ts`; web tests live next to source as `*.test.ts`. Both run under `vitest run`.
 - Encode target is **192 kbps mp3** for both modes.
 - UI follows the anti-vibecode house standards: no eyebrow above the h1, sentence-case copy, no em dashes, one accent (the single primary "Convert" button), soft raised surfaces, full interaction states (hover / disabled / loading / success / error).
-- `yt-dlp` is a required local binary for link mode only; file mode depends only on `ffmpeg`. Never crash when yt-dlp is absent — gate the feature.
+- **ffmpeg is bundled** with the app via the `ffmpeg-static` npm package (already a desktop `externals` entry; `packages/web/lib/audio.ts` uses it). The converter MUST use `ffmpeg-static` for the encode, never the system `ffmpeg`. So file mode needs zero user setup.
+- **yt-dlp is NOT bundled.** It is resolved from (in order) `EE_YTDLP_PATH`, the managed bin dir (`EE_BIN_DIR`, where the in-app downloader writes it), then common install paths. Link mode is gated on its presence; file mode never depends on it.
+- yt-dlp needs ffmpeg to post-process to mp3; always pass it `--ffmpeg-location <dir of ffmpeg-static>` so it uses the bundled ffmpeg, not a system one.
+- **Writable paths must come from env, not cwd.** The packaged server is forked with no `cwd`, so `resolve("data/…")` points at a read-only location. Resolve the data root as `process.env.EE_DATA_DIR ?? "data"` (the desktop app sets `EE_DATA_DIR` to `<userData>/data`; dev falls back to the repo `data/`). Working files live under `<dataRoot>/convert/<id>/`, swept best-effort after 6 hours, cleaned on delivery. The managed bin dir is `process.env.EE_BIN_DIR ?? "<dataRoot>/bin"`.
 - Route handlers set `export const runtime = "nodejs"` (they spawn processes and touch the filesystem).
-- Working files live under `data/convert/<id>/`, swept best-effort after 6 hours, cleaned on delivery.
 
 ---
 
@@ -35,7 +37,7 @@
   - `sanitizeMp3Filename(raw: string): string` — returns a safe base name with exactly one trailing `.mp3`. Strips path separators and control/unsafe chars, collapses whitespace, trims, caps the base at 120 chars. Empty-after-sanitize returns `audio.mp3`.
   - `defaultNameFromSource(name: string): string` — strips a trailing extension from `name` and returns the sanitized base (no `.mp3` appended; the field shows a base, the sanitizer adds `.mp3` at submit). Empty returns `audio`.
   - `ytDlpTitleArgs(url: string): string[]` — argv for fetching the title.
-  - `ytDlpExtractArgs(url: string, outStem: string): string[]` — argv for extracting mp3 to `<outStem>.mp3`.
+  - `ytDlpExtractArgs(url: string, outStem: string, ffmpegLocation: string): string[]` — argv for extracting mp3 to `<outStem>.mp3`, telling yt-dlp to use the bundled ffmpeg at `ffmpegLocation` (a directory).
   - `ffmpegMp3Args(inPath: string, outPath: string): string[]` — argv for transcoding to 192 kbps mp3.
 
 - [ ] **Step 1: Write the failing test**
@@ -96,9 +98,10 @@ describe("ytDlpTitleArgs", () => {
 });
 
 describe("ytDlpExtractArgs", () => {
-  it("extracts a 192k mp3 to the given stem", () => {
-    expect(ytDlpExtractArgs("https://x/y", "/tmp/abc/out")).toEqual([
+  it("extracts a 192k mp3 to the given stem using the bundled ffmpeg", () => {
+    expect(ytDlpExtractArgs("https://x/y", "/tmp/abc/out", "/opt/ff/bin")).toEqual([
       "--no-playlist", "-x", "--audio-format", "mp3", "--audio-quality", "192K",
+      "--ffmpeg-location", "/opt/ff/bin",
       "-o", "/tmp/abc/out.%(ext)s", "https://x/y",
     ]);
   });
@@ -151,9 +154,10 @@ export function ytDlpTitleArgs(url: string): string[] {
   return ["--no-playlist", "--print", "title", url];
 }
 
-export function ytDlpExtractArgs(url: string, outStem: string): string[] {
+export function ytDlpExtractArgs(url: string, outStem: string, ffmpegLocation: string): string[] {
   return [
     "--no-playlist", "-x", "--audio-format", "mp3", "--audio-quality", "192K",
+    "--ffmpeg-location", ffmpegLocation,
     "-o", `${outStem}.%(ext)s`, url,
   ];
 }
@@ -203,42 +207,57 @@ git commit -m "feat(convert): core filename + yt-dlp/ffmpeg arg helpers"
 - Test: `packages/web/lib/convert.test.ts`
 
 **Interfaces:**
-- Consumes: `ytDlpTitleArgs`, `ytDlpExtractArgs`, `ffmpegMp3Args` from `@event-editor/core/convert`.
+- Consumes: `ytDlpTitleArgs`, `ytDlpExtractArgs`, `ffmpegMp3Args` from `@event-editor/core/convert`; `ffmpeg-static` (default export: the bundled ffmpeg path).
 - Produces:
-  - `binCandidates(name: "yt-dlp" | "ffmpeg", env: NodeJS.ProcessEnv): string[]` — pure; ordered candidate paths (honors `EE_YTDLP_PATH` / `EE_FFMPEG_PATH` overrides, then common install locations, then bare name for PATH lookup).
-  - `resolveBin(candidates: string[], exists: (p: string) => boolean): string | null` — pure; first existing candidate, else the last (bare-name) candidate, else null.
-  - `hasYtDlp(): boolean` and `ytDlpBin(): string | null`
+  - `ytDlpCandidates(env: NodeJS.ProcessEnv, platform: NodeJS.Platform): string[]` — pure; ordered on-disk candidate paths for yt-dlp: `EE_YTDLP_PATH` override, then the managed bin path (`EE_BIN_DIR` or `<dataRoot>/bin`), then common install locations. All are real paths (no bare-name fallback — link mode requires a resolvable binary).
+  - `resolveExisting(candidates: string[], exists: (p: string) => boolean): string | null` — pure; first existing candidate, else null.
+  - `dataRoot(): string` — `process.env.EE_DATA_DIR ?? "data"`.
+  - `binDir(): string` — `process.env.EE_BIN_DIR ?? resolve(dataRoot(), "bin")`.
+  - `managedYtDlpPath(platform?): string` — `<binDir>/yt-dlp` (`yt-dlp.exe` on win32).
+  - `ytDlpBin(): string | null` and `hasYtDlp(): boolean`
+  - `ffmpegDir(): string` — the directory containing the bundled ffmpeg (`dirname(ffmpeg-static path)`), for yt-dlp's `--ffmpeg-location`.
   - `sanitizeConvertId(id: string): string`, `newConvertId(): string`, `convertDir(id: string): string`, `mp3Path(id: string): string`
   - `cleanupConvert(id: string): Promise<void>`, `sweepOldConverts(maxAgeMs: number): Promise<void>`
   - `fetchTitle(url: string): Promise<string>` — runs yt-dlp title, returns first non-empty line.
-  - `extractFromUrl(url: string, id: string): Promise<void>` — runs yt-dlp extract; result at `mp3Path(id)`.
-  - `transcodeToMp3(inPath: string, id: string): Promise<void>` — runs ffmpeg; result at `mp3Path(id)`.
+  - `extractFromUrl(url: string, id: string): Promise<void>` — runs yt-dlp extract (with `--ffmpeg-location ffmpegDir()`); result at `mp3Path(id)`.
+  - `transcodeToMp3(inPath: string, id: string): Promise<void>` — runs the bundled ffmpeg; result at `mp3Path(id)`.
 
 - [ ] **Step 1: Write the failing test (pure helpers only)**
 
 ```typescript
 // packages/web/lib/convert.test.ts
 import { describe, it, expect } from "vitest";
-import { binCandidates, resolveBin, sanitizeConvertId } from "./convert";
+import { ytDlpCandidates, resolveExisting, sanitizeConvertId } from "./convert";
 
-describe("binCandidates", () => {
-  it("puts an explicit override first for yt-dlp", () => {
-    const c = binCandidates("yt-dlp", { EE_YTDLP_PATH: "/opt/yt-dlp" });
+describe("ytDlpCandidates", () => {
+  it("puts an explicit override first", () => {
+    const c = ytDlpCandidates({ EE_YTDLP_PATH: "/opt/yt-dlp" }, "darwin");
     expect(c[0]).toBe("/opt/yt-dlp");
   });
-  it("includes the homebrew path and a bare-name fallback for ffmpeg", () => {
-    const c = binCandidates("ffmpeg", {});
-    expect(c).toContain("/opt/homebrew/bin/ffmpeg");
-    expect(c[c.length - 1]).toBe("ffmpeg");
+  it("includes the managed bin path from EE_BIN_DIR", () => {
+    const c = ytDlpCandidates({ EE_BIN_DIR: "/data/bin" }, "darwin");
+    expect(c).toContain("/data/bin/yt-dlp");
+  });
+  it("uses yt-dlp.exe on win32", () => {
+    const c = ytDlpCandidates({ EE_BIN_DIR: "C:/data/bin" }, "win32");
+    expect(c).toContain("C:/data/bin/yt-dlp.exe");
+  });
+  it("includes a common homebrew install path", () => {
+    const c = ytDlpCandidates({}, "darwin");
+    expect(c).toContain("/opt/homebrew/bin/yt-dlp");
+  });
+  it("contains only real paths (no bare-name fallback)", () => {
+    const c = ytDlpCandidates({}, "darwin");
+    expect(c.every((p) => p.includes("/"))).toBe(true);
   });
 });
 
-describe("resolveBin", () => {
+describe("resolveExisting", () => {
   it("returns the first existing candidate", () => {
-    expect(resolveBin(["/a", "/b", "bare"], (p) => p === "/b")).toBe("/b");
+    expect(resolveExisting(["/a", "/b", "/c"], (p) => p === "/b")).toBe("/b");
   });
-  it("falls back to the bare-name candidate when none exist on disk", () => {
-    expect(resolveBin(["/a", "/b", "yt-dlp"], () => false)).toBe("yt-dlp");
+  it("returns null when none exist", () => {
+    expect(resolveExisting(["/a", "/b"], () => false)).toBe(null);
   });
 });
 
@@ -258,44 +277,54 @@ Expected: FAIL — module `./convert` not found.
 
 ```typescript
 // packages/web/lib/convert.ts
-import { resolve } from "node:path";
+import { resolve, dirname, join } from "node:path";
 import { randomBytes } from "node:crypto";
 import { existsSync } from "node:fs";
 import { rm, readdir, stat } from "node:fs/promises";
 import { spawn } from "node:child_process";
+import ffmpegPath from "ffmpeg-static";
 import { ytDlpTitleArgs, ytDlpExtractArgs, ffmpegMp3Args } from "@event-editor/core/convert";
 
-const OVERRIDE: Record<string, string> = { "yt-dlp": "EE_YTDLP_PATH", ffmpeg: "EE_FFMPEG_PATH" };
 const COMMON = ["/opt/homebrew/bin", "/usr/local/bin", "/usr/bin"];
 
-export function binCandidates(name: "yt-dlp" | "ffmpeg", env: NodeJS.ProcessEnv): string[] {
+export function dataRoot(): string {
+  return process.env.EE_DATA_DIR ?? "data";
+}
+export function binDir(): string {
+  return process.env.EE_BIN_DIR ?? resolve(dataRoot(), "bin");
+}
+export function managedYtDlpPath(platform: NodeJS.Platform = process.platform): string {
+  return join(binDir(), platform === "win32" ? "yt-dlp.exe" : "yt-dlp");
+}
+
+// All candidates are real on-disk paths; link mode requires a resolvable binary,
+// so there is no optimistic bare-name fallback.
+export function ytDlpCandidates(env: NodeJS.ProcessEnv, platform: NodeJS.Platform): string[] {
+  const exe = platform === "win32" ? "yt-dlp.exe" : "yt-dlp";
+  const managed = env.EE_BIN_DIR
+    ? join(env.EE_BIN_DIR, exe)
+    : join(env.EE_DATA_DIR ?? "data", "bin", exe);
   const out: string[] = [];
-  const ov = env[OVERRIDE[name]];
-  if (ov) out.push(ov);
-  for (const dir of COMMON) out.push(`${dir}/${name}`);
-  out.push(name); // bare name -> resolved via PATH by spawn
+  if (env.EE_YTDLP_PATH) out.push(env.EE_YTDLP_PATH);
+  out.push(managed);
+  for (const dir of COMMON) out.push(`${dir}/${exe}`);
   return out;
 }
 
-export function resolveBin(candidates: string[], exists: (p: string) => boolean): string | null {
-  for (const c of candidates) {
-    if (c.includes("/")) { if (exists(c)) return c; }
-    else return c; // bare name: let the OS PATH resolve it
-  }
+export function resolveExisting(candidates: string[], exists: (p: string) => boolean): string | null {
+  for (const c of candidates) if (exists(c)) return c;
   return null;
 }
 
 export function ytDlpBin(): string | null {
-  return resolveBin(binCandidates("yt-dlp", process.env), existsSync);
-}
-export function ffmpegBin(): string | null {
-  return resolveBin(binCandidates("ffmpeg", process.env), existsSync);
+  return resolveExisting(ytDlpCandidates(process.env, process.platform), existsSync);
 }
 export function hasYtDlp(): boolean {
-  // Only a path-on-disk override or a real install counts; the bare-name
-  // fallback is optimistic, so probe PATH via a candidate existence check.
-  const c = binCandidates("yt-dlp", process.env).filter((p) => p.includes("/"));
-  return c.some((p) => existsSync(p));
+  return ytDlpBin() !== null;
+}
+export function ffmpegDir(): string {
+  if (!ffmpegPath) throw new Error("bundled ffmpeg not found");
+  return dirname(ffmpegPath);
 }
 
 export function sanitizeConvertId(id: string): string {
@@ -305,7 +334,7 @@ export function newConvertId(): string {
   return `${Date.now().toString(36)}-${randomBytes(4).toString("hex")}`;
 }
 export function convertDir(id: string): string {
-  return resolve("data/convert", sanitizeConvertId(id));
+  return resolve(dataRoot(), "convert", sanitizeConvertId(id));
 }
 export function mp3Path(id: string): string {
   return resolve(convertDir(id), "out.mp3");
@@ -314,7 +343,7 @@ export async function cleanupConvert(id: string): Promise<void> {
   await rm(convertDir(id), { recursive: true, force: true });
 }
 export async function sweepOldConverts(maxAgeMs: number): Promise<void> {
-  const root = resolve("data/convert");
+  const root = resolve(dataRoot(), "convert");
   let entries: string[];
   try { entries = await readdir(root); } catch { return; }
   const now = Date.now();
@@ -350,13 +379,12 @@ export async function extractFromUrl(url: string, id: string): Promise<void> {
   if (!bin) throw new Error("yt-dlp is not installed");
   // yt-dlp writes <stem>.mp3; stem is the mp3 path without the extension.
   const stem = mp3Path(id).replace(/\.mp3$/, "");
-  await run(bin, ytDlpExtractArgs(url, stem));
+  await run(bin, ytDlpExtractArgs(url, stem, ffmpegDir()));
 }
 
 export async function transcodeToMp3(inPath: string, id: string): Promise<void> {
-  const bin = ffmpegBin();
-  if (!bin) throw new Error("ffmpeg is not installed");
-  await run(bin, ffmpegMp3Args(inPath, mp3Path(id)));
+  if (!ffmpegPath) throw new Error("bundled ffmpeg not found");
+  await run(ffmpegPath, ffmpegMp3Args(inPath, mp3Path(id)));
 }
 ```
 
@@ -713,11 +741,9 @@ git commit -m "feat(convert): /convert page and client UI"
 - Modify: `packages/web/components/nav-links.ts`
 - Modify: `packages/web/app/page.tsx`
 - Modify: `packages/web/components/tool-illustrations.tsx` (add `ConvertIllus`)
-- Modify: `packages/web/app/settings/page.tsx` (add a yt-dlp presence pill)
 
 **Interfaces:**
-- Consumes: `hasYtDlp` from `@/lib/convert` in the settings server component.
-- Produces: `/convert` appears in the sidebar, on the home grid, and its dependency status shows on Settings.
+- Produces: `/convert` appears in the sidebar and on the home grid. (Settings dependency status is added later, in Task 10.)
 
 - [ ] **Step 1: Add the nav link**
 
@@ -743,37 +769,313 @@ In `packages/web/components/tool-illustrations.tsx`, add a `ConvertIllus` compon
 },
 ```
 
-- [ ] **Step 3: Add the settings presence pill**
-
-In `packages/web/app/settings/page.tsx`, import `hasYtDlp` from `@/lib/convert` and append to the `pills` array:
-
-```typescript
-{ id: "ytdlp", label: "yt-dlp", ready: hasYtDlp() },
-```
-
-(This shows green when installed, grey when not — the same pill component used for connections. No secret or value crosses to the client, only the boolean.)
-
-- [ ] **Step 4: Verify**
+- [ ] **Step 3: Verify**
 
 Run: `npm -w @event-editor/web run dev`
 - Sidebar shows "Audio converter"; clicking it loads `/convert`.
 - Home grid shows the new card; clicking it loads `/convert`.
-- Settings shows a "yt-dlp" pill reflecting install state.
 
-- [ ] **Step 5: Run the full test + guard suite**
+- [ ] **Step 4: Run the full test + guard suite**
 
 Run: `npm -w @event-editor/core run build && npm test`
 Expected: all tests green (existing + the two new convert suites).
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 5: Commit**
 
 ```bash
-git add packages/web/components/nav-links.ts packages/web/app/page.tsx packages/web/components/tool-illustrations.tsx packages/web/app/settings/page.tsx
-git commit -m "feat(convert): nav, home card, settings pill"
+git add packages/web/components/nav-links.ts packages/web/app/page.tsx packages/web/components/tool-illustrations.tsx
+git commit -m "feat(convert): nav and home card"
+```
+
+---
+
+# Part B — Managed dependencies
+
+ffmpeg ships bundled (nothing to do). yt-dlp is fetched on demand by an in-app
+downloader; LibreOffice is not auto-installed, only linked. This part adds the
+desktop env wiring, the yt-dlp downloader, and a Settings "Dependencies" section.
+
+---
+
+### Task 8: Desktop env — data dir and bin dir
+
+**Files:**
+- Modify: `packages/desktop/main.js` (add `EE_DATA_DIR` and `EE_BIN_DIR` to `serverEnv()`)
+
+**Interfaces:**
+- Produces: the forked server sees `EE_DATA_DIR=<userData>/data` and `EE_BIN_DIR=<userData>/data/bin`, both on a writable disk, so `dataRoot()` / `binDir()` (Task 2) resolve correctly in the packaged app. Dev is unchanged (envs unset → `data/` fallback).
+
+- [ ] **Step 1: Add the envs**
+
+In `packages/desktop/main.js`, inside `serverEnv()`'s returned object (next to `EE_DB_PATH`), add:
+
+```javascript
+    EE_DATA_DIR: dataDir,
+    EE_BIN_DIR: path.join(dataDir, "bin"),
+```
+
+The `dataDir` is already `mkdirSync`'d earlier in `serverEnv()`; the bin dir is created lazily by the downloader (Task 9), so no extra mkdir here.
+
+- [ ] **Step 2: Verify (dev is unaffected)**
+
+Run: `npm -w @event-editor/web run dev`
+Expected: server boots; `dataRoot()` falls back to `data/` (envs unset in dev). No behavior change. (Packaged wiring is exercised when the desktop app is rebuilt, out of scope for this task's commit.)
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add packages/desktop/main.js
+git commit -m "feat(deps): pass writable data and bin dirs to the packaged server"
+```
+
+---
+
+### Task 9: yt-dlp managed downloader (lib + route)
+
+**Files:**
+- Create: `packages/web/lib/deps.ts`
+- Create: `packages/web/lib/deps.test.ts`
+- Create: `packages/web/app/api/deps/ytdlp/route.ts`
+
+**Interfaces:**
+- Consumes: `binDir`, `managedYtDlpPath`, `hasYtDlp`, `ytDlpBin` from `@/lib/convert`; `findSoffice` from `@/lib/pptx-convert`; `ffmpeg-static`.
+- Produces:
+  - `ytDlpAsset(platform: NodeJS.Platform): string` — pure: `win32` -> `yt-dlp.exe`, `darwin` -> `yt-dlp_macos`, else `yt-dlp_linux`.
+  - `ytDlpDownloadUrl(platform): string` — `https://github.com/yt-dlp/yt-dlp/releases/latest/download/<asset>`.
+  - `downloadYtDlp(): Promise<{ version: string }>` — fetches the asset into `binDir()` at `managedYtDlpPath()`, `chmod 0o755`, then runs `--version` to confirm and returns it.
+  - `ytDlpVersion(): Promise<string | null>` — runs the resolved yt-dlp `--version`, or null if absent.
+  - `dependencyStatuses(): Promise<Dep[]>` where `Dep = { id: "ffmpeg" | "ytdlp" | "libreoffice"; label: string; ready: boolean; managed: boolean; version?: string; installUrl?: string; hint?: string }`.
+  - `POST /api/deps/ytdlp` -> `{ version }` on success or `{ error }` (status 500).
+
+- [ ] **Step 1: Write the failing test (pure helpers)**
+
+```typescript
+// packages/web/lib/deps.test.ts
+import { describe, it, expect } from "vitest";
+import { ytDlpAsset, ytDlpDownloadUrl } from "./deps";
+
+describe("ytDlpAsset", () => {
+  it("maps darwin to the macos build", () => {
+    expect(ytDlpAsset("darwin")).toBe("yt-dlp_macos");
+  });
+  it("maps win32 to the exe", () => {
+    expect(ytDlpAsset("win32")).toBe("yt-dlp.exe");
+  });
+  it("defaults to the linux build", () => {
+    expect(ytDlpAsset("linux")).toBe("yt-dlp_linux");
+  });
+});
+
+describe("ytDlpDownloadUrl", () => {
+  it("points at the latest release asset", () => {
+    expect(ytDlpDownloadUrl("darwin")).toBe(
+      "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_macos",
+    );
+  });
+});
+```
+
+- [ ] **Step 2: Run test to verify it fails**
+
+Run: `npm -w @event-editor/web exec vitest run lib/deps.test.ts`
+Expected: FAIL — module `./deps` not found.
+
+- [ ] **Step 3: Write `deps.ts`**
+
+```typescript
+// packages/web/lib/deps.ts
+import { mkdir, writeFile, chmod } from "node:fs/promises";
+import { spawn } from "node:child_process";
+import ffmpegPath from "ffmpeg-static";
+import { binDir, managedYtDlpPath, ytDlpBin, hasYtDlp } from "./convert";
+import { findSoffice } from "./pptx-convert";
+
+export function ytDlpAsset(platform: NodeJS.Platform): string {
+  if (platform === "win32") return "yt-dlp.exe";
+  if (platform === "darwin") return "yt-dlp_macos";
+  return "yt-dlp_linux";
+}
+
+export function ytDlpDownloadUrl(platform: NodeJS.Platform): string {
+  return `https://github.com/yt-dlp/yt-dlp/releases/latest/download/${ytDlpAsset(platform)}`;
+}
+
+function run(bin: string, args: string[]): Promise<string> {
+  return new Promise((res, rej) => {
+    const proc = spawn(bin, args);
+    let out = "", err = "";
+    proc.stdout.on("data", (d) => (out += d.toString()));
+    proc.stderr.on("data", (d) => (err += d.toString()));
+    proc.on("error", rej);
+    proc.on("close", (code) => (code === 0 ? res(out) : rej(new Error(err.trim() || `${bin} exited ${code}`))));
+  });
+}
+
+export async function ytDlpVersion(): Promise<string | null> {
+  const bin = ytDlpBin();
+  if (!bin) return null;
+  try { return (await run(bin, ["--version"])).trim(); } catch { return null; }
+}
+
+export async function downloadYtDlp(): Promise<{ version: string }> {
+  const url = ytDlpDownloadUrl(process.platform);
+  const res = await fetch(url, { redirect: "follow" });
+  if (!res.ok) throw new Error(`Download failed: HTTP ${res.status}`);
+  const bytes = Buffer.from(await res.arrayBuffer());
+  await mkdir(binDir(), { recursive: true });
+  const dest = managedYtDlpPath();
+  await writeFile(dest, bytes);
+  if (process.platform !== "win32") await chmod(dest, 0o755);
+  const version = await ytDlpVersion();
+  if (!version) throw new Error("Downloaded yt-dlp but it did not run. Try again.");
+  return { version };
+}
+
+export interface Dep {
+  id: "ffmpeg" | "ytdlp" | "libreoffice";
+  label: string;
+  ready: boolean;
+  managed: boolean;      // true if the app can fetch/manage it in-app
+  version?: string;
+  installUrl?: string;   // for non-managed deps: where to download
+  hint?: string;         // e.g. a brew command
+}
+
+export async function dependencyStatuses(): Promise<Dep[]> {
+  const ytVersion = await ytDlpVersion();
+  return [
+    {
+      id: "ffmpeg",
+      label: "ffmpeg",
+      ready: !!ffmpegPath,
+      managed: false,
+      hint: "Bundled with the app.",
+    },
+    {
+      id: "ytdlp",
+      label: "yt-dlp",
+      ready: hasYtDlp(),
+      managed: true,
+      version: ytVersion ?? undefined,
+    },
+    {
+      id: "libreoffice",
+      label: "LibreOffice",
+      ready: findSoffice() !== null,
+      managed: false,
+      installUrl: "https://www.libreoffice.org/download/download-libreoffice/",
+      hint: "On Mac: brew install --cask libreoffice",
+    },
+  ];
+}
+```
+
+- [ ] **Step 4: Run tests to verify they pass**
+
+Run: `npm -w @event-editor/web exec vitest run lib/deps.test.ts`
+Expected: PASS.
+
+- [ ] **Step 5: Write the download route**
+
+```typescript
+// packages/web/app/api/deps/ytdlp/route.ts
+import { NextResponse } from "next/server";
+import { downloadYtDlp } from "@/lib/deps";
+
+export const runtime = "nodejs";
+
+export async function POST() {
+  try {
+    const { version } = await downloadYtDlp();
+    return NextResponse.json({ version });
+  } catch (err) {
+    return NextResponse.json({ error: err instanceof Error ? err.message : String(err) }, { status: 500 });
+  }
+}
+```
+
+- [ ] **Step 6: Verify (manual smoke)**
+
+Temporarily move the brew yt-dlp aside so the managed path is exercised, or just run against a clean `EE_BIN_DIR`:
+```bash
+EE_DATA_DIR=/tmp/ee-data npm -w @event-editor/web run dev
+# then:
+curl -s -X POST localhost:3000/api/deps/ytdlp
+```
+Expected: `{"version":"<yyyy.mm.dd>"}` and `/tmp/ee-data/bin/yt-dlp` exists and is executable.
+
+- [ ] **Step 7: Commit**
+
+```bash
+git add packages/web/lib/deps.ts packages/web/lib/deps.test.ts packages/web/app/api/deps/ytdlp/route.ts
+git commit -m "feat(deps): yt-dlp managed downloader and status helpers"
+```
+
+---
+
+### Task 10: Settings — Dependencies section
+
+**Files:**
+- Create: `packages/web/app/settings/Dependencies.tsx` (client component)
+- Modify: `packages/web/app/settings/page.tsx` (render it, pass statuses)
+
+**Interfaces:**
+- Consumes: `dependencyStatuses` (and the `Dep` type) from `@/lib/deps`; `POST /api/deps/ytdlp`.
+- Produces: a "Dependencies" section on Settings listing ffmpeg (Included), yt-dlp (Download / Update button, managed), LibreOffice (Open download page + hint).
+
+- [ ] **Step 1: Wire the section into `page.tsx`**
+
+In `packages/web/app/settings/page.tsx`, import and call `dependencyStatuses`, and render the client component. Add near the other sections (the page is already an async server component — see `SettingsBody`):
+
+```tsx
+import { dependencyStatuses } from "@/lib/deps";
+import { Dependencies } from "./Dependencies";
+// ...inside SettingsBody, after computing other data:
+const deps = await dependencyStatuses();
+// ...in the returned JSX, after the API keys section:
+<h2 className="mt-8 text-lg font-semibold">Dependencies</h2>
+<Dependencies deps={deps} />
+```
+
+- [ ] **Step 2: Write `Dependencies.tsx`**
+
+A client component that takes `deps: Dep[]` and renders one row per dependency, house-standards styled (import the `Dep` type from `@/lib/deps`):
+- **Status pill:** green "Ready" when `ready`, grey "Not installed" otherwise (reuse the pill look from `ConnectionPills`).
+- **ffmpeg** (`managed: false`, no `installUrl`): show the `hint` ("Bundled with the app.") and no action button.
+- **yt-dlp** (`managed: true`): a primary button labelled "Download" when not ready, "Update" when ready. On click, POST `/api/deps/ytdlp`, show `.is-loading` spinner, then on success show a green line "Installed yt-dlp <version>" and (optionally) `router.refresh()` to re-read status; on error show the returned message in red. Show the current `version` when present.
+- **LibreOffice** (`managed: false`, has `installUrl`): a secondary button "Open download page" that opens `installUrl` in a new tab (`window.open(url, "_blank", "noopener")`), plus the `hint` shown as muted helper text.
+
+Follow anti-vibecode: one card, single padding, rows separated by gap not nested boxes; buttons carry all interaction states; no em dashes in copy.
+
+- [ ] **Step 3: Verify (manual, in the browser)**
+
+With `npm -w @event-editor/web run dev` at `/settings`:
+1. Dependencies section shows three rows.
+2. ffmpeg row is green "Ready" with the bundled hint, no button.
+3. yt-dlp row: click Download/Update, confirm spinner then a green "Installed yt-dlp <version>" and the row flips to Ready.
+4. LibreOffice row: reflects install state; "Open download page" opens libreoffice.org.
+
+- [ ] **Step 4: Run the full suite**
+
+Run: `npm -w @event-editor/core run build && npm test`
+Expected: all green.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add packages/web/app/settings/Dependencies.tsx packages/web/app/settings/page.tsx
+git commit -m "feat(deps): Settings dependencies section with yt-dlp downloader"
 ```
 
 ---
 
 ## Notes for the desktop packaged app
 
-The packaged Electron app runs the same web server, so `/convert` ships automatically. File mode needs `ffmpeg` on the host; link mode needs `yt-dlp` on the host (both resolved via `binCandidates`, honoring `EE_FFMPEG_PATH` / `EE_YTDLP_PATH`). This mirrors the slicer's LibreOffice dependency — no bundling in this plan. Ship a new desktop version only after this lands and is verified in `npm run dev`.
+The packaged Electron app runs the same web server, so `/convert` and the
+dependencies section ship automatically. **ffmpeg** rides along via `ffmpeg-static`
+(file mode and link-mode post-processing work with zero setup). **yt-dlp** is
+fetched on demand into `<userData>/data/bin` by the Settings downloader and
+resolved from there (`EE_BIN_DIR`); the user clicks Download once. **LibreOffice**
+(slicer only) is not auto-installed — the section links its download page.
+Rebuild and ship a new desktop version only after Parts A and B land and are
+verified in `npm run dev`.

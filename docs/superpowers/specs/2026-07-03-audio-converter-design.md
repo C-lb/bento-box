@@ -67,13 +67,15 @@ After a successful convert, the result panel shows the resolved filename plus:
 
 Pure, unit-testable core plus thin API/exec layer.
 
-- `packages/core/src/convert.ts`
-  - `sanitizeFilename(raw: string): string` — the sanitize rules above.
-  - `defaultNameFromFile(originalName: string): string`
-  - `ytDlpTitleArgs(url)`, `ytDlpExtractArgs(url, outStem)`, `ffmpegMp3Args(inPath, outPath)`
-    — pure argv builders (no spawning), so they can be asserted in tests.
-  - a thin `run(cmd, args)` exec wrapper (spawn, collect stdout/stderr, exit code).
-  - `hasYtDlp(): Promise<boolean>` — presence check for the gate.
+- `packages/core/src/convert.ts` (pure, unit-tested)
+  - `sanitizeMp3Filename(raw)`, `defaultNameFromSource(name)` — the naming rules above.
+  - `ytDlpTitleArgs(url)`, `ytDlpExtractArgs(url, outStem, ffmpegLocation)`,
+    `ffmpegMp3Args(inPath, outPath)` — pure argv builders (no spawning).
+- `packages/web/lib/convert.ts` (web side)
+  - working-dir helpers keyed on `dataRoot()` (`EE_DATA_DIR`), binary resolution
+    (`ytDlpBin`, `hasYtDlp`, managed-path aware), `ffmpegDir()` from `ffmpeg-static`,
+    and a thin spawn wrapper plus `fetchTitle` / `extractFromUrl` / `transcodeToMp3`.
+- `packages/web/lib/deps.ts` — yt-dlp downloader + `dependencyStatuses()`.
 - API routes under `packages/web/app/api/convert/`:
   - `POST title` — `{ url }` → `{ title }` for prefill.
   - `POST url` — `{ url, filename? }` → runs yt-dlp, stores the mp3 in the working
@@ -84,16 +86,35 @@ Pure, unit-testable core plus thin API/exec layer.
 - Ephemeral working dir `data/convert/` (peer of `data/slice/`), each conversion
   keyed by a generated id; cleaned after delivery / on a best-effort basis.
 
-## yt-dlp gate
+## Dependencies and desktop bundling
 
-`yt-dlp` is a required local binary (install: `brew install yt-dlp`), same
-external-dependency pattern as the slicer's LibreOffice.
+Three external tools, handled differently based on how bundleable they are:
 
-- Link mode: if `hasYtDlp()` is false, render a setup card ("Install yt-dlp to
-  convert from links: `brew install yt-dlp`") in place of the URL form.
-- File mode: always available (ffmpeg only, already installed).
-- Settings page: add a presence indicator/pill for yt-dlp alongside the existing
-  connection pills.
+- **ffmpeg** — bundled with the app via the `ffmpeg-static` npm package (already
+  used by the transcriber, `packages/web/lib/audio.ts`). The converter uses it for
+  both file-mode transcode and link-mode post-processing (yt-dlp gets
+  `--ffmpeg-location` pointing at it). **Zero user setup for file mode.**
+- **yt-dlp** — not bundled. Fetched on demand by an in-app **Download / Update**
+  button in Settings, which pulls the latest per-platform standalone binary from
+  GitHub releases into the app's writable bin dir (`EE_BIN_DIR`, i.e.
+  `<userData>/data/bin`). The converter resolves yt-dlp from `EE_YTDLP_PATH`, then
+  that managed path, then common install locations. Self-updating by design, since
+  yt-dlp breaks when sites change.
+- **LibreOffice** (slide slicer only) — not bundled and not auto-installed (a
+  ~350 MB office suite). Settings shows its status with an **Open download page**
+  button and a `brew install --cask libreoffice` hint.
+
+Writable paths in the packaged app come from env (`EE_DATA_DIR`, `EE_BIN_DIR`),
+never from cwd, because the packaged server has no writable working directory.
+
+## yt-dlp gate (link mode)
+
+- If yt-dlp is not resolvable, link mode renders a setup card pointing at the
+  Settings Dependencies section ("Download yt-dlp in Settings to convert from
+  links"), in place of the URL form.
+- File mode is always available (bundled ffmpeg only).
+- Settings gains a **Dependencies** section listing ffmpeg (Included), yt-dlp
+  (Download / Update), and LibreOffice (Open download page).
 
 ## UI (anti-vibecode house standards)
 
