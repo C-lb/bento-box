@@ -23,6 +23,7 @@ export interface DriveClient {
   thumbnailFor(fileId: string): Promise<Buffer | null>;
   listPresentations(folderId: string): Promise<DrivePresentation[]>;
   uploadPdf(name: string, bytes: Uint8Array, folderId: string): Promise<{ id: string; url: string }>;
+  uploadFile(name: string, bytes: Uint8Array, mimeType: string, folderId: string): Promise<{ id: string; url: string }>;
 }
 
 export function makeDriveClient(drive: drive_v3.Drive): DriveClient {
@@ -113,6 +114,16 @@ export function makeDriveClient(drive: drive_v3.Drive): DriveClient {
       const res = await drive.files.create({
         requestBody: { name, parents: folderId ? [folderId] : undefined },
         media: { mimeType: "application/pdf", body: Readable.from(Buffer.from(bytes)) },
+        fields: "id, webViewLink",
+      });
+      const id = res.data.id;
+      if (!id) throw new Error("Drive did not return a file id");
+      return { id, url: res.data.webViewLink ?? `https://drive.google.com/file/d/${id}/view` };
+    },
+    async uploadFile(name: string, bytes: Uint8Array, mimeType: string, folderId: string) {
+      const res = await drive.files.create({
+        requestBody: { name, parents: folderId ? [folderId] : undefined },
+        media: { mimeType, body: Readable.from(Buffer.from(bytes)) },
         fields: "id, webViewLink",
       });
       const id = res.data.id;
