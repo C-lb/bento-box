@@ -10,7 +10,8 @@ import { FAV } from "@/components/tool-store";
 export function Nav() {
   const router = useRouter();
   const path = usePathname();
-  const { state, activeGroup, setActiveGroup } = useToolShell();
+  const { state, activeGroup, setActiveGroup, query } = useToolShell();
+  const searching = query.trim().length > 0;
 
   const pills = [
     { id: FAV, label: "Favourites" },
@@ -59,7 +60,11 @@ export function Nav() {
         </Link>
 
         <nav className="relative flex flex-1 items-center gap-1 overflow-x-auto">
-          <span ref={thumbRef} aria-hidden className="nav-thumb pointer-events-none absolute left-0 top-0 z-0 rounded-lg bg-ink" />
+          <span
+            ref={thumbRef}
+            aria-hidden
+            className={`nav-thumb pointer-events-none absolute left-0 top-0 z-0 rounded-lg bg-ink transition-opacity ${searching ? "opacity-40" : ""}`}
+          />
           {pills.map((p, i) => {
             const active = i === activeIdx;
             return (

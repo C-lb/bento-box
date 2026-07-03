@@ -75,4 +75,8 @@ describe("parseToolShell", () => {
     const s = { ...seedState(), favourites: ["slice"] };
     expect(parseToolShell(JSON.stringify(s))).toEqual(s);
   });
+  it("returns a seed when groupLabels or membership is null", () => {
+    expect(parseToolShell(JSON.stringify({ version: 1, groups: [], groupLabels: null, membership: {}, favourites: [] }))).toEqual(seedState());
+    expect(parseToolShell(JSON.stringify({ version: 1, groups: [], groupLabels: {}, membership: null, favourites: [] }))).toEqual(seedState());
+  });
 });

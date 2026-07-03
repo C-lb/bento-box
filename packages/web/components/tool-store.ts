@@ -60,7 +60,9 @@ export function parseToolShell(raw: string | null): ToolShellState {
       p.version !== 1 ||
       !Array.isArray(p.groups) ||
       typeof p.groupLabels !== "object" ||
+      p.groupLabels === null ||
       typeof p.membership !== "object" ||
+      p.membership === null ||
       !Array.isArray(p.favourites)
     ) {
       return seedState();
