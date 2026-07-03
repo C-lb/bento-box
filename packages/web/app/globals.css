@@ -16,7 +16,8 @@ body {
 }
 .btn:hover { @apply border-muted/40 bg-[#eef0f3]; }
 .btn:active { @apply translate-y-px; }
-.btn:disabled { pointer-events: none; }
+.btn:disabled { pointer-events: none; opacity: 0.6; }
+.btn:focus-visible { @apply outline-none border-accent ring-2 ring-accent/25; }
 .btn-accent { @apply bg-accent border-accent text-white; }
 /* On hover the shared .btn:hover greys the background, so switch the label to
    ink instead of white to keep it readable. */

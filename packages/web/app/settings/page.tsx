@@ -8,6 +8,8 @@ import { StyleExamples } from "./StyleExamples";
 import { NavOrder } from "./NavOrder";
 import { RankingContexts } from "./RankingContexts";
 import { ConnectionPills } from "./ConnectionPills";
+import { dependencyStatuses } from "@/lib/deps";
+import { Dependencies } from "./Dependencies";
 
 // Reads keys from process.env per request; must not be statically prerendered.
 export const dynamic = "force-dynamic";
@@ -27,6 +29,8 @@ async function SettingsBody({ searchParams }: { searchParams: Promise<{ google?:
   // Only whether each key is set (never the value) crosses to the client.
   const present = Object.fromEntries(ENV_KEYS.map((k) => [k, !!process.env[k]?.trim()]));
 
+  const deps = await dependencyStatuses();
+
   const byId = Object.fromEntries(connections.map((c) => [c.id, c.configured]));
   const pills = [
     { id: "groq", label: "Groq", ready: !!byId["groq"] },
@@ -42,6 +46,9 @@ async function SettingsBody({ searchParams }: { searchParams: Promise<{ google?:
 
       <h2 className="mt-8 text-lg font-semibold">API keys</h2>
       <KeyForm present={present} configPath={envFilePath()} />
+
+      <h2 className="mt-8 text-lg font-semibold">Dependencies</h2>
+      <Dependencies deps={deps} />
 
       <h2 className="mt-10 text-lg font-semibold">Connections</h2>
       {google === "connected" && <p className="mt-3 text-success">Google connected.</p>}
