@@ -104,3 +104,17 @@ export function SliceIllus() {
     </div>
   );
 }
+
+import type { ReactNode } from "react";
+
+const ILLUSTRATIONS: Record<string, ReactNode> = {
+  sorter: <SorterIllus />,
+  studio: <StudioIllus />,
+  transcribe: <TranscribeIllus />,
+  slice: <SliceIllus />,
+  convert: <ConvertIllus />,
+};
+
+export function getIllustration(id: string): ReactNode {
+  return ILLUSTRATIONS[id] ?? null;
+}
