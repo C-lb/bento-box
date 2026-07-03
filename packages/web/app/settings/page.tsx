@@ -6,6 +6,7 @@ import { KeyForm } from "./KeyForm";
 import { envFilePath } from "./env-path";
 import { StyleExamples } from "./StyleExamples";
 import { NavOrder } from "./NavOrder";
+import { RankingContexts } from "./RankingContexts";
 
 // Reads keys from process.env per request; must not be statically prerendered.
 export const dynamic = "force-dynamic";
@@ -74,6 +75,10 @@ async function SettingsBody({ searchParams }: { searchParams: Promise<{ google?:
       <div className="mt-10">
         <NavOrder />
       </div>
+
+      <h2 className="mt-10 text-lg font-semibold">Photo ranking</h2>
+      <p className="mt-1 text-sm text-muted">Tune what the photo sorter looks for on each platform.</p>
+      <RankingContexts />
 
       <h2 className="mt-10 text-lg font-semibold">Draft style and inspiration</h2>
       <StyleExamples />
