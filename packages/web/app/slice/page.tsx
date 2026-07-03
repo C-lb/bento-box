@@ -1,6 +1,7 @@
 import { getConnections } from "@event-editor/core/settings";
 import { findSoffice } from "@/lib/pptx-convert";
 import { SliceClient } from "./SliceClient";
+import { PastSlices } from "./PastSlices";
 
 export const dynamic = "force-dynamic";
 
@@ -11,8 +12,13 @@ export default function SlicePage() {
 
   return (
     <div>
-      <p className="eyebrow">Slide slicer</p>
-      <h1 className="mt-1 text-2xl font-semibold">Slice a deck into confidential PDFs</h1>
+      <div className="flex items-center justify-between gap-4">
+        <div>
+          <p className="eyebrow">Slide slicer</p>
+          <h1 className="mt-1 text-2xl font-semibold">Slice a deck into confidential PDFs</h1>
+        </div>
+        <PastSlices />
+      </div>
 
       {!soffice ? (
         <div className="card mt-8">
