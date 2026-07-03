@@ -5,6 +5,7 @@ import { DRIVE_FILE_SCOPE, SHEETS_SCOPE } from "@/lib/google/oauth";
 import { KeyForm } from "./KeyForm";
 import { envFilePath } from "./env-path";
 import { StyleExamples } from "./StyleExamples";
+import { NavOrder } from "./NavOrder";
 
 // Reads keys from process.env per request; must not be statically prerendered.
 export const dynamic = "force-dynamic";
@@ -69,6 +70,10 @@ async function SettingsBody({ searchParams }: { searchParams: Promise<{ google?:
           </span>
         </li>
       </ul>
+
+      <div className="mt-10">
+        <NavOrder />
+      </div>
 
       <h2 className="mt-10 text-lg font-semibold">Draft style and inspiration</h2>
       <StyleExamples />

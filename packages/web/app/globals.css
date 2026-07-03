@@ -41,3 +41,9 @@ body {
 .nav-thumb {
   transition: transform 120ms ease, width 120ms ease, top 120ms ease, height 120ms ease;
 }
+
+@keyframes nav-jiggle {
+  0% { transform: rotate(-1.4deg) translateY(-0.5px); }
+  50% { transform: rotate(1.4deg) translateY(0.5px); }
+  100% { transform: rotate(-1.4deg) translateY(-0.5px); }
+}
