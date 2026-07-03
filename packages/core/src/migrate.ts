@@ -96,6 +96,12 @@ const DDL = [
     text TEXT NOT NULL,
     updated_at INTEGER NOT NULL DEFAULT 0
   )`,
+  `CREATE TABLE IF NOT EXISTS slice_runs (
+    run_id TEXT PRIMARY KEY,
+    source_filename TEXT NOT NULL,
+    status TEXT NOT NULL,
+    created_at INTEGER NOT NULL DEFAULT 0
+  )`,
 ];
 
 // Legacy DBs created before 4a have a Canva-only headshots table (NOT NULL

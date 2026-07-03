@@ -98,3 +98,10 @@ export const rankingContexts = sqliteTable("ranking_contexts", {
   text: text("text").notNull(),
   updatedAt: integer("updated_at").notNull().default(0),
 });
+
+export const sliceRuns = sqliteTable("slice_runs", {
+  runId: text("run_id").primaryKey(),
+  sourceFilename: text("source_filename").notNull(),
+  status: text("status").notNull(), // converted|sliced
+  createdAt: integer("created_at").notNull().default(0),
+});

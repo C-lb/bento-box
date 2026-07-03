@@ -17,6 +17,7 @@
     "./rank": "./dist/rank.js",
     "./ranking": "./dist/ranking.js",
     "./ranking-context": "./dist/ranking-context.js",
+    "./slice-runs": "./dist/slice-runs.js",
     "./transcribe": "./dist/transcribe.js",
     "./transcription": "./dist/transcription.js",
     "./style-examples": "./dist/style-examples.js",
