@@ -164,3 +164,11 @@ export function reorderGroups(state: ToolShellState, orderedIds: string[]): Tool
   const missing = state.groups.filter((g) => !known.includes(g));
   return { ...state, groups: [...known, ...missing] };
 }
+
+// --- search bar reveal-on-scroll (append to components/tool-store.ts) ---
+
+export function nextSearchVisibility(prevY: number, curY: number, threshold: number): boolean {
+  if (curY <= threshold) return true; // near the top: always show
+  if (curY > prevY) return false; // scrolling down: hide
+  return true; // scrolling up or unchanged: show
+}
