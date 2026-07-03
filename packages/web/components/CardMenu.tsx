@@ -57,7 +57,10 @@ export function CardMenu({ tool }: { tool: Tool }) {
       {open && (
         <div
           role="menu"
-          onClick={(e) => e.preventDefault()}
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+          }}
           className="absolute right-0 mt-1 w-56 rounded-xl border border-line bg-surface p-2 text-sm shadow-soft"
         >
           <button
