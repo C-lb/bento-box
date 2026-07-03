@@ -53,6 +53,7 @@ export function visionClient(): Anthropic {
 export async function scorePhoto(
   client: Anthropic,
   img: { base64: string; mediaType: string; name: string },
+  context: string,
 ): Promise<VisionScore> {
   const res: any = await client.messages.create({
     model: VISION_MODEL,
@@ -63,7 +64,7 @@ export async function scorePhoto(
         role: "user",
         content: [
           { type: "image", source: { type: "base64", media_type: img.mediaType, data: img.base64 } },
-          { type: "text", text: buildVisionPrompt(img.name) },
+          { type: "text", text: buildVisionPrompt(img.name, context) },
         ],
       },
     ],

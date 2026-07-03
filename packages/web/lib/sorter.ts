@@ -6,6 +6,7 @@ import { createScanJob, runIngest } from "@event-editor/core/ingest";
 import { runRanking } from "@event-editor/core/ranking";
 import { jobs } from "@event-editor/core/schema";
 import type { openDb } from "@event-editor/core/db";
+import { getRankingContext, type Platform } from "@event-editor/core/ranking-context";
 import type { DriveClient, DriveImage } from "./google/drive.js";
 import { computeMetrics } from "./metrics";
 import { visionClient, scorePhoto } from "./anthropic";
@@ -31,9 +32,9 @@ async function withBackoff<T>(fn: () => Promise<T>, tries = 4): Promise<T> {
 export function startScan(
   db: Db,
   drive: DriveClient,
-  args: { folderId: string; folderName: string },
+  args: { folderId: string; folderName: string; platform: Platform },
 ): number {
-  const jobId = createScanJob(db, { driveFolderId: args.folderId, driveFolderName: args.folderName });
+  const jobId = createScanJob(db, { driveFolderId: args.folderId, driveFolderName: args.folderName, platform: args.platform });
 
   void (async () => {
     await runIngest(
@@ -73,15 +74,16 @@ export function startScan(
     }
 
     const client = visionClient();
+    const context = getRankingContext(db, args.platform);
     await runRanking(db, jobId, {
       getMetrics: (photo) => computeMetrics(resolve(photo.thumbnailPath!)),
       scoreVision: async (photo) => {
         const bytes = await readFile(resolve(photo.thumbnailPath!));
         return withBackoff(() =>
-          scorePhoto(client, { base64: bytes.toString("base64"), mediaType: "image/jpeg", name: photo.name }),
+          scorePhoto(client, { base64: bytes.toString("base64"), mediaType: "image/jpeg", name: photo.name }, context),
         );
       },
-    });
+    }, args.platform);
   })();
 
   return jobId;

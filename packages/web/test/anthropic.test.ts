@@ -22,19 +22,19 @@ const { scorePhoto, VISION_MODEL, summarizeTranscript, SUMMARY_MODEL } = await i
 describe("scorePhoto", () => {
   it("returns the parsed score and reasons", async () => {
     const client = fakeClient({ score: 87, reasons: ["clear face", "good light"] });
-    const out = await scorePhoto(client, { base64: "x", mediaType: "image/jpeg", name: "a.jpg" });
+    const out = await scorePhoto(client, { base64: "x", mediaType: "image/jpeg", name: "a.jpg" }, "test context");
     expect(out.score).toBe(87);
     expect(out.reasons).toEqual(["clear face", "good light"]);
   });
   it("clamps score and caps reasons at three", async () => {
     const client = fakeClient({ score: 250, reasons: ["a", "b", "c", "d", "e"] });
-    const out = await scorePhoto(client, { base64: "x", mediaType: "image/png", name: "b.png" });
+    const out = await scorePhoto(client, { base64: "x", mediaType: "image/png", name: "b.png" }, "test context");
     expect(out.score).toBe(100);
     expect(out.reasons).toHaveLength(3);
   });
   it("throws on a refusal", async () => {
     const client = fakeClient({}, "refusal");
-    await expect(scorePhoto(client, { base64: "x", mediaType: "image/jpeg", name: "c.jpg" })).rejects.toThrow();
+    await expect(scorePhoto(client, { base64: "x", mediaType: "image/jpeg", name: "c.jpg" }, "test context")).rejects.toThrow();
   });
   it("defaults the vision model to opus", () => {
     expect(VISION_MODEL).toContain("claude-");

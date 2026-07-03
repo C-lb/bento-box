@@ -25,7 +25,7 @@ const fakeDrive = {
 describe("startScan", () => {
   it("creates a job and returns its id immediately", async () => {
     const db = freshDb();
-    const jobId = startScan(db, fakeDrive as any, { folderId: "f1", folderName: "A" });
+    const jobId = startScan(db, fakeDrive as any, { folderId: "f1", folderName: "A", platform: "linkedin" });
     expect(typeof jobId).toBe("number");
     const job = db.select().from(jobs).where(eq(jobs.id, jobId)).all()[0];
     expect(job.driveFolderId).toBe("f1");

@@ -42,7 +42,7 @@ describe("scan pipeline (ingest -> ranking)", () => {
       async listImages() { return [{ id: "i1", name: "a.jpg", mimeType: "image/jpeg", thumbnailLink: "t" }]; },
       async downloadThumbnail() { return thumbBytes; },
     };
-    const jobId = startScan(db, drive as any, { folderId: "f1", folderName: "A" });
+    const jobId = startScan(db, drive as any, { folderId: "f1", folderName: "A", platform: "linkedin" });
     // wait for the async pipeline to finish
     for (let i = 0; i < 50; i++) {
       const job = db.select().from(jobs).where(eq(jobs.id, jobId)).all()[0];
