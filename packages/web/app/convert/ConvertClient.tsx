@@ -154,7 +154,7 @@ export function ConvertClient({ ytDlp }: { ytDlp: boolean }) {
         <Segmented
           options={[{ value: "link", label: "From link" }, { value: "file", label: "Upload file" }]}
           value={mode}
-          onChange={(v) => { setMode(v as "link" | "file"); setError(null); }}
+          onChange={(v) => { setMode(v as "link" | "file"); setError(null); setResult(null); }}
         />
 
         {mode === "link" && (

@@ -5,7 +5,7 @@ function safeBase(raw: string): string {
     .replace(/[\/\\]/g, "_")            // path separators
     .replace(/[^a-zA-Z0-9._-]+/g, "_")  // any other unsafe char -> _
     .replace(/_+/g, "_")                 // collapse runs
-    .replace(/^[_.]+|[_.]+$/g, "")       // trim leading/trailing _ or .
+    .replace(/^[-_.]+|[-_.]+$/g, "")     // trim leading/trailing -, _ or .
     .slice(0, 120);
 }
 

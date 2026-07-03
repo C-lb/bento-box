@@ -12,7 +12,8 @@ export async function POST(request: Request) {
   if (!(file instanceof File) || file.size === 0) {
     return NextResponse.json({ error: "A file is required" }, { status: 400 });
   }
-  const nameField = (form.get("filename") as string | null)?.trim();
+  const rawName = form.get("filename");
+  const nameField = typeof rawName === "string" ? rawName.trim() : undefined;
   const name = sanitizeMp3Filename(nameField || defaultNameFromSource(file.name) || "audio");
 
   const id = newConvertId();
