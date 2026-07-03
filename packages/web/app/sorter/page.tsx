@@ -1,5 +1,6 @@
 import { getConnections } from "@event-editor/core/settings";
 import { SorterClient } from "./SorterClient";
+import { PastScans } from "./PastScans";
 
 // Gates on a runtime API key (process.env); must render per request, not as a
 // build-time static prerender (CI builds with no keys). See transcribe/page.tsx.
@@ -9,8 +10,13 @@ export default function SorterPage() {
   const google = getConnections().find((c) => c.id === "google");
   return (
     <div>
-      <p className="eyebrow">Photo sorter</p>
-      <h1 className="mt-1 text-2xl font-semibold">Rank Drive photos for LinkedIn</h1>
+      <div className="flex items-center justify-between gap-4">
+        <div>
+          <p className="eyebrow">Photo sorter</p>
+          <h1 className="mt-1 text-2xl font-semibold">Rank Drive photos for LinkedIn</h1>
+        </div>
+        <PastScans />
+      </div>
       {!google?.configured ? (
         <div className="card mt-8">
           <p className="text-muted">Google credentials are not set in your environment yet.</p>
