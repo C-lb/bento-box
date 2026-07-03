@@ -85,16 +85,8 @@ export function SorterClient() {
 
   return (
     <div className="mt-8">
-      <div className="card flex flex-wrap items-center gap-3">
-        <select
-          className="rounded-lg border border-line bg-surface px-3 py-2"
-          value={folderId}
-          onChange={(e) => setFolderId(e.target.value)}
-        >
-          <option value="">Choose a folder</option>
-          {folders.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
-        </select>
-        <div className="mb-3">
+      <div className="card">
+        <div className="mb-4">
           <span className="mb-1.5 block text-sm text-muted">Rank photos for</span>
           <div className="inline-flex rounded-lg border border-line bg-[#eef0f3] p-0.5">
             {([
@@ -116,10 +108,20 @@ export function SorterClient() {
             ))}
           </div>
         </div>
-        <button className="btn btn-accent" onClick={scan} disabled={!folderId || busy}>
-          {busy ? "Starting…" : "Scan folder"}
-        </button>
-        {!folderId && <span className="text-sm text-muted">Pick a folder first</span>}
+        <div className="flex flex-wrap items-center gap-3">
+          <select
+            className="rounded-lg border border-line bg-surface px-3 py-2"
+            value={folderId}
+            onChange={(e) => setFolderId(e.target.value)}
+          >
+            <option value="">Choose a folder</option>
+            {folders.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
+          </select>
+          <button className="btn btn-accent" onClick={scan} disabled={!folderId || busy}>
+            {busy ? "Starting…" : "Scan folder"}
+          </button>
+          {!folderId && <span className="text-sm text-muted">Pick a folder first</span>}
+        </div>
       </div>
 
       {job && (
