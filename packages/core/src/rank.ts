@@ -1,3 +1,5 @@
+import type { Platform } from "./ranking-context.js";
+
 export interface ImageMetrics {
   width: number;
   height: number;
@@ -20,22 +22,32 @@ export const HEURISTICS = {
   aspectMax: 2.0,
 } as const;
 
-export function scoreHeuristics(m: ImageMetrics): HeuristicVerdict {
+export const HEURISTICS_LENIENT = {
+  minLongEdge: 256,
+  minSharpness: 25,
+  brightnessMin: 12,
+  brightnessMax: 248,
+  aspectMin: 0.5,
+  aspectMax: 2.0,
+} as const;
+
+export function scoreHeuristics(m: ImageMetrics, platform: Platform = "linkedin"): HeuristicVerdict {
+  const H = platform === "instagram" ? HEURISTICS_LENIENT : HEURISTICS;
   const longEdge = Math.max(m.width, m.height);
-  if (longEdge < HEURISTICS.minLongEdge) {
+  if (longEdge < H.minLongEdge) {
     return { rejected: true, reason: `Low resolution (${m.width}x${m.height})` };
   }
-  if (m.sharpness < HEURISTICS.minSharpness) {
+  if (m.sharpness < H.minSharpness) {
     return { rejected: true, reason: "Looks blurry or out of focus" };
   }
-  if (m.brightness < HEURISTICS.brightnessMin) {
+  if (m.brightness < H.brightnessMin) {
     return { rejected: true, reason: "Too dark / underexposed" };
   }
-  if (m.brightness > HEURISTICS.brightnessMax) {
+  if (m.brightness > H.brightnessMax) {
     return { rejected: true, reason: "Too bright / blown out" };
   }
-  if (m.aspectRatio < HEURISTICS.aspectMin || m.aspectRatio > HEURISTICS.aspectMax) {
-    return { rejected: true, reason: "Awkward aspect ratio for a headshot crop" };
+  if (m.aspectRatio < H.aspectMin || m.aspectRatio > H.aspectMax) {
+    return { rejected: true, reason: "Awkward crop shape" };
   }
   return { rejected: false, reason: null };
 }
@@ -45,18 +57,11 @@ export interface VisionScore {
   reasons: string[];
 }
 
-export function buildVisionPrompt(name: string): string {
+export function buildVisionPrompt(name: string, context: string): string {
   return [
-    `You are screening one candidate photo ("${name}") for use as a LinkedIn profile headshot.`,
-    `Score it from 0 to 100 on overall fitness as a professional headshot, weighing:`,
-    `- face clarity and whether exactly one person is clearly the subject`,
-    `- eye contact and a natural, approachable expression`,
-    `- framing (head and shoulders, not too far or too tight)`,
-    `- lighting (even, no harsh shadows or blowout)`,
-    `- background (clean and non-distracting)`,
-    `- attire (professional or smart-casual)`,
-    `Give 1 to 3 short reasons (each under 12 words) explaining the score.`,
-    `A casual group photo, a full-body shot, or no clear face should score low.`,
+    `You are screening one candidate photo ("${name}").`,
+    context,
+    `Score it from 0 to 100 on how well it fits, then give 1 to 3 short reasons (each under 12 words).`,
   ].join("\n");
 }
 

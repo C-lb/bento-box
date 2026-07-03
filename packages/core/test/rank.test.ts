@@ -41,13 +41,34 @@ describe("computeRanks", () => {
 });
 
 describe("buildVisionPrompt", () => {
-  it("mentions the rubric dimensions and a 0-100 score", () => {
-    const p = buildVisionPrompt("a.jpg");
+  it("mentions a 0-100 score and includes the given context", () => {
+    const p = buildVisionPrompt("a.jpg", "consider the lighting and background carefully");
     expect(p).toMatch(/0.*100/);
     expect(p.toLowerCase()).toContain("lighting");
     expect(p.toLowerCase()).toContain("background");
   });
   it("references the constants object", () => {
     expect(HEURISTICS.minLongEdge).toBe(256);
+  });
+});
+
+describe("buildVisionPrompt (context-driven)", () => {
+  it("embeds the photo name and the given context", () => {
+    const p = buildVisionPrompt("beach.jpg", "MY_CONTEXT_MARKER");
+    expect(p).toContain("beach.jpg");
+    expect(p).toContain("MY_CONTEXT_MARKER");
+    expect(p).toContain("0 to 100");
+  });
+});
+
+describe("scoreHeuristics platform leniency", () => {
+  const dark = { width: 1200, height: 1200, sharpness: 40, brightness: 20, aspectRatio: 1 };
+  it("rejects a dark, soft photo under the strict (linkedin) profile", () => {
+    expect(scoreHeuristics(dark, "linkedin").rejected).toBe(true);
+    // default arg is also strict
+    expect(scoreHeuristics(dark).rejected).toBe(true);
+  });
+  it("accepts the same photo under the instagram lenient profile", () => {
+    expect(scoreHeuristics(dark, "instagram").rejected).toBe(false);
   });
 });
