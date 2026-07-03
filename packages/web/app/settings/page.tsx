@@ -7,6 +7,7 @@ import { envFilePath } from "./env-path";
 import { StyleExamples } from "./StyleExamples";
 import { NavOrder } from "./NavOrder";
 import { RankingContexts } from "./RankingContexts";
+import { ConnectionPills } from "./ConnectionPills";
 
 // Reads keys from process.env per request; must not be statically prerendered.
 export const dynamic = "force-dynamic";
@@ -25,10 +26,20 @@ async function SettingsBody({ searchParams }: { searchParams: Promise<{ google?:
   const canvaToken = getToken(getDb(), "canva");
   // Only whether each key is set (never the value) crosses to the client.
   const present = Object.fromEntries(ENV_KEYS.map((k) => [k, !!process.env[k]?.trim()]));
+
+  const byId = Object.fromEntries(connections.map((c) => [c.id, c.configured]));
+  const pills = [
+    { id: "groq", label: "Groq", ready: !!byId["groq"] },
+    { id: "anthropic", label: "Claude", ready: !!byId["anthropic"] },
+    { id: "google", label: "Google", ready: !!byId["google"] && googleToken !== null },
+    { id: "canva", label: "Canva", ready: canvaConfigured && canvaToken !== null },
+  ];
+
   return (
     <div>
       <p className="eyebrow">Settings</p>
       <h1 className="mt-1 text-2xl font-semibold">Settings</h1>
+      <ConnectionPills items={pills} />
 
       <h2 className="mt-8 text-lg font-semibold">API keys</h2>
       <KeyForm present={present} configPath={envFilePath()} />
