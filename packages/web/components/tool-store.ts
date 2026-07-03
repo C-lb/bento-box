@@ -145,7 +145,8 @@ export function createGroup(
 
 export function renameGroup(state: ToolShellState, groupId: string, label: string): ToolShellState {
   if (!state.groups.includes(groupId)) return state;
-  return { ...state, groupLabels: { ...state.groupLabels, [groupId]: label.trim() || groupId } };
+  const next = label.trim() === "" ? groupId : label;
+  return { ...state, groupLabels: { ...state.groupLabels, [groupId]: next } };
 }
 
 export function deleteGroup(state: ToolShellState, groupId: string): ToolShellState {
