@@ -4,6 +4,7 @@ export const jobs = sqliteTable("jobs", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   driveFolderId: text("drive_folder_id").notNull(),
   driveFolderName: text("drive_folder_name").notNull(),
+  platform: text("platform"),
   status: text("status").notNull(), // scanning|heuristics|ranking|done|error
   total: integer("total").notNull().default(0),
   processed: integer("processed").notNull().default(0),
@@ -90,4 +91,10 @@ export const styleExamples = sqliteTable("style_examples", {
   kind: text("kind").notNull(),     // seed|custom|liked
   text: text("text").notNull(),
   createdAt: integer("created_at").notNull().default(0),
+});
+
+export const rankingContexts = sqliteTable("ranking_contexts", {
+  platform: text("platform").primaryKey(),
+  text: text("text").notNull(),
+  updatedAt: integer("updated_at").notNull().default(0),
 });

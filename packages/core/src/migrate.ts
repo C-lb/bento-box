@@ -91,6 +91,11 @@ const DDL = [
     text TEXT NOT NULL,
     created_at INTEGER NOT NULL DEFAULT 0
   )`,
+  `CREATE TABLE IF NOT EXISTS ranking_contexts (
+    platform TEXT PRIMARY KEY,
+    text TEXT NOT NULL,
+    updated_at INTEGER NOT NULL DEFAULT 0
+  )`,
 ];
 
 // Legacy DBs created before 4a have a Canva-only headshots table (NOT NULL
@@ -174,6 +179,7 @@ export function runMigrations(db: BetterSQLite3Database<any>): void {
   addColumnIfMissing(db, "transcriptions", "event_details", "TEXT");
   addColumnIfMissing(db, "transcriptions", "summary_linkedin", "TEXT");
   addColumnIfMissing(db, "transcriptions", "summary_article", "TEXT");
+  addColumnIfMissing(db, "jobs", "platform", "TEXT");
   seedStyleExamples(db);
 }
 
