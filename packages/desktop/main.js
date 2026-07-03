@@ -62,6 +62,8 @@ function serverEnv() {
     EE_DB_PATH: path.join(dataDir, "app.db"),
     EE_HEADSHOT_DIR: path.join(dataDir, "headshots"),
     EE_THUMBS_DIR: path.join(dataDir, "thumbs"),
+    EE_DATA_DIR: dataDir,
+    EE_BIN_DIR: path.join(dataDir, "bin"),
     EE_FONT_PATH: fontPath,
     EE_PUBLIC_URL: BASE,
     PORT: String(PORT),
