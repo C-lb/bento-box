@@ -1,4 +1,5 @@
 import { mkdir, writeFile, chmod } from "node:fs/promises";
+import { createHash } from "node:crypto";
 import { spawn } from "node:child_process";
 import ffmpegPath from "ffmpeg-static";
 import { binDir, managedYtDlpPath, ytDlpBin, hasYtDlp } from "./convert";
@@ -12,6 +13,21 @@ export function ytDlpAsset(platform: NodeJS.Platform): string {
 
 export function ytDlpDownloadUrl(platform: NodeJS.Platform): string {
   return `https://github.com/yt-dlp/yt-dlp/releases/latest/download/${ytDlpAsset(platform)}`;
+}
+
+// yt-dlp publishes one checksum manifest per release listing every asset.
+export function ytDlpSumsUrl(): string {
+  return "https://github.com/yt-dlp/yt-dlp/releases/latest/download/SHA2-256SUMS";
+}
+
+// Find the lowercased hex SHA-256 for `assetName` in a `SHA2-256SUMS` file
+// (lines are "<64-hex-digits>  <filename>"). Returns null if absent/malformed.
+export function parseSha256Sum(sumsText: string, assetName: string): string | null {
+  for (const line of sumsText.split("\n")) {
+    const m = line.trim().match(/^([0-9a-fA-F]{64})\s+(.+)$/);
+    if (m && m[2].trim() === assetName) return m[1].toLowerCase();
+  }
+  return null;
 }
 
 function run(bin: string, args: string[]): Promise<string> {
@@ -32,10 +48,22 @@ export async function ytDlpVersion(): Promise<string | null> {
 }
 
 export async function downloadYtDlp(): Promise<{ version: string }> {
-  const url = ytDlpDownloadUrl(process.platform);
-  const res = await fetch(url, { redirect: "follow" });
+  const asset = ytDlpAsset(process.platform);
+  const res = await fetch(ytDlpDownloadUrl(process.platform), { redirect: "follow" });
   if (!res.ok) throw new Error(`Download failed: HTTP ${res.status}`);
   const bytes = Buffer.from(await res.arrayBuffer());
+
+  // Verify the download against yt-dlp's published checksum BEFORE writing an
+  // executable to disk. Fail closed: any verification gap aborts the install.
+  const sumsRes = await fetch(ytDlpSumsUrl(), { redirect: "follow" });
+  if (!sumsRes.ok) throw new Error(`Could not fetch checksums: HTTP ${sumsRes.status}`);
+  const expected = parseSha256Sum(await sumsRes.text(), asset);
+  if (!expected) throw new Error(`No published checksum for ${asset}; refusing to install.`);
+  const actual = createHash("sha256").update(bytes).digest("hex");
+  if (actual !== expected) {
+    throw new Error(`Checksum mismatch for ${asset}; download rejected.`);
+  }
+
   await mkdir(binDir(), { recursive: true });
   const dest = managedYtDlpPath();
   await writeFile(dest, bytes);
