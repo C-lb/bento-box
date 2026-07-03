@@ -4,6 +4,8 @@ import { join } from "node:path";
 import { masterPdfPath, outDir } from "@/lib/slice";
 import { buildOutputs, pdfPageCount } from "@/lib/pdf-slice";
 import { planSlices, type GroupInput } from "@event-editor/core/slice-plan";
+import { getDb } from "@/lib/db";
+import { markSliceRunSliced } from "@event-editor/core/slice-runs";
 
 export const runtime = "nodejs";
 
@@ -35,6 +37,7 @@ export async function POST(request: Request) {
       watermarkText: watermarkText ?? "CONFIDENTIAL",
     });
     for (const o of outputs) await writeFile(join(dir, o.filename), Buffer.from(o.bytes));
+    markSliceRunSliced(getDb(), runId);
 
     return NextResponse.json({
       files: outputs.map((o) => ({ label: o.label, filename: o.filename })),

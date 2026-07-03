@@ -7,6 +7,7 @@ import { newRunId, runDir, deckPath, masterPdfPath, cleanupRun, sweepOldRuns } f
 import { convertToPdf, readSlides, findSoffice } from "@/lib/pptx-convert";
 import { pdfPageCount } from "@/lib/pdf-slice";
 import { getDb } from "@/lib/db";
+import { createSliceRun } from "@event-editor/core/slice-runs";
 import { authedDriveClient } from "@/lib/google/oauth";
 import { makeDriveClient } from "@/lib/google/drive";
 
@@ -66,6 +67,7 @@ export async function POST(request: Request) {
     if (slides.length !== pageCount) {
       warnings.push(`This deck has ${slides.length} slides but the PDF has ${pageCount} pages, so slide numbers may not line up with page numbers. Double-check your ranges.`);
     }
+    createSliceRun(getDb(), { runId, sourceFilename: filename });
     return NextResponse.json({ runId, pageCount, slides, filename, warnings });
   } catch (err) {
     try { await cleanupRun(runId); } catch { /* best-effort */ }
