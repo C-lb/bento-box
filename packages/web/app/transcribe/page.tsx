@@ -21,8 +21,7 @@ export default function TranscribePage() {
     <div>
       <div className="flex items-center justify-between gap-4">
         <div>
-          <p className="eyebrow">Audio transcriber</p>
-          <h1 className="mt-1 text-2xl font-semibold">Transcribe audio to a Google Doc</h1>
+          <h1 className="text-2xl font-semibold">Transcribe audio to a Google Doc</h1>
         </div>
         <PastTranscriptions />
       </div>

@@ -37,8 +37,7 @@ async function SettingsBody({ searchParams }: { searchParams: Promise<{ google?:
 
   return (
     <div>
-      <p className="eyebrow">Settings</p>
-      <h1 className="mt-1 text-2xl font-semibold">Settings</h1>
+      <h1 className="text-2xl font-semibold">Settings</h1>
       <ConnectionPills items={pills} />
 
       <h2 className="mt-8 text-lg font-semibold">API keys</h2>

@@ -14,8 +14,7 @@ export default function SlicePage() {
     <div>
       <div className="flex items-center justify-between gap-4">
         <div>
-          <p className="eyebrow">Slide slicer</p>
-          <h1 className="mt-1 text-2xl font-semibold">Slice a deck into confidential PDFs</h1>
+          <h1 className="text-2xl font-semibold">Slice a deck into PDFs</h1>
         </div>
         <PastSlices />
       </div>

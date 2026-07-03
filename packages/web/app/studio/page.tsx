@@ -12,8 +12,7 @@ export default function StudioPage() {
     <div>
       <div className="flex items-center justify-between gap-4">
         <div>
-          <p className="eyebrow">Headshot studio</p>
-          <h1 className="mt-1 text-2xl font-semibold">Build branded headshots</h1>
+          <h1 className="text-2xl font-semibold">Build a branded headshot</h1>
         </div>
         <PastHeadshots />
       </div>
