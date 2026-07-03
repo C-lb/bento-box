@@ -43,7 +43,7 @@ export function Nav() {
         enabled.current = true;
       });
     }
-  }, [activeIdx, motionOK, pills.length]);
+  }, [activeIdx, motionOK, pills.length, state.groups, state.groupLabels]);
 
   function pick(id: string) {
     setActiveGroup(id);
