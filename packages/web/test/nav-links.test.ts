@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { orderTools, parseNavOrder, TOOL_LINKS } from "@/components/nav-links";
 
 const hrefs = (links: { href: string }[]) => links.map((l) => l.href);
-const DEFAULT = ["/sorter", "/transcribe", "/studio", "/slice"];
+const DEFAULT = ["/sorter", "/transcribe", "/studio", "/slice", "/convert"];
 
 describe("orderTools", () => {
   it("returns default order for an empty list", () => {
@@ -14,6 +14,7 @@ describe("orderTools", () => {
       "/studio",
       "/transcribe",
       "/sorter",
+      "/convert",
     ]);
   });
   it("drops unknown hrefs", () => {
@@ -22,6 +23,7 @@ describe("orderTools", () => {
       "/sorter",
       "/transcribe",
       "/studio",
+      "/convert",
     ]);
   });
   it("appends tools missing from storage in default order", () => {
@@ -30,6 +32,7 @@ describe("orderTools", () => {
       "/sorter",
       "/transcribe",
       "/studio",
+      "/convert",
     ]);
   });
   it("ignores duplicate hrefs", () => {
@@ -38,6 +41,7 @@ describe("orderTools", () => {
       "/sorter",
       "/transcribe",
       "/studio",
+      "/convert",
     ]);
   });
 });
@@ -58,6 +62,7 @@ describe("parseNavOrder", () => {
       "/studio",
       "/transcribe",
       "/sorter",
+      "/convert",
     ]);
   });
   it("keeps TOOL_LINKS default order stable", () => {

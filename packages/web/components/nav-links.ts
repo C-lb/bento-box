@@ -1,5 +1,5 @@
 "use client";
-import { Home, Images, Mic, UserRound, Settings, Scissors, type LucideIcon } from "lucide-react";
+import { Home, Images, Mic, UserRound, Settings, Scissors, AudioLines, type LucideIcon } from "lucide-react";
 
 export type NavLink = { href: string; label: string; Icon: LucideIcon };
 
@@ -12,6 +12,7 @@ export const TOOL_LINKS: NavLink[] = [
   { href: "/transcribe", label: "Audio transcriber", Icon: Mic },
   { href: "/studio", label: "Headshot studio", Icon: UserRound },
   { href: "/slice", label: "Slide slicer", Icon: Scissors },
+  { href: "/convert", label: "Audio converter", Icon: AudioLines },
 ];
 
 export const NAV_ORDER_KEY = "ee.navOrder";

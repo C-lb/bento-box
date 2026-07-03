@@ -1,6 +1,6 @@
 import { ToolCard } from "@/components/ToolCard";
-import { SorterIllus, StudioIllus, TranscribeIllus, SliceIllus } from "@/components/tool-illustrations";
-import { Images, UserRound, Mic, Scissors } from "lucide-react";
+import { SorterIllus, StudioIllus, TranscribeIllus, SliceIllus, ConvertIllus } from "@/components/tool-illustrations";
+import { Images, UserRound, Mic, Scissors, AudioLines } from "lucide-react";
 
 const TOOLS = [
   {
@@ -30,6 +30,13 @@ const TOOLS = [
     body: "Convert a deck to PDF, split it by page ranges, speaker, or topic, and stamp each page.",
     illustration: <SliceIllus />,
     Icon: Scissors,
+  },
+  {
+    href: "/convert",
+    title: "Convert audio to mp3",
+    body: "Turn a YouTube or video link, or an uploaded audio or video file, into an mp3 you can name and download.",
+    illustration: <ConvertIllus />,
+    Icon: AudioLines,
   },
 ];
 
