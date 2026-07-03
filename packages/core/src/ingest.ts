@@ -15,7 +15,7 @@ export interface IngestDeps {
 
 export function createScanJob(
   db: BetterSQLite3Database<any>,
-  args: { driveFolderId: string; driveFolderName: string },
+  args: { driveFolderId: string; driveFolderName: string; platform?: string },
 ): number {
   const now = Date.now();
   const res = db
@@ -23,6 +23,7 @@ export function createScanJob(
     .values({
       driveFolderId: args.driveFolderId,
       driveFolderName: args.driveFolderName,
+      platform: args.platform ?? "linkedin",
       status: "scanning",
       total: 0,
       processed: 0,

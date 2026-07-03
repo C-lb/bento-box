@@ -55,3 +55,18 @@ describe("runIngest", () => {
     expect(job.errorMessage).toContain("drive down");
   });
 });
+
+describe("createScanJob platform", () => {
+  it("persists the given platform on the job row", () => {
+    const db = freshDb();
+    const id = createScanJob(db, { driveFolderId: "f", driveFolderName: "F", platform: "instagram" });
+    const row = db.select().from(jobs).where(eq(jobs.id, id)).all()[0];
+    expect(row.platform).toBe("instagram");
+  });
+  it("defaults platform to linkedin when omitted", () => {
+    const db = freshDb();
+    const id = createScanJob(db, { driveFolderId: "f", driveFolderName: "F" });
+    const row = db.select().from(jobs).where(eq(jobs.id, id)).all()[0];
+    expect(row.platform).toBe("linkedin");
+  });
+});

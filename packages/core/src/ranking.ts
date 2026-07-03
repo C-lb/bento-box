@@ -2,6 +2,7 @@ import { eq } from "drizzle-orm";
 import type { BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
 import { jobs, photos } from "./schema/index.js";
 import { scoreHeuristics, computeRanks, type ImageMetrics, type VisionScore } from "./rank.js";
+import type { Platform } from "./ranking-context.js";
 
 export interface RankingPhoto {
   id: number;
@@ -23,6 +24,7 @@ export async function runRanking(
   db: BetterSQLite3Database<any>,
   jobId: number,
   deps: RankingDeps,
+  platform: Platform = "linkedin",
 ): Promise<void> {
   try {
     const pending = db
@@ -46,7 +48,7 @@ export async function runRanking(
       }
       try {
         const m = await deps.getMetrics(photo);
-        const verdict = scoreHeuristics(m);
+        const verdict = scoreHeuristics(m, platform);
         db.update(photos)
           .set({ width: m.width, height: m.height, sharpness: m.sharpness, brightness: m.brightness, aspectRatio: m.aspectRatio })
           .where(eq(photos.id, p.id))
