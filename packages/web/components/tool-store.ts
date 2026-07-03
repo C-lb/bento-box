@@ -1,4 +1,4 @@
-import { searchTools, type Tool } from "@/components/tools";
+import { TOOLS, searchTools, type Tool } from "@/components/tools";
 
 export const FAV = "fav"; // reserved favourites group id, always rendered first
 
@@ -86,4 +86,81 @@ export function writeToolShell(state: ToolShellState): void {
   if (typeof window === "undefined") return;
   window.localStorage.setItem(TOOL_SHELL_KEY, JSON.stringify(state));
   window.dispatchEvent(new CustomEvent(TOOL_SHELL_EVENT));
+}
+
+// --- reducers ---
+
+export function toggleFavourite(state: ToolShellState, toolId: string): ToolShellState {
+  const has = state.favourites.includes(toolId);
+  return {
+    ...state,
+    favourites: has ? state.favourites.filter((f) => f !== toolId) : [...state.favourites, toolId],
+  };
+}
+
+export function setMembership(
+  state: ToolShellState,
+  tool: Tool,
+  groupId: string,
+  on: boolean,
+): ToolShellState {
+  const current = state.membership[tool.id] ?? tool.defaultGroups;
+  const next = on
+    ? current.includes(groupId)
+      ? current
+      : [...current, groupId]
+    : current.filter((g) => g !== groupId);
+  return { ...state, membership: { ...state.membership, [tool.id]: next } };
+}
+
+export function slugify(label: string): string {
+  const s = label
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  return s || "group";
+}
+
+export function createGroup(
+  state: ToolShellState,
+  label: string,
+  addToolId?: string,
+): { state: ToolShellState; id: string } {
+  const base = slugify(label);
+  let id = base;
+  let n = 2;
+  const taken = new Set([FAV, ...state.groups]);
+  while (taken.has(id)) id = `${base}-${n++}`;
+  const groups = [...state.groups, id];
+  const groupLabels = { ...state.groupLabels, [id]: label.trim() || id };
+  let membership = state.membership;
+  if (addToolId) {
+    const tool = TOOLS.find((t) => t.id === addToolId);
+    const current = membership[addToolId] ?? tool?.defaultGroups ?? [];
+    membership = { ...membership, [addToolId]: [...current, id] };
+  }
+  return { state: { ...state, groups, groupLabels, membership }, id };
+}
+
+export function renameGroup(state: ToolShellState, groupId: string, label: string): ToolShellState {
+  if (!state.groups.includes(groupId)) return state;
+  return { ...state, groupLabels: { ...state.groupLabels, [groupId]: label.trim() || groupId } };
+}
+
+export function deleteGroup(state: ToolShellState, groupId: string): ToolShellState {
+  const groups = state.groups.filter((g) => g !== groupId);
+  const groupLabels = { ...state.groupLabels };
+  delete groupLabels[groupId];
+  const membership: Record<string, string[]> = {};
+  for (const [toolId, gs] of Object.entries(state.membership)) {
+    membership[toolId] = gs.filter((g) => g !== groupId);
+  }
+  return { ...state, groups, groupLabels, membership };
+}
+
+export function reorderGroups(state: ToolShellState, orderedIds: string[]): ToolShellState {
+  const known = orderedIds.filter((g) => state.groups.includes(g));
+  const missing = state.groups.filter((g) => !known.includes(g));
+  return { ...state, groups: [...known, ...missing] };
 }
