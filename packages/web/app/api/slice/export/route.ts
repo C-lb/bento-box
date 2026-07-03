@@ -37,7 +37,9 @@ export async function POST(request: Request) {
       watermarkText: watermarkText ?? "CONFIDENTIAL",
     });
     for (const o of outputs) await writeFile(join(dir, o.filename), Buffer.from(o.bytes));
-    markSliceRunSliced(getDb(), runId);
+    // Best-effort history: the outputs are already on disk, so a slice_runs
+    // write failure must not turn a successful export into a 500.
+    try { markSliceRunSliced(getDb(), runId); } catch { /* history is non-critical */ }
 
     return NextResponse.json({
       files: outputs.map((o) => ({ label: o.label, filename: o.filename })),

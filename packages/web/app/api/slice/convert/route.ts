@@ -67,7 +67,9 @@ export async function POST(request: Request) {
     if (slides.length !== pageCount) {
       warnings.push(`This deck has ${slides.length} slides but the PDF has ${pageCount} pages, so slide numbers may not line up with page numbers. Double-check your ranges.`);
     }
-    createSliceRun(getDb(), { runId, sourceFilename: filename });
+    // Best-effort history: a slice_runs write failure must never fail the
+    // conversion or trip the catch below (which would wipe the converted deck).
+    try { createSliceRun(getDb(), { runId, sourceFilename: filename }); } catch { /* history is non-critical */ }
     return NextResponse.json({ runId, pageCount, slides, filename, warnings });
   } catch (err) {
     try { await cleanupRun(runId); } catch { /* best-effort */ }
