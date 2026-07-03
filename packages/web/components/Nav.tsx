@@ -51,7 +51,7 @@ export function Nav() {
   }
 
   return (
-    <header className="relative border-b border-line">
+    <header className="sticky top-0 z-40 border-b border-line bg-canvas">
       <div className="mx-auto flex max-w-5xl items-center gap-3 px-6 py-3">
         <Link href="/" aria-label="Home" className="flex shrink-0 items-center gap-2 text-sm font-semibold text-ink">
           <Home size={18} strokeWidth={1.75} aria-hidden />
