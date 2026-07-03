@@ -1,6 +1,6 @@
 {
   "name": "@event-editor/desktop",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "private": true,
   "description": "Event Editor desktop app",
   "author": "Spark",
@@ -18,12 +18,35 @@
   "build": {
     "appId": "sg.spark.eventeditor",
     "productName": "Event Editor",
-    "directories": { "output": "dist" },
-    "files": ["main.js", "preload.js"],
-    "extraResources": [{ "from": "build/server", "to": "server" }],
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "preload.js"
+    ],
+    "extraResources": [
+      {
+        "from": "build/server",
+        "to": "server"
+      }
+    ],
     "asar": true,
     "npmRebuild": false,
-    "mac": { "target": ["dmg", "zip"], "category": "public.app-category.productivity", "icon": "icons/icon.icns" },
-    "win": { "target": ["nsis", "portable"], "icon": "icons/icon.ico" }
+    "mac": {
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "category": "public.app-category.productivity",
+      "icon": "icons/icon.icns"
+    },
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ],
+      "icon": "icons/icon.ico"
+    }
   }
 }
