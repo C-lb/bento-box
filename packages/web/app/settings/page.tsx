@@ -5,7 +5,7 @@ import { DRIVE_FILE_SCOPE, SHEETS_SCOPE } from "@/lib/google/oauth";
 import { KeyForm } from "./KeyForm";
 import { envFilePath } from "./env-path";
 import { StyleExamples } from "./StyleExamples";
-import { NavOrder } from "./NavOrder";
+import { GroupManager } from "@/components/GroupManager";
 import { RankingContexts } from "./RankingContexts";
 import { ConnectionPills } from "./ConnectionPills";
 import { dependencyStatuses } from "@/lib/deps";
@@ -89,8 +89,10 @@ async function SettingsBody({ searchParams }: { searchParams: Promise<{ google?:
         </li>
       </ul>
 
-      <div className="mt-10">
-        <NavOrder />
+      <h2 className="mt-10 text-lg font-semibold">Groups</h2>
+      <p className="mt-1 text-sm text-muted">Reorder, rename, or remove the groups your tools are organised into.</p>
+      <div className="mt-3">
+        <GroupManager />
       </div>
 
       <h2 className="mt-10 text-lg font-semibold">Photo ranking</h2>
