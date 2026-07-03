@@ -107,7 +107,7 @@ export function setMembership(
   const current = state.membership[tool.id] ?? tool.defaultGroups;
   const next = on
     ? current.includes(groupId)
-      ? current
+      ? [...current]
       : [...current, groupId]
     : current.filter((g) => g !== groupId);
   return { ...state, membership: { ...state.membership, [tool.id]: next } };
