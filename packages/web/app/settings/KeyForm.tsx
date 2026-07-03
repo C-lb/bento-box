@@ -2,6 +2,7 @@
 
 import { useActionState, useEffect, useState } from "react";
 import { saveKeys, type SaveState } from "./actions";
+import { KEY_GUIDES } from "./key-guides";
 
 declare global {
   interface Window {
@@ -45,6 +46,24 @@ export function KeyForm({ present, configPath }: { present: Record<string, boole
         {GROUPS.map((g) => (
           <fieldset key={g.title}>
             <legend className="text-sm font-medium text-ink">{g.title}</legend>
+            {(() => {
+              const guide = KEY_GUIDES[g.title];
+              if (!guide) return null;
+              return (
+                <details className="mt-2 text-sm">
+                  <summary className="cursor-pointer text-muted hover:text-ink">How to get this</summary>
+                  <div className="mt-2 text-muted">
+                    {"note" in guide ? (
+                      <p>{guide.note}</p>
+                    ) : (
+                      <ol className="list-decimal space-y-1 pl-5">
+                        {guide.steps.map((s, i) => <li key={i}>{s}</li>)}
+                      </ol>
+                    )}
+                  </div>
+                </details>
+              );
+            })()}
             <div className="mt-3 grid gap-3 sm:grid-cols-2">
               {g.fields.map((f) => (
                 <label key={f.name} className="block">
