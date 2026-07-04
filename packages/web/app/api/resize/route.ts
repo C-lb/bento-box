@@ -28,10 +28,9 @@ export async function POST(request: Request) {
     const inBuf = Buffer.from(await file.arrayBuffer());
     const { data, ext } = await resizeImage(inBuf, opts, file.name || "image");
     await writeFile(resolve(dir, `out.${ext}`), data);
-    const srcExt = (file.name.match(/\.([a-z0-9]+)$/i)?.[1] ?? "").toLowerCase();
     return NextResponse.json({
       id,
-      filename: resizeOutName(file.name || "image", opts.format, srcExt),
+      filename: resizeOutName(file.name || "image", opts.format, ext),
       ext,
       bytesIn: inBuf.length,
       bytesOut: data.length,
