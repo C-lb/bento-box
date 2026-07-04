@@ -1,4 +1,4 @@
-# Spec B — Utility tools batch (A–D): 6 new converters
+# Spec B — Utility tools batch (A–D): 6 new tools
 
 Date: 2026-07-04
 Status: design, pending review
@@ -27,7 +27,7 @@ design questions get their own follow-up spec:
 | 2 | Image compress / resize | `resize` `/resize` | `sharp` |
 | 3 | PDF merge / split / compress | `pdf` `/pdf` | `pdf-lib`, `jszip` |
 | 5 | Video compression | `video` `/video` | `ffmpeg-static` |
-| 6 | Video concat | `concat` `/concat` | `ffmpeg-static` |
+| 6 | Trim & join clips (video **or** audio) | `splice` `/splice` | `ffmpeg-static` |
 | 7 | QR generator | `qr` `/qr` | `qrcode` **(new)** |
 
 (Tools 4 = bg-removal and 8 = mail-merge are Batches E/F, deferred.)
@@ -152,21 +152,41 @@ Re-encode a video smaller with a friendly preset instead of raw CRF.
   convert).
 - **api/video/route.ts** + **[id]**.
 
-### 6. Video concat (`concat`, `/concat`)
+### 6. Trim & join clips (`splice`, `/splice`)
 
-Join clips end to end.
+A lightweight sequence editor: drop several clips, trim/reorder/adjust each,
+join into one. Handles **video or audio** — type-locked to whichever you drop
+first (ffmpeg can't sanely concat a clip and a bare audio file in one pass).
 
-- **UI**: multi video upload, drag to reorder, target resolution
-  `match first | 1080p | 720p`, → one mp4.
-- **Approach**: re-encode via `filter_complex` `concat` (scale each input to the
-  target so mismatched sources still join cleanly) rather than the stream-copy
-  demuxer (which fails on differing codecs/params). Slower but robust — correct
-  default for user-supplied clips.
-- **core/src/concat.ts**: `ffmpegConcatArgs(inPaths, outPath, { scale })` (pure;
-  builds the `-i … -filter_complex "[0:v]scale…[v0];…concat=n=N:v=1:a=1"` graph).
-- **lib/concat.ts**: `concatVideos(inPaths, outPath, opts)`.
-- **api/concat/route.ts** accepts multiple files in one POST (exception to
-  one-file-per-request — concat is inherently multi-input) → **[id]**.
+- **UI — per-clip editing before join**:
+  - Multi upload; each clip becomes a row with an inline `<video>`/`<audio>`
+    preview built from an object URL. The browser reports the clip's `duration`
+    natively — **no ffprobe / no server round-trip to read length**.
+  - **Trim**: a dual-handle slider over the clip's duration sets in/out points,
+    with the preview element seeking as you drag. Defaults to full clip.
+  - **Reorder** (drag) and **remove**.
+  - **Per-clip volume / mute** (a 0–200% gain; applies to a video's audio track
+    too).
+  - **Output**: video → one mp4 (h264+aac); audio → one m4a (aac). Target
+    resolution for video: `match first | 1080p | 720p`.
+- **Approach**: one `filter_complex`. Per input, apply `trim=start:end` +
+  `setpts=PTS-STARTPTS` (video) / `atrim` + `asetpts` + `volume` (audio), scale
+  video to the target, then `concat`. Always re-encodes (trims + mismatched
+  sources make stream-copy unsafe) — correct default for user clips.
+- **Non-goals (MVP)**: no transitions, crossfades, overlays, multi-track, or
+  mixing video and audio inputs in one job.
+- **core/src/splice.ts**: `ffmpegSpliceArgs(clips, outPath, opts)` — pure graph
+  builder. `clips: { start, end, volume }[]`, `opts: { kind: 'video'|'audio',
+  scale }`. This is the fiddly, well-tested unit: correct per-clip trim +
+  setpts + volume labels and the final `concat=n=N:v=?:a=1`.
+- **lib/splice.ts**: `spliceClips(inPaths, clips, outPath, opts)` via
+  `spawn.run` + `ffmpeg-static`.
+- **api/splice/route.ts** accepts multiple files **plus a JSON manifest**
+  (`[{ start, end, volume }]` aligned to file order, and `kind`/`scale`) in one
+  POST (exception to one-file-per-request — splice is inherently multi-input) →
+  **[id]** streams the output. Manifest trim values are clamped/validated
+  server-side against nothing but each other (durations are the client's job);
+  ffmpeg ignores out-of-range trims gracefully, and `core` guards `start < end`.
 
 ### 7. QR generator (`qr`, `/qr`)
 
@@ -192,7 +212,7 @@ Six new `Tool` entries. Proposed grouping (existing groups: `images`,
 | `resize` | Compress or resize images | images | `Shrink` | resize, compress, image, shrink |
 | `pdf` | Merge, split, or shrink PDFs | documents | `Files` | pdf, merge, split, compress |
 | `video` | Compress a video | media | `Film` | video, compress, mp4, shrink |
-| `concat` | Join videos together | media | `Combine` | video, concat, join, merge, mp4 |
+| `splice` | Trim and join clips | media | `Combine` | video, audio, trim, join, concat, edit |
 | `qr` | Make a QR code | utilities | `QrCode` | qr, code, link, url |
 
 `utilities` needs adding to the tool-store default group order + labels
@@ -219,13 +239,16 @@ spec errors returned as 400 with a readable message.
 
 - **core** unit tests (the valuable ones — pure logic): `parsePageRanges` (ranges,
   singles, whitespace, out-of-bounds, overlaps, descending), `ffmpegCompressArgs`
-  / `ffmpegConcatArgs` (correct flags per preset/scale), `normalizeResizeOpts` /
-  `normalizeQrOpts` clamping, all `*OutName` filename derivations.
+  (flags per preset/scale), `ffmpegSpliceArgs` (per-clip trim/setpts/volume
+  labels, video-vs-audio concat flags, `start < end` guard),
+  `normalizeResizeOpts` / `normalizeQrOpts` clamping, all `*OutName` filename
+  derivations.
 - **web** route tests where cheap: HEIC/resize/pdf happy path + bad-input 400,
   following `convert-route.test.ts`.
 - **Manual**: real .heic photo, an image-heavy vs text PDF through compress
-  (verify the honest-copy claim), two differently-encoded clips through concat,
-  QR PNG + SVG download.
+  (verify the honest-copy claim), splice — trim + reorder two differently-encoded
+  video clips into one, then a set of audio files with a muted clip, QR PNG + SVG
+  download.
 
 ## Build / sequencing
 
@@ -234,7 +257,7 @@ Build in dependency batches, each an independent shippable slice:
 1. **Shared infra** — `lib/jobs.ts`, `lib/spawn.ts` (+ tests).
 2. **Batch A (images)** — `heic`, `resize`. Adds `heic-convert`.
 3. **Batch B (PDF)** — `pdf`.
-4. **Batch C (AV)** — `video`, `concat`.
+4. **Batch C (AV)** — `video`, `splice`.
 5. **Batch D (QR)** — `qr`. Adds `qrcode`.
 6. **Registry + `utilities` group** — wire all six into the shell; live smoke.
 
