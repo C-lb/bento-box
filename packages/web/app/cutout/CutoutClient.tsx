@@ -29,7 +29,6 @@ export function CutoutClient() {
   const [fill, setFill] = useState<FillMode>("transparent");
   const [customColor, setCustomColor] = useState("#ffffff");
   const [rows, setRows] = useState<Row[]>([]);
-  const [modelReady, setModelReady] = useState(false);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const segmenterRef = useRef<any>(null);
@@ -87,7 +86,6 @@ export function CutoutClient() {
 
     try {
       const seg = await getSegmenter();
-      setModelReady(true);
       setRows((prev) => prev.map((r) => (r.key === key ? { ...r, status: "busy" } : r)));
 
       const bitmap = await createImageBitmap(row.file);
@@ -96,32 +94,41 @@ export function CutoutClient() {
         const mask = result.confidenceMasks?.[0];
         if (!mask) throw new Error("No segmentation mask returned.");
         const conf = mask.getAsFloat32Array();
-        const w = mask.width;
-        const h = mask.height;
+        const mw = mask.width;
+        const mh = mask.height;
+        // Always export at the input image's full resolution. MediaPipe may
+        // return the confidence mask at the model's internal size (~256px), so
+        // we sample the mask with nearest-neighbor scaling onto the full-res
+        // pixels instead of shrinking the image down to the mask.
+        const W = bitmap.width;
+        const H = bitmap.height;
 
         const canvasA = document.createElement("canvas");
-        canvasA.width = w;
-        canvasA.height = h;
+        canvasA.width = W;
+        canvasA.height = H;
         const ctxA = canvasA.getContext("2d");
         if (!ctxA) throw new Error("Canvas not supported.");
-        // Draw scaled to the mask's dimensions so mask pixel indices line up
-        // with the image data, even if the segmenter resized internally.
-        ctxA.drawImage(bitmap, 0, 0, w, h);
-        const img = ctxA.getImageData(0, 0, w, h);
-        for (let i = 0; i < w * h; i++) {
-          img.data[i * 4 + 3] = Math.round(conf[i] * 255);
+        ctxA.drawImage(bitmap, 0, 0);
+        const img = ctxA.getImageData(0, 0, W, H);
+        for (let y = 0; y < H; y++) {
+          const my = Math.floor((y * mh) / H);
+          for (let x = 0; x < W; x++) {
+            const mx = Math.floor((x * mw) / W);
+            const a = conf[my * mw + mx];
+            img.data[(y * W + x) * 4 + 3] = Math.round(a * 255);
+          }
         }
         ctxA.putImageData(img, 0, 0);
 
         let outCanvas = canvasA;
         if (fillColor !== "transparent") {
           const canvasB = document.createElement("canvas");
-          canvasB.width = w;
-          canvasB.height = h;
+          canvasB.width = W;
+          canvasB.height = H;
           const ctxB = canvasB.getContext("2d");
           if (!ctxB) throw new Error("Canvas not supported.");
           ctxB.fillStyle = fillColor.color;
-          ctxB.fillRect(0, 0, w, h);
+          ctxB.fillRect(0, 0, W, H);
           ctxB.drawImage(canvasA, 0, 0);
           outCanvas = canvasB;
         }
@@ -136,6 +143,7 @@ export function CutoutClient() {
         );
       } finally {
         result.close();
+        bitmap.close();
       }
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);
@@ -261,6 +269,7 @@ export function CutoutClient() {
                     <button
                       type="button"
                       className="btn"
+                      disabled={anyBusy}
                       onClick={() => runRow(row.key, normalizeBgFill({ mode: fill, color: customColor }))}
                     >
                       Retry
