@@ -84,4 +84,20 @@ describe("parseToolShell", () => {
     expect(parseToolShell(JSON.stringify({ version: 1, groups: [], groupLabels: null, membership: {}, favourites: [] }))).toEqual(seedState());
     expect(parseToolShell(JSON.stringify({ version: 1, groups: [], groupLabels: {}, membership: null, favourites: [] }))).toEqual(seedState());
   });
+  it("unions in a default group missing from a pre-existing persisted state (e.g. Build #8), keeping qr visible", () => {
+    // Shaped like a real Build #8 localStorage blob: predates the "utilities" group.
+    const build8State = {
+      version: 1,
+      groups: ["events", "images", "media", "documents"],
+      groupLabels: { events: "Events", images: "Images", media: "Media", documents: "Documents" },
+      membership: {},
+      favourites: [],
+    };
+    const s = parseToolShell(JSON.stringify(build8State));
+    expect(s.groups).toContain("utilities");
+    expect(s.groupLabels.utilities).toBe("Utilities");
+    // Persisted order/customizations are preserved; the missing default is appended, not inserted.
+    expect(s.groups).toEqual(["events", "images", "media", "documents", "utilities"]);
+    expect(effectiveGroups(s, toolById("qr")!).length).toBeGreaterThan(0);
+  });
 });

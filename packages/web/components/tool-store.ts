@@ -52,6 +52,14 @@ export function visibleTools(
 export const TOOL_SHELL_KEY = "ee.toolShell";
 export const TOOL_SHELL_EVENT = "ee:tool-shell-change";
 
+function titleCase(id: string): string {
+  return id
+    .split(/[-_]+/)
+    .filter(Boolean)
+    .map((w) => w[0].toUpperCase() + w.slice(1))
+    .join(" ");
+}
+
 export function parseToolShell(raw: string | null): ToolShellState {
   if (!raw) return seedState();
   try {
@@ -68,10 +76,26 @@ export function parseToolShell(raw: string | null): ToolShellState {
     ) {
       return seedState();
     }
+    const persistedGroups: string[] = p.groups.filter(
+      (g: unknown): g is string => typeof g === "string",
+    );
+    // Union in any default groups shipped after this state was persisted (e.g. a new
+    // build adds "utilities") so tools defaulting into them stay visible. Preserves the
+    // user's persisted order/customizations and appends missing defaults at the end.
+    // Tradeoff: this also re-adds a default group the user deliberately deleted — accepted
+    // as the lesser problem versus a shipped tool becoming unreachable except via search.
+    const missingDefaults = DEFAULT_GROUP_ORDER.filter((g) => !persistedGroups.includes(g));
+    const groups = [...persistedGroups, ...missingDefaults];
+    const groupLabels: Record<string, string> = { ...p.groupLabels };
+    for (const g of missingDefaults) {
+      if (typeof groupLabels[g] !== "string") {
+        groupLabels[g] = DEFAULT_GROUP_LABELS[g] ?? titleCase(g);
+      }
+    }
     return {
       version: 1,
-      groups: p.groups.filter((g: unknown): g is string => typeof g === "string"),
-      groupLabels: p.groupLabels,
+      groups,
+      groupLabels,
       membership: p.membership,
       favourites: p.favourites.filter((f: unknown): f is string => typeof f === "string"),
     };

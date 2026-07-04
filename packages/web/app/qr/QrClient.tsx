@@ -180,12 +180,12 @@ export function QrClient() {
 
             <div className="flex items-center gap-3">
               {format === "png" && dataUrl && (
-                <a className="btn inline-flex items-center gap-2" href={dataUrl} download="qr.png">
+                <a className="btn btn-accent inline-flex items-center gap-2" href={dataUrl} download="qr.png">
                   <Download className="w-4 h-4" strokeWidth={1.75} /> Download PNG
                 </a>
               )}
               {format === "svg" && svgDownloadUrl && (
-                <a className="btn inline-flex items-center gap-2" href={svgDownloadUrl} download="qr.svg">
+                <a className="btn btn-accent inline-flex items-center gap-2" href={svgDownloadUrl} download="qr.svg">
                   <Download className="w-4 h-4" strokeWidth={1.75} /> Download SVG
                 </a>
               )}
