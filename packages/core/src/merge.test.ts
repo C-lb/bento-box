@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { resolveText, parseDelimited } from "./merge.js";
+import { resolveText, parseDelimited, deriveFields, autoMatchColumns } from "./merge.js";
+import type { DocumentSpec } from "./merge.js";
 
 describe("resolveText", () => {
   it("substitutes a token with the matching column value", () => {
@@ -47,5 +48,41 @@ describe("parseDelimited", () => {
   it("ignores blank lines and trims cells", () => {
     const out = parseDelimited("Name\n Ada \n\nGrace\n");
     expect(out.rows).toEqual([{ Name: "Ada" }, { Name: "Grace" }]);
+  });
+});
+
+const spec: DocumentSpec = {
+  page: { width: 100, height: 100 },
+  elements: [
+    { kind: "text", template: "To {Name}", x: 0, y: 0, size: 12, font: "heading", align: "left", color: "#000000" },
+    { kind: "text", template: "{Name} of {Org}", x: 0, y: 0, size: 12, font: "body", align: "left", color: "#000000" },
+    { kind: "text", template: "Static line", x: 0, y: 0, size: 12, font: "body", align: "left", color: "#000000" },
+  ],
+};
+
+describe("deriveFields", () => {
+  it("returns distinct tokens in first-seen order", () => {
+    expect(deriveFields(spec)).toEqual(["Name", "Org"]);
+  });
+  it("returns empty when there are no tokens", () => {
+    expect(deriveFields({ page: { width: 1, height: 1 }, elements: [] })).toEqual([]);
+  });
+});
+
+describe("autoMatchColumns", () => {
+  it("matches on exact (case-insensitive) header name", () => {
+    expect(autoMatchColumns(["Name", "Org"], ["name", "ORG"]))
+      .toEqual({ Name: "name", Org: "ORG" });
+  });
+  it("matches via synonyms", () => {
+    expect(autoMatchColumns(["Org"], ["Company"])).toEqual({ Org: "Company" });
+  });
+  it("returns null for an unmatched field", () => {
+    expect(autoMatchColumns(["Name"], ["Email"])).toEqual({ Name: null });
+  });
+  it("never assigns one header to two fields", () => {
+    const m = autoMatchColumns(["Name", "Recipient"], ["Name"]);
+    const used = Object.values(m).filter(Boolean);
+    expect(new Set(used).size).toBe(used.length);
   });
 });

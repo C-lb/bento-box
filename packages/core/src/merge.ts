@@ -56,3 +56,45 @@ export function parseDelimited(text: string): Rows {
   });
   return { headers, rows };
 }
+
+export function deriveFields(spec: DocumentSpec): string[] {
+  const seen: string[] = [];
+  for (const el of spec.elements) {
+    if (el.kind !== "text") continue;
+    for (const m of el.template.matchAll(/\{([^}]+)\}/g)) {
+      const f = m[1].trim();
+      if (!seen.includes(f)) seen.push(f);
+    }
+  }
+  return seen;
+}
+
+const FIELD_SYNONYMS: Record<string, string[]> = {
+  name: ["name", "full name", "recipient", "attendee"],
+  org: ["org", "organisation", "organization", "company", "employer"],
+  role: ["role", "title", "position", "job title"],
+  date: ["date", "day"],
+  email: ["email", "e-mail", "mail"],
+};
+
+export function autoMatchColumns(
+  fields: string[],
+  headers: string[],
+): Record<string, string | null> {
+  const norm = (s: string) => s.trim().toLowerCase();
+  const taken = new Set<string>();
+  const out: Record<string, string | null> = {};
+  for (const field of fields) {
+    const fn = norm(field);
+    // 1) exact case-insensitive header
+    let hit = headers.find((h) => !taken.has(h) && norm(h) === fn);
+    // 2) synonym table (field's synonyms, or the field name itself)
+    if (!hit) {
+      const syns = FIELD_SYNONYMS[fn] ?? [fn];
+      hit = headers.find((h) => !taken.has(h) && syns.includes(norm(h)));
+    }
+    out[field] = hit ?? null;
+    if (hit) taken.add(hit);
+  }
+  return out;
+}
