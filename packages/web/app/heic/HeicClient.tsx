@@ -12,6 +12,7 @@ interface Row {
   status: Status;
   id?: string;
   filename?: string;
+  outFormat?: "jpg" | "png";
   error?: string;
 }
 
@@ -48,7 +49,9 @@ export function HeicClient() {
       if (!r.ok || !data?.id) throw new Error(data?.error ?? "Conversion failed");
       setRows((prev) =>
         prev.map((row) =>
-          row.key === key ? { ...row, status: "done", id: data.id, filename: data.filename } : row,
+          row.key === key
+            ? { ...row, status: "done", id: data.id, filename: data.filename, outFormat: data.format }
+            : row,
         ),
       );
     } catch (e) {
@@ -131,7 +134,7 @@ export function HeicClient() {
               {row.status === "done" && row.id && (
                 <a
                   className="btn inline-flex items-center gap-2"
-                  href={`/api/heic/${row.id}?name=${encodeURIComponent(row.filename ?? row.name)}&format=${format}`}
+                  href={`/api/heic/${row.id}?name=${encodeURIComponent(row.filename ?? row.name)}&format=${row.outFormat ?? "jpg"}`}
                   download
                 >
                   <Download className="w-4 h-4" strokeWidth={1.75} /> Download
