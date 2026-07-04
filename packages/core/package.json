@@ -28,7 +28,8 @@
     "./slice-plan": "./dist/slice-plan.js",
     "./pptx": "./dist/pptx.js",
     "./convert": "./dist/convert.js",
-    "./names": "./dist/names.js"
+    "./names": "./dist/names.js",
+    "./heic": "./dist/heic.js"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
