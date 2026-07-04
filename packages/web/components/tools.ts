@@ -11,6 +11,7 @@ import {
   Combine,
   QrCode,
   Eraser,
+  Award,
   type LucideIcon,
 } from "lucide-react";
 
@@ -132,6 +133,15 @@ export const TOOLS: Tool[] = [
     Icon: Eraser,
     defaultGroups: ["images"],
     tags: ["background", "remove", "cutout", "transparent", "png", "person", "photo"],
+  },
+  {
+    id: "certificate",
+    href: "/certificate",
+    title: "Make certificates",
+    body: "Turn a list of names into personalised, print-ready certificates.",
+    Icon: Award,
+    defaultGroups: ["events", "documents"],
+    tags: ["certificate", "award", "merge", "names", "event", "pdf"],
   },
 ];
 

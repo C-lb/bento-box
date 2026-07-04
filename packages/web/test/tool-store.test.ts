@@ -64,7 +64,7 @@ describe("visibleTools", () => {
   });
   it("shows a group's tools when a group is active", () => {
     const s = seedState();
-    expect(ids(visibleTools(s, TOOLS, "documents", ""))).toEqual(["slice", "pdf"]);
+    expect(ids(visibleTools(s, TOOLS, "documents", ""))).toEqual(["slice", "pdf", "certificate"]);
   });
   it("a live query overrides the active group and searches all tools", () => {
     const s = seedState();
