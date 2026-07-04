@@ -1,6 +1,7 @@
 import { TOOLS, searchTools, type Tool } from "@/components/tools";
 
-export const FAV = "fav"; // reserved favourites group id, always rendered first
+export const ALL = "all"; // reserved home view: every tool, rendered first
+export const FAV = "fav"; // reserved favourites group id, rendered after Home
 
 export const DEFAULT_GROUP_ORDER = ["events", "images", "media", "documents", "utilities"];
 export const DEFAULT_GROUP_LABELS: Record<string, string> = {
@@ -45,6 +46,7 @@ export function visibleTools(
   query: string,
 ): Tool[] {
   if (query.trim()) return searchTools(tools, query);
+  if (activeGroup === ALL) return tools;
   if (activeGroup === FAV) return tools.filter((t) => state.favourites.includes(t.id));
   return toolsInGroup(state, tools, activeGroup);
 }

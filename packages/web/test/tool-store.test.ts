@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { TOOLS, toolById } from "@/components/tools";
 import {
+  ALL,
   FAV,
   DEFAULT_GROUP_ORDER,
   seedState,
@@ -58,6 +59,11 @@ describe("toolsInGroup", () => {
 });
 
 describe("visibleTools", () => {
+  it("shows every tool in the Home (ALL) view", () => {
+    const s = seedState();
+    expect(ids(visibleTools(s, TOOLS, ALL, ""))).toEqual(ids(TOOLS));
+  });
+
   it("shows favourites when the active group is FAV", () => {
     const s = { ...seedState(), favourites: ["convert", "slice"] };
     expect(ids(visibleTools(s, TOOLS, FAV, ""))).toEqual(["slice", "convert"]);

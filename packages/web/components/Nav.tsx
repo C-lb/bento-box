@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Home, Settings } from "lucide-react";
 import { useToolShell } from "@/components/tool-shell-context";
-import { FAV } from "@/components/tool-store";
+import { ALL, FAV } from "@/components/tool-store";
 
 export function Nav() {
   const router = useRouter();
@@ -14,6 +14,7 @@ export function Nav() {
   const searching = query.trim().length > 0;
 
   const pills = [
+    { id: ALL, label: "Home" },
     { id: FAV, label: "Favourites" },
     ...state.groups.map((id) => ({ id, label: state.groupLabels[id] ?? id })),
   ];
@@ -54,7 +55,12 @@ export function Nav() {
   return (
     <header className="relative border-b border-line">
       <div className="mx-auto flex max-w-5xl items-center gap-3 px-6 py-3">
-        <Link href="/" aria-label="Home" className="flex shrink-0 items-center gap-2 text-sm font-semibold text-ink">
+        <Link
+          href="/"
+          aria-label="Home, show all tools"
+          onClick={() => setActiveGroup(ALL)}
+          className="flex shrink-0 items-center gap-2 text-sm font-semibold text-ink"
+        >
           <Home size={18} strokeWidth={1.75} aria-hidden />
           <span className="hidden sm:inline">Event Editor</span>
         </Link>

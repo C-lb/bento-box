@@ -2,7 +2,7 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
 import type { Tool } from "@/components/tools";
 import {
-  FAV,
+  ALL,
   TOOL_SHELL_EVENT,
   readToolShell,
   writeToolShell,
@@ -35,7 +35,7 @@ const Ctx = createContext<ShellCtx | null>(null);
 export function ToolShellProvider({ children }: { children: ReactNode }) {
   // Seed on the server and first client render to avoid hydration mismatch, then hydrate from storage.
   const [state, setState] = useState<ToolShellState>(seedState);
-  const [activeGroup, setActiveGroup] = useState<string>(FAV);
+  const [activeGroup, setActiveGroup] = useState<string>(ALL);
   const [query, setQuery] = useState("");
 
   useEffect(() => {
@@ -66,7 +66,7 @@ export function ToolShellProvider({ children }: { children: ReactNode }) {
     },
     renameGroup: (id, label) => commit(rRenameGroup(state, id, label)),
     deleteGroup: (id) => {
-      if (activeGroup === id) setActiveGroup(FAV);
+      if (activeGroup === id) setActiveGroup(ALL);
       commit(rDeleteGroup(state, id));
     },
     reorderGroups: (ids) => commit(rReorderGroups(state, ids)),
