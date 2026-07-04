@@ -32,7 +32,8 @@
     "./heic": "./dist/heic.js",
     "./resize": "./dist/resize.js",
     "./pdf": "./dist/pdf.js",
-    "./video": "./dist/video.js"
+    "./video": "./dist/video.js",
+    "./splice": "./dist/splice.js"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
