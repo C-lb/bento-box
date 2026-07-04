@@ -2,12 +2,13 @@ import { TOOLS, searchTools, type Tool } from "@/components/tools";
 
 export const FAV = "fav"; // reserved favourites group id, always rendered first
 
-export const DEFAULT_GROUP_ORDER = ["events", "images", "media", "documents"];
+export const DEFAULT_GROUP_ORDER = ["events", "images", "media", "documents", "utilities"];
 export const DEFAULT_GROUP_LABELS: Record<string, string> = {
   events: "Events",
   images: "Images",
   media: "Media",
   documents: "Documents",
+  utilities: "Utilities",
 };
 
 export type ToolShellState = {

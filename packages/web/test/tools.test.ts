@@ -4,8 +4,20 @@ import { TOOLS, toolById, searchTools } from "@/components/tools";
 const ids = (ts: { id: string }[]) => ts.map((t) => t.id);
 
 describe("TOOLS registry", () => {
-  it("has the five current tools with unique ids and hrefs", () => {
-    expect(ids(TOOLS)).toEqual(["sorter", "studio", "transcribe", "slice", "convert"]);
+  it("has the eleven current tools with unique ids and hrefs", () => {
+    expect(ids(TOOLS)).toEqual([
+      "sorter",
+      "studio",
+      "transcribe",
+      "slice",
+      "convert",
+      "heic",
+      "resize",
+      "pdf",
+      "video",
+      "splice",
+      "qr",
+    ]);
     expect(new Set(ids(TOOLS)).size).toBe(TOOLS.length);
     expect(new Set(TOOLS.map((t) => t.href)).size).toBe(TOOLS.length);
   });

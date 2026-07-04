@@ -1,4 +1,17 @@
-import { Images, UserRound, Mic, Scissors, AudioLines, type LucideIcon } from "lucide-react";
+import {
+  Images,
+  UserRound,
+  Mic,
+  Scissors,
+  AudioLines,
+  FileImage,
+  Shrink,
+  Files,
+  Film,
+  Combine,
+  QrCode,
+  type LucideIcon,
+} from "lucide-react";
 
 export type Tool = {
   id: string;
@@ -55,6 +68,60 @@ export const TOOLS: Tool[] = [
     Icon: AudioLines,
     defaultGroups: ["media"],
     tags: ["audio", "mp3", "convert", "youtube", "video"],
+  },
+  {
+    id: "heic",
+    href: "/heic",
+    title: "Convert HEIC photos",
+    body: "Turn iPhone .heic photos into jpg or png you can use anywhere.",
+    Icon: FileImage,
+    defaultGroups: ["images"],
+    tags: ["heic", "iphone", "jpg", "png", "photo", "image"],
+  },
+  {
+    id: "resize",
+    href: "/resize",
+    title: "Compress or resize images",
+    body: "Shrink an image's dimensions or file size, and change its format.",
+    Icon: Shrink,
+    defaultGroups: ["images"],
+    tags: ["resize", "compress", "image", "shrink", "webp"],
+  },
+  {
+    id: "pdf",
+    href: "/pdf",
+    title: "Merge, split, or shrink PDFs",
+    body: "Combine PDFs, split one by page ranges, or tidy a bloated file.",
+    Icon: Files,
+    defaultGroups: ["documents"],
+    tags: ["pdf", "merge", "split", "compress", "combine"],
+  },
+  {
+    id: "video",
+    href: "/video",
+    title: "Compress a video",
+    body: "Re-encode a video smaller with a simple quality preset.",
+    Icon: Film,
+    defaultGroups: ["media"],
+    tags: ["video", "compress", "mp4", "shrink"],
+  },
+  {
+    id: "splice",
+    href: "/splice",
+    title: "Trim and join clips",
+    body: "Trim, reorder, and join video or audio clips into one file.",
+    Icon: Combine,
+    defaultGroups: ["media"],
+    tags: ["video", "audio", "trim", "join", "concat", "edit"],
+  },
+  {
+    id: "qr",
+    href: "/qr",
+    title: "Make a QR code",
+    body: "Turn a link or text into a QR code you can download as png or svg.",
+    Icon: QrCode,
+    defaultGroups: ["utilities"],
+    tags: ["qr", "code", "link", "url"],
   },
 ];
 

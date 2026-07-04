@@ -13,7 +13,7 @@ import {
 const ids = (ts: { id: string }[]) => ts.map((t) => t.id);
 
 describe("seedState", () => {
-  it("seeds the four default groups in order with labels", () => {
+  it("seeds the default groups in order with labels", () => {
     const s = seedState();
     expect(s.groups).toEqual(DEFAULT_GROUP_ORDER);
     expect(s.groupLabels.images).toBe("Images");
@@ -41,8 +41,13 @@ describe("effectiveGroups", () => {
 describe("toolsInGroup", () => {
   it("returns tools whose effective groups include the id, in registry order", () => {
     const s = seedState();
-    expect(ids(toolsInGroup(s, TOOLS, "images"))).toEqual(["sorter", "studio"]);
-    expect(ids(toolsInGroup(s, TOOLS, "media"))).toEqual(["transcribe", "convert"]);
+    expect(ids(toolsInGroup(s, TOOLS, "images"))).toEqual(["sorter", "studio", "heic", "resize"]);
+    expect(ids(toolsInGroup(s, TOOLS, "media"))).toEqual([
+      "transcribe",
+      "convert",
+      "video",
+      "splice",
+    ]);
   });
 });
 
@@ -53,7 +58,7 @@ describe("visibleTools", () => {
   });
   it("shows a group's tools when a group is active", () => {
     const s = seedState();
-    expect(ids(visibleTools(s, TOOLS, "documents", ""))).toEqual(["slice"]);
+    expect(ids(visibleTools(s, TOOLS, "documents", ""))).toEqual(["slice", "pdf"]);
   });
   it("a live query overrides the active group and searches all tools", () => {
     const s = seedState();

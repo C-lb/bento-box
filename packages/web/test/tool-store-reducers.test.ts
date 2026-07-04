@@ -86,6 +86,6 @@ describe("deleteGroup", () => {
 describe("reorderGroups", () => {
   it("applies a new order, keeping only known ids", () => {
     const s = reorderGroups(seedState(), ["documents", "images", "nope", "events", "media"]);
-    expect(s.groups).toEqual(["documents", "images", "events", "media"]);
+    expect(s.groups).toEqual(["documents", "images", "events", "media", "utilities"]);
   });
 });
