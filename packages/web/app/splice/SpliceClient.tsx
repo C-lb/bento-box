@@ -43,12 +43,12 @@ export function SpliceClient() {
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<Result | null>(null);
 
-  // Clean up every object URL still held when the component unmounts.
-  useEffect(() => {
-    return () => {
-      for (const c of clips) URL.revokeObjectURL(c.url);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  // Keep a ref in sync with clips so the unmount cleanup revokes the URLs that
+  // are actually live, not the empty initial-render closure.
+  const clipsRef = useRef(clips);
+  useEffect(() => { clipsRef.current = clips; }, [clips]);
+  useEffect(() => () => {
+    for (const c of clipsRef.current) URL.revokeObjectURL(c.url);
   }, []);
 
   function onPickFiles() {
@@ -93,13 +93,11 @@ export function SpliceClient() {
   }
 
   function removeClip(key: string) {
-    setClips((prev) => {
-      const found = prev.find((c) => c.key === key);
-      if (found) URL.revokeObjectURL(found.url);
-      const next = prev.filter((c) => c.key !== key);
-      if (next.length === 0) setKind(null);
-      return next;
-    });
+    const found = clips.find((c) => c.key === key);
+    if (found) URL.revokeObjectURL(found.url);
+    const next = clips.filter((c) => c.key !== key);
+    setClips(next);
+    if (next.length === 0) setKind(null);
   }
 
   function moveClip(key: string, dir: -1 | 1) {
