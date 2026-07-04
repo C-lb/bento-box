@@ -27,7 +27,8 @@
     "./match": "./dist/match.js",
     "./slice-plan": "./dist/slice-plan.js",
     "./pptx": "./dist/pptx.js",
-    "./convert": "./dist/convert.js"
+    "./convert": "./dist/convert.js",
+    "./names": "./dist/names.js"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
