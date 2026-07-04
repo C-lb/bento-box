@@ -16,3 +16,7 @@ export * from "./slice-runs.js";
 export * from "./convert.js";
 export * from "./merge.js";
 export * from "./certificate.js";
+export * from "./nup.js";
+export * from "./badge.js";
+export * from "./placecard.js";
+export * from "./ticket.js";

@@ -37,7 +37,11 @@
     "./qr": "./dist/qr.js",
     "./cutout": "./dist/cutout.js",
     "./merge": "./dist/merge.js",
-    "./certificate": "./dist/certificate.js"
+    "./certificate": "./dist/certificate.js",
+    "./nup": "./dist/nup.js",
+    "./badge": "./dist/badge.js",
+    "./placecard": "./dist/placecard.js",
+    "./ticket": "./dist/ticket.js"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
