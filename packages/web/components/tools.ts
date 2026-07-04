@@ -10,6 +10,7 @@ import {
   Film,
   Combine,
   QrCode,
+  Eraser,
   type LucideIcon,
 } from "lucide-react";
 
@@ -122,6 +123,15 @@ export const TOOLS: Tool[] = [
     Icon: QrCode,
     defaultGroups: ["utilities"],
     tags: ["qr", "code", "link", "url"],
+  },
+  {
+    id: "cutout",
+    href: "/cutout",
+    title: "Remove a background",
+    body: "Cut a person out of a photo onto a transparent or solid background.",
+    Icon: Eraser,
+    defaultGroups: ["images"],
+    tags: ["background", "remove", "cutout", "transparent", "png", "person", "photo"],
   },
 ];
 

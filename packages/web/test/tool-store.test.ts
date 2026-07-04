@@ -41,7 +41,13 @@ describe("effectiveGroups", () => {
 describe("toolsInGroup", () => {
   it("returns tools whose effective groups include the id, in registry order", () => {
     const s = seedState();
-    expect(ids(toolsInGroup(s, TOOLS, "images"))).toEqual(["sorter", "studio", "heic", "resize"]);
+    expect(ids(toolsInGroup(s, TOOLS, "images"))).toEqual([
+      "sorter",
+      "studio",
+      "heic",
+      "resize",
+      "cutout",
+    ]);
     expect(ids(toolsInGroup(s, TOOLS, "media"))).toEqual([
       "transcribe",
       "convert",
