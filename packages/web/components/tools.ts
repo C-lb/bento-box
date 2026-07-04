@@ -12,6 +12,9 @@ import {
   QrCode,
   Eraser,
   Award,
+  IdCard,
+  Tent,
+  Ticket,
   type LucideIcon,
 } from "lucide-react";
 
@@ -142,6 +145,33 @@ export const TOOLS: Tool[] = [
     Icon: Award,
     defaultGroups: ["events", "documents"],
     tags: ["certificate", "award", "merge", "names", "event", "pdf"],
+  },
+  {
+    id: "badge",
+    href: "/badge",
+    title: "Make name badges",
+    body: "Turn a list into printable name badges, six to a sheet.",
+    Icon: IdCard,
+    defaultGroups: ["events"],
+    tags: ["badge", "name", "lanyard", "merge", "event", "qr"],
+  },
+  {
+    id: "place-card",
+    href: "/place-card",
+    title: "Make place cards",
+    body: "Turn a guest list into printable table place cards.",
+    Icon: Tent,
+    defaultGroups: ["events"],
+    tags: ["place card", "table", "seating", "name", "event"],
+  },
+  {
+    id: "ticket",
+    href: "/ticket",
+    title: "Make event tickets",
+    body: "Turn a list into event tickets, each with its own QR code.",
+    Icon: Ticket,
+    defaultGroups: ["events"],
+    tags: ["ticket", "qr", "admit", "event", "merge"],
   },
 ];
 
