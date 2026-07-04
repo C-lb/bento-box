@@ -29,7 +29,8 @@
     "./pptx": "./dist/pptx.js",
     "./convert": "./dist/convert.js",
     "./names": "./dist/names.js",
-    "./heic": "./dist/heic.js"
+    "./heic": "./dist/heic.js",
+    "./resize": "./dist/resize.js"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
