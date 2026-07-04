@@ -15,7 +15,13 @@ export interface ImageElement {
   src: string;
   x: number; y: number; width: number; height: number;
 }
-export type Element = TextElement | ImageElement;
+export interface QrElement {
+  kind: "qr";
+  value: string;
+  x: number; y: number;
+  size: number;
+}
+export type Element = TextElement | ImageElement | QrElement;
 
 export interface DocumentSpec {
   page: PageSize;
@@ -57,12 +63,15 @@ export function parseDelimited(text: string): Rows {
 
 export function deriveFields(spec: DocumentSpec): string[] {
   const seen: string[] = [];
-  for (const el of spec.elements) {
-    if (el.kind !== "text") continue;
-    for (const m of el.template.matchAll(/\{([^}]+)\}/g)) {
+  const scan = (tpl: string) => {
+    for (const m of tpl.matchAll(/\{([^}]+)\}/g)) {
       const f = m[1].trim();
       if (!seen.includes(f)) seen.push(f);
     }
+  };
+  for (const el of spec.elements) {
+    if (el.kind === "text") scan(el.template);
+    else if (el.kind === "qr") scan(el.value);
   }
   return seen;
 }

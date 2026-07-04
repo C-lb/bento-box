@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { resolveText, parseDelimited, deriveFields, autoMatchColumns } from "./merge.js";
-import type { DocumentSpec } from "./merge.js";
+import type { DocumentSpec, QrElement } from "./merge.js";
 
 describe("resolveText", () => {
   it("substitutes a token with the matching column value", () => {
@@ -84,5 +84,28 @@ describe("autoMatchColumns", () => {
     const m = autoMatchColumns(["Name", "Recipient"], ["Name"]);
     const used = Object.values(m).filter(Boolean);
     expect(new Set(used).size).toBe(used.length);
+  });
+});
+
+describe("QrElement + deriveFields", () => {
+  it("derives tokens from qr element values", () => {
+    const spec: DocumentSpec = {
+      page: { width: 100, height: 100 },
+      elements: [
+        { kind: "text", template: "{Name}", x: 0, y: 0, size: 12, font: "heading", align: "left", color: "#000000" },
+        { kind: "qr", value: "{Code}", x: 0, y: 0, size: 40 } as QrElement,
+      ],
+    };
+    expect(deriveFields(spec)).toEqual(["Name", "Code"]);
+  });
+  it("does not duplicate a token used in both text and qr", () => {
+    const spec: DocumentSpec = {
+      page: { width: 100, height: 100 },
+      elements: [
+        { kind: "text", template: "{Name}", x: 0, y: 0, size: 12, font: "body", align: "left", color: "#000000" },
+        { kind: "qr", value: "{Name}", x: 0, y: 0, size: 40 } as QrElement,
+      ],
+    };
+    expect(deriveFields(spec)).toEqual(["Name"]);
   });
 });
