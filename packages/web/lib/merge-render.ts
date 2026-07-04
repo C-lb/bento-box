@@ -1,8 +1,9 @@
 import { PDFDocument, StandardFonts, rgb, type PDFFont } from "pdf-lib";
 import fontkit from "@pdf-lib/fontkit";
 import JSZip from "jszip";
-import { resolveText, type DocumentSpec } from "@event-editor/core/merge";
+import { resolveText, type DocumentSpec, type PageSize } from "@event-editor/core/merge";
 import { safeBase } from "@event-editor/core/names";
+import { nUpGrid } from "@event-editor/core/nup";
 
 export interface FontBytes { heading?: Uint8Array; body?: Uint8Array }
 
@@ -109,4 +110,46 @@ export async function loadBundledFonts(): Promise<FontBytes> {
     get("/fonts/body.ttf"),
   ]);
   return { heading, body };
+}
+
+const SHEET_A4: PageSize = { width: 595.28, height: 841.89 };
+
+export interface SheetOptions { sheet?: PageSize; gap?: number; cropMarks?: boolean }
+
+function drawCropMarks(page: import("pdf-lib").PDFPage, x: number, y: number, cell: PageSize) {
+  const t = 6; // tick length
+  const g = rgb(0.7, 0.7, 0.7);
+  const corners: [number, number][] = [
+    [x, y], [x + cell.width, y], [x, y + cell.height], [x + cell.width, y + cell.height],
+  ];
+  for (const [cx, cy] of corners) {
+    page.drawLine({ start: { x: cx - t, y: cy }, end: { x: cx + t, y: cy }, thickness: 0.4, color: g });
+    page.drawLine({ start: { x: cx, y: cy - t }, end: { x: cx, y: cy + t }, thickness: 0.4, color: g });
+  }
+}
+
+export async function renderSheet(
+  cellSpec: DocumentSpec,
+  rows: Record<string, string>[],
+  fonts?: FontBytes,
+  opts?: SheetOptions,
+): Promise<Uint8Array> {
+  const sheet = opts?.sheet ?? SHEET_A4;
+  const gap = opts?.gap ?? 18;
+  const cropMarks = opts?.cropMarks ?? true;
+  const { placements } = nUpGrid(sheet, cellSpec.page, gap);
+  const perPage = placements.length;
+
+  const doc = await PDFDocument.create();
+  const f = await embedFonts(doc, fonts);
+  for (let i = 0; i < rows.length; i += perPage) {
+    const page = doc.addPage([sheet.width, sheet.height]);
+    const slice = rows.slice(i, i + perPage);
+    for (let j = 0; j < slice.length; j++) {
+      const { x, y } = placements[j];
+      if (cropMarks) drawCropMarks(page, x, y, cellSpec.page);
+      await drawPage(page, cellSpec, slice[j], f, x, y);
+    }
+  }
+  return doc.save({ addDefaultPage: false });
 }

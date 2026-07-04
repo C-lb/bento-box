@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { PDFDocument } from "pdf-lib";
 import JSZip from "jszip";
-import { renderCombined, renderZip } from "./merge-render";
+import { renderCombined, renderZip, renderSheet } from "./merge-render";
 import type { DocumentSpec } from "@event-editor/core/merge";
 import type { DocumentSpec as DS2 } from "@event-editor/core/merge";
 
@@ -65,5 +65,25 @@ describe("renderCombined with a QR element", () => {
     const bytes = await renderCombined(spec, [{ Name: "Ada" }]); // no Code -> empty -> skip
     const doc = await PDFDocument.load(bytes);
     expect(doc.getPageCount()).toBe(1);
+  });
+});
+
+const badgeCell: DS2 = {
+  page: { width: 288, height: 216 },
+  elements: [{ kind: "text", template: "{Name}", x: 144, y: 120, size: 18, font: "heading", align: "center", color: "#111" }],
+};
+
+describe("renderSheet", () => {
+  it("puts 6 badges per A4 page (ceil(rows/6) pages)", async () => {
+    const rows = Array.from({ length: 7 }, (_, i) => ({ Name: `P${i}` }));
+    const bytes = await renderSheet(badgeCell, rows);
+    const doc = await PDFDocument.load(bytes);
+    expect(doc.getPageCount()).toBe(2); // 7 badges -> 6 + 1
+    expect(doc.getPage(0).getWidth()).toBeCloseTo(595.28, 0);
+  });
+  it("returns a 0-page pdf for no rows", async () => {
+    const bytes = await renderSheet(badgeCell, []);
+    const doc = await PDFDocument.load(bytes);
+    expect(doc.getPageCount()).toBe(0);
   });
 });
