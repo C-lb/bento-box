@@ -1,110 +1,131 @@
-# Spec B Batch E — Background Removal Implementation Plan
+# Spec B Batch E — Background Removal (MediaPipe) Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Add a client-side "Remove a background" tool (`cutout`, `/cutout`) to the event-editor tool shell — drop photos, get transparent-PNG cutouts, all in the browser.
+**Goal:** Add a client-side "Remove a background" tool (`cutout`, `/cutout`) to the event-editor tool shell — drop photos of people, get transparent-PNG cutouts, all in the browser.
 
-**Architecture:** Fully client-side, following the QR tool's shape. `@imgly/background-removal` runs a U^2-Net segmentation model in the browser via ONNX Runtime Web (WASM); the photo never leaves the machine. Model + WASM assets are self-hosted under `packages/web/public/imgly/` (copied from the `@imgly/background-removal-data` npm package at pre-build), so it works offline and ships in the packaged desktop app with NO native module. Pure helpers live in `packages/core/src/cutout.ts`; there is no API route, no `lib/` IO module, and no job dir.
+**Architecture:** Fully client-side (QR-tool shape). `@mediapipe/tasks-vision` (Apache-2.0) runs a selfie/person segmentation model in the browser via WebAssembly; the photo never leaves the machine. The per-pixel person-confidence mask becomes an alpha matte the client applies on a `<canvas>`. WASM + model assets are self-hosted under `packages/web/public/mediapipe/` (copied/downloaded at pre-build), so it works offline and ships in the packaged desktop app with NO native module. Pure helpers live in `packages/core/src/cutout.ts`; no API route, no `lib/` module, no job dir.
 
-**Tech Stack:** TypeScript, Next.js (client component), React, vitest. New deps: `@imgly/background-removal`, `@imgly/background-removal-data`.
+**Tech Stack:** TypeScript, Next.js (client component), React, canvas 2D, vitest. New dep: `@mediapipe/tasks-vision`. (Replaces the AGPL `@imgly/background-removal` from the prior draft.)
 
 ## Global Constraints
 
-- **Client-only tool.** NO `app/api/cutout/**`, NO `packages/web/lib/cutout.ts`, NO job dir. All processing runs in the browser. (An API route or job dir would be an over-build finding.)
-- **Core subpath export:** add `"./cutout": "./dist/cutout.js"` to `packages/core/package.json` `exports`; after any `packages/core/src` change run `npm run build` in `packages/core` before the web app or its tests see it. Core test imports use the `.js` extension (`import { x } from "../src/cutout.js"`).
-- **Model assets self-hosted:** `@imgly/background-removal` must be configured with `publicPath: "/imgly/"` (or the exact value Task 1 determines from the installed data package's dist layout) so it loads from the app's own origin, never the IMG.LY CDN.
-- **SSR safety:** `CutoutClient` is `"use client"`; the `import("@imgly/background-removal")` happens INSIDE the run handler, never at module top level (WASM must not load during SSR/build).
-- **Object-URL cleanup:** revoke result object URLs on row removal AND on unmount using a ref synced to the live rows (the splice-tool pattern) — NOT a `useEffect([])` cleanup closing over the initial empty rows array (that stale-closure leak was a real bug in the splice tool).
-- **Serial processing:** process a batch one file at a time (WASM inference is memory-heavy), not `Promise.all`.
-- **House UI:** anti-vibecode. Reuse `.card`, `.field`, `.btn`, `.btn-accent`, `.eyebrow`, `.text-muted`, `.text-danger`, `Segmented` (`@/components/Segmented`), `Loader2`. One accent per view (the primary "Remove backgrounds" button is `.btn-accent`). Sentence-case labels, NO em dashes in user-facing copy.
+- **Client-only tool.** NO `app/api/cutout/**`, NO `packages/web/lib/cutout.ts`, NO job dir. All processing in the browser. (A route or job dir = over-build finding.)
+- **Person-focused, honest copy.** The selfie segmenter is for people; the tool copy says "Best for photos of people." NO em dashes in user copy.
+- **Core subpath export:** add `"./cutout": "./dist/cutout.js"` to `packages/core/package.json` `exports`; after any `packages/core/src` change run `npm run build` in `packages/core`. Core test imports use the `.js` extension.
+- **Self-hosted assets:** `@mediapipe/tasks-vision` must load its WASM via `FilesetResolver.forVisionTasks("/mediapipe/wasm")` and its model via `baseOptions.modelAssetPath: "/mediapipe/<model>.tflite"` — from the app's own origin, never a Google CDN.
+- **SSR safety:** `CutoutClient` is `"use client"`; `import("@mediapipe/tasks-vision")` and segmenter creation happen INSIDE the run handler, never at module top level.
+- **Object-URL cleanup:** revoke result URLs on row removal AND on unmount via a ref synced to the live rows (the splice-tool pattern), NOT a `useEffect([])` closure over the initial rows.
+- **Serial processing:** one file at a time (memory), not `Promise.all`.
+- **House UI:** `.card`, `.field`, `.btn`, `.btn-accent`, `.eyebrow`, `.text-muted`, `.text-danger`, `Segmented` (`@/components/Segmented`), `Loader2`. Primary "Remove backgrounds" button is `.btn-accent` (one accent per view). Sentence-case, no em dashes.
 - **`packages/web` has 5 PRE-EXISTING `tsc --noEmit` errors** (test/docs.test.ts + test/canva-oauth.test.ts). "Clean" = NO NEW errors from this task's files.
-- **Commits:** conventional, atomic. End every commit body with `Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>`. Push to `main` after each task (repo default).
+- **Commits:** conventional, atomic, body ends with `Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>`. Push to `main` after each task.
 
 ## File Structure
 
-- Task 1: `packages/web/scripts/copy-bg-assets.mjs` (create); `packages/web/package.json` (add `predev`/`prebuild`, deps); `.gitignore` (add `packages/web/public/imgly/`).
+- Task 1: `packages/web/scripts/fetch-mediapipe-assets.mjs` (create); `packages/web/package.json` (deps + `predev`/`prebuild`); `.gitignore` (add `packages/web/public/mediapipe/`).
 - Task 2: `packages/core/src/cutout.ts` + `packages/core/test/cutout.test.ts` (create); `packages/core/package.json` (export); `packages/web/app/cutout/page.tsx` + `packages/web/app/cutout/CutoutClient.tsx` (create).
 - Task 3: `packages/web/components/tools.ts` (add one entry).
 
 ---
 
-## Task 1: Model-asset infrastructure
+## Task 1: MediaPipe asset infrastructure
 
 **Files:**
-- Create: `packages/web/scripts/copy-bg-assets.mjs`
+- Create: `packages/web/scripts/fetch-mediapipe-assets.mjs`
 - Modify: `packages/web/package.json` (deps + `predev`/`prebuild`)
 - Modify: `.gitignore`
 
 **Interfaces:**
-- Produces: `public/imgly/` populated with the `@imgly/background-removal-data` dist, present before `next dev`/`next build`. The exact `publicPath` value the client will use (determined from the real dist layout).
+- Produces: `public/mediapipe/wasm/*` (copied from the npm package) and `public/mediapipe/<model>.tflite` (downloaded), present before `next dev`/`next build`. Records the exact `wasm` path, model filename, and model URL for Task 2.
 
-- [ ] **Step 1: Install the deps**
+- [ ] **Step 1: Install and confirm the license**
 
-Run: `cd packages/web && npm install @imgly/background-removal @imgly/background-removal-data`
-Expected: both added to `packages/web/package.json` dependencies.
+Run: `cd packages/web && npm install @mediapipe/tasks-vision`
+Then confirm license: `node -e "const p=require('@mediapipe/tasks-vision/package.json'); console.log(p.version, p.license)"`.
+Expected: license `Apache-2.0`. Record it in your report. If it is NOT Apache-2.0 / a permissive license, STOP and report (the whole point of this switch was a permissive license).
 
-- [ ] **Step 2: Inspect the data package's real dist layout**
+- [ ] **Step 2: Locate the package WASM folder and pick the model**
 
-Run: `cd packages/web && node -e "const p=require('@imgly/background-removal-data/package.json'); console.log(p.version)" && ls node_modules/@imgly/background-removal-data/dist | head -40`
-Read the output. Note what the `dist/` contains (onnx model files, `.wasm`, a resources manifest/json). **This determines the copy target and the `publicPath` value used in Task 2.** Record the correct `publicPath` in your report (it is `/imgly/` if you copy `dist/*` directly into `public/imgly/`, but confirm the library expects the resources at that path root — check the library README / its `PublicPathConfig` type). Also verify the library's own license terms in `node_modules/@imgly/background-removal/package.json` (`license` field) and its LICENSE file; report what you find — if it requires a commercial license or attribution, STOP and report as a concern before proceeding (this is an open item in the spec).
+Run: `cd packages/web && ls node_modules/@mediapipe/tasks-vision/wasm | head`
+Expected: `.wasm` + `.js` loader files (e.g. `vision_wasm_internal.wasm`, `vision_wasm_internal.js`). This folder is what `FilesetResolver.forVisionTasks` needs.
+Model: use the single-class selfie segmenter. Canonical URL:
+`https://storage.googleapis.com/mediapipe-models/image_segmenter/selfie_segmenter/float16/latest/selfie_segmenter.tflite`
+Record in your report: the wasm dir contents, the model filename (`selfie_segmenter.tflite`), and the model URL. If that URL 404s, find the current selfie segmenter model URL from the MediaPipe Image Segmenter model card and use it (report the substitution).
 
-- [ ] **Step 3: Write the copy script**
+- [ ] **Step 3: Write the asset script**
 
-`packages/web/scripts/copy-bg-assets.mjs`:
+`packages/web/scripts/fetch-mediapipe-assets.mjs`:
 ```javascript
-// Copy the @imgly/background-removal model + wasm assets into public/ so the
-// browser loads them from our own origin (offline-capable, private) instead of
-// the IMG.LY CDN. Runs on predev/prebuild. The dest is git-ignored — it's a
-// copy of a dependency, not source.
-import { cpSync, existsSync, rmSync } from "node:fs";
+// Self-host MediaPipe's WASM runtime + selfie segmenter model under public/ so the
+// browser loads them from our own origin (offline, private) instead of a Google CDN.
+// Runs on predev/prebuild. Dest is git-ignored (a copy/download of a dependency).
+import { cpSync, existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const require = createRequire(import.meta.url);
-// Resolve the installed data package's dist directory.
-const dataPkg = require.resolve("@imgly/background-removal-data/package.json");
-const srcDist = resolve(dirname(dataPkg), "dist");
-const dest = resolve(here, "..", "public", "imgly");
+const destDir = resolve(here, "..", "public", "mediapipe");
+const wasmDest = resolve(destDir, "wasm");
+const modelUrl =
+  "https://storage.googleapis.com/mediapipe-models/image_segmenter/selfie_segmenter/float16/latest/selfie_segmenter.tflite";
+const modelDest = resolve(destDir, "selfie_segmenter.tflite");
 
-if (!existsSync(srcDist)) {
-  console.error(`[copy-bg-assets] source not found: ${srcDist} — is @imgly/background-removal-data installed?`);
+// 1. Copy the WASM runtime from the installed package.
+const pkgJson = require.resolve("@mediapipe/tasks-vision/package.json");
+const wasmSrc = resolve(dirname(pkgJson), "wasm");
+if (!existsSync(wasmSrc)) {
+  console.error(`[mediapipe-assets] wasm source not found: ${wasmSrc}`);
   process.exit(1);
 }
-rmSync(dest, { recursive: true, force: true });
-cpSync(srcDist, dest, { recursive: true });
-console.log(`[copy-bg-assets] copied ${srcDist} -> ${dest}`);
+mkdirSync(destDir, { recursive: true });
+rmSync(wasmDest, { recursive: true, force: true });
+cpSync(wasmSrc, wasmDest, { recursive: true });
+console.log(`[mediapipe-assets] copied wasm -> ${wasmDest}`);
+
+// 2. Download the model once (skip if already present).
+if (existsSync(modelDest)) {
+  console.log(`[mediapipe-assets] model already present, skipping download`);
+} else {
+  const res = await fetch(modelUrl);
+  if (!res.ok) {
+    console.error(`[mediapipe-assets] model download failed: ${res.status} ${modelUrl}`);
+    process.exit(1);
+  }
+  const buf = Buffer.from(await res.arrayBuffer());
+  writeFileSync(modelDest, buf);
+  console.log(`[mediapipe-assets] downloaded model (${buf.length} bytes) -> ${modelDest}`);
+}
 ```
 
-Note: if Step 2 shows the dist has a nested versioned folder the library expects at a specific path, adjust `srcDist`/`dest` and the Task 2 `publicPath` to match — the goal is that `publicPath + <resource filename>` resolves to a real served file.
+(Node 18+ has global `fetch`; the repo runs Node 24, so this is fine.)
 
 - [ ] **Step 4: Wire predev/prebuild + gitignore**
 
 In `packages/web/package.json` `scripts`, add:
 ```json
-"predev": "node scripts/copy-bg-assets.mjs",
-"prebuild": "node scripts/copy-bg-assets.mjs"
+"predev": "node scripts/fetch-mediapipe-assets.mjs",
+"prebuild": "node scripts/fetch-mediapipe-assets.mjs"
 ```
-(npm runs `predev` before `dev` and `prebuild` before `build` automatically, including when the root `dev`/`build` and the desktop assemble invoke `next build`.)
-
-In `.gitignore`, add a line:
+In `.gitignore`, add:
 ```
-packages/web/public/imgly/
+packages/web/public/mediapipe/
 ```
 
-- [ ] **Step 5: Verify assets land and the app still builds**
+- [ ] **Step 5: Verify assets land**
 
-Run: `cd packages/web && node scripts/copy-bg-assets.mjs && ls public/imgly | head`
-Expected: the assets are copied (non-empty listing).
+Run: `cd packages/web && node scripts/fetch-mediapipe-assets.mjs && ls -R public/mediapipe | head -30`
+Expected: `wasm/` populated and `selfie_segmenter.tflite` present (~250KB).
 Run: `cd packages/web && npx tsc --noEmit`
-Expected: only the 5 pre-existing errors (no new — this task adds no TS).
+Expected: only the 5 pre-existing errors (this task adds no TS).
 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add packages/web/scripts/copy-bg-assets.mjs packages/web/package.json packages/web/package-lock.json .gitignore
-git commit -m "feat(cutout): self-host @imgly background-removal model assets"
+git add packages/web/scripts/fetch-mediapipe-assets.mjs packages/web/package.json packages/web/package-lock.json .gitignore
+git commit -m "feat(cutout): self-host MediaPipe wasm + selfie segmenter model"
 ```
 
 ---
@@ -117,7 +138,7 @@ git commit -m "feat(cutout): self-host @imgly background-removal model assets"
 - Create: `packages/web/app/cutout/page.tsx` + `packages/web/app/cutout/CutoutClient.tsx`
 
 **Interfaces:**
-- Consumes: `swapExt` from `@event-editor/core/names`; `@imgly/background-removal` (dynamic import in the browser); `publicPath` from Task 1.
+- Consumes: `swapExt` from `@event-editor/core/names`; `@mediapipe/tasks-vision` (dynamic import in the browser); the wasm path `/mediapipe/wasm` and model path `/mediapipe/selfie_segmenter.tflite` from Task 1.
 - Produces (core): `cutoutOutName(srcName: string): string` (→ `<base>-cutout.png`); `type BgFill = "transparent" | { color: string }`; `normalizeBgFill(raw: { mode?: string; color?: string }): BgFill`.
 
 - [ ] **Step 1: Write the failing core test**
@@ -168,8 +189,8 @@ export type BgFill = "transparent" | { color: string };
 
 export function cutoutOutName(srcName: string): string {
   // Background removal always outputs PNG (alpha). Name it <base>-cutout.png.
-  const withSuffix = srcName.replace(/(\.[a-z0-9]{1,5})?$/i, "-cutout");
-  return swapExt(withSuffix, "png");
+  const withoutExt = srcName.replace(/\.[a-z0-9]{1,5}$/i, "");
+  return swapExt(`${withoutExt}-cutout`, "png");
 }
 
 export function normalizeBgFill(raw: { mode?: string; color?: string }): BgFill {
@@ -182,8 +203,6 @@ export function normalizeBgFill(raw: { mode?: string; color?: string }): BgFill 
   return "transparent";
 }
 ```
-
-Note: verify `cutoutOutName("my photo")` yields `my_photo-cutout.png` — `swapExt` runs `safeBase` which turns the space into `_`. If the regex-replace approach mis-handles a case in the test, prefer stripping the extension first (`srcName.replace(/\.[a-z0-9]{1,5}$/i, "")`) then appending `-cutout` then `swapExt(x, "png")`; make the tests pass.
 
 - [ ] **Step 4: Add export, build, verify pass**
 
@@ -209,35 +228,55 @@ export default function CutoutPage() {
 
 - [ ] **Step 6: Implement the client**
 
-`packages/web/app/cutout/CutoutClient.tsx` (`"use client"`). Read `packages/web/app/heic/HeicClient.tsx` (multi-file rows + per-row status/download/retry) and `packages/web/app/qr/QrClient.tsx` (client-only, dynamic import, object-URL cleanup) for the house patterns, then build:
+`packages/web/app/cutout/CutoutClient.tsx` (`"use client"`). Read `packages/web/app/heic/HeicClient.tsx` (multi-file rows) and `packages/web/app/qr/QrClient.tsx` (client-only, dynamic import, object-URL cleanup) for the house patterns. Build:
 
-- **State**: `fill` mode (`"transparent" | "white" | "custom"`, default transparent) + `customColor` (default `#ffffff`); `rows: { key; file; name; status: "idle"|"preparing"|"busy"|"done"|"error"; url?; filename?; error? }[]`; a `modelReady` boolean (false until the first successful run) so later runs don't show the "preparing" copy.
-- **Refs**: `rowsRef` synced to `rows` via `useEffect(() => { rowsRef.current = rows }, [rows])`; on unmount, `useEffect(() => () => { for (const r of rowsRef.current) if (r.url) URL.revokeObjectURL(r.url) }, [])`.
-- **File input**: `<input type="file" multiple accept="image/*">`; on change seed one `idle` row per file.
-- **Fill control**: a `Segmented` (`Transparent | White | Custom colour`); when `custom`, show an `<input type="color">` bound to `customColor`.
-- **Run** ("Remove backgrounds", `.btn.btn-accent`): build the fill from `normalizeBgFill({ mode: fill, color: customColor })` (import from `@event-editor/core/cutout`), then loop rows **serially** (a `for...of` with `await`, not `Promise.all`). For each `idle`/`error` row:
-  1. Set the row `preparing` if `!modelReady`, else `busy`.
-  2. `const { removeBackground } = await import("@imgly/background-removal");` (dynamic import — verify the exact named export against the installed version in Task 1's notes; it may be a default export).
-  3. `const blob = await removeBackground(row.file, { publicPath: "<value from Task 1>", output: { format: "image/png" }, progress: (key, cur, total) => { /* optional: while key starts with "fetch"/"compile" the model is still loading; you can reflect it on the row */ } });`
-  4. If `fill !== "transparent"`, composite: draw the cutout blob onto a `<canvas>` filled with the fill colour, then `canvas.toBlob(..., "image/png")`. (Load the blob into an `Image` via an object URL, size the canvas to the image, `ctx.fillStyle = color; ctx.fillRect(...)`, `ctx.drawImage(img, 0, 0)`, export.) Revoke the temp image URL.
-  5. `const url = URL.createObjectURL(finalBlob);` set the row `done` with `{ url, filename: cutoutOutName(row.file.name) }`. Set `modelReady = true`.
-  6. On throw, set the row `error` with a readable message; continue the loop.
-- **Per-row UI**: original filename + status; while `preparing`, `Loader2` + "Preparing the background remover…"; while `busy`, `Loader2` + "Removing…"; when `done`, a result preview `<img src={row.url}>` on a **checkerboard backdrop** (a small CSS checkerboard via a `conic-gradient`/`repeating` background on the preview box, or a bundled inline style) so transparency reads, plus a download `<a className="btn" href={row.url} download={row.filename}>`; when `error`, `text-danger` message + a Retry button that re-runs just that row.
-- **Removing a row** revokes its `url` and drops it from `rows`.
-- No em dashes in any copy. No fetch to any server. No API route.
+- **State**: `fill` (`"transparent" | "white" | "custom"`, default transparent) + `customColor` (`#ffffff`); `rows: { key; file; name; status: "idle"|"loading"|"busy"|"done"|"error"; url?; filename?; error? }[]`; `modelReady` boolean.
+- **Refs**: `rowsRef` synced via `useEffect(() => { rowsRef.current = rows }, [rows])`; unmount `useEffect(() => () => { for (const r of rowsRef.current) if (r.url) URL.revokeObjectURL(r.url) }, [])`. Also a `segmenterRef` holding the created `ImageSegmenter` (created once, reused).
+- **File input**: `<input type="file" multiple accept="image/*">`; seed one `idle` row per file.
+- **Fill control**: `Segmented` (`Transparent | White | Custom colour`); when `custom`, an `<input type="color">` bound to `customColor`. A helper line: "Best for photos of people."
+- **getSegmenter()** (lazy, memoised on `segmenterRef`):
+```typescript
+async function getSegmenter() {
+  if (segmenterRef.current) return segmenterRef.current;
+  const { FilesetResolver, ImageSegmenter } = await import("@mediapipe/tasks-vision");
+  const fileset = await FilesetResolver.forVisionTasks("/mediapipe/wasm");
+  const seg = await ImageSegmenter.createFromOptions(fileset, {
+    baseOptions: { modelAssetPath: "/mediapipe/selfie_segmenter.tflite" },
+    runningMode: "IMAGE",
+    outputConfidenceMasks: true,
+    outputCategoryMask: false,
+  });
+  segmenterRef.current = seg;
+  return seg;
+}
+```
+  Verify the exact named exports (`FilesetResolver`, `ImageSegmenter`) and the options against the installed `@mediapipe/tasks-vision` version's types — adjust if the API differs.
+- **Run** ("Remove backgrounds", `.btn.btn-accent`): loop rows **serially** (`for...of` + `await`). For each `idle`/`error` row:
+  1. Set the row `loading` if `!modelReady`, else `busy`.
+  2. `const seg = await getSegmenter(); setModelReady(true);`
+  3. Decode: `const bitmap = await createImageBitmap(row.file);`
+  4. `const result = seg.segment(bitmap);` then `const mask = result.confidenceMasks![0];` `const conf = mask.getAsFloat32Array();` `const w = mask.width, h = mask.height;` (verify the mask width/height match `bitmap.width/height`; if the segmenter returned a different size, draw the image scaled to `w×h`).
+  5. Build the transparent cutout on a canvas `A` (`w×h`): `ctx.drawImage(bitmap, 0, 0, w, h)`, `const img = ctx.getImageData(0,0,w,h)`, then for each pixel `i`: `img.data[i*4+3] = Math.round(conf[i] * 255)` (confidence near 1 = person = opaque; near 0 = background = transparent). `ctx.putImageData(img, 0, 0)`.
+  6. If `fill !== "transparent"`: canvas `B` (`w×h`), `ctxB.fillStyle = fillColor; ctxB.fillRect(0,0,w,h); ctxB.drawImage(A, 0, 0);` — export `B`. Else export `A`.
+  7. `result.close();` (free the MediaPipe result). `const blob = await new Promise(r => canvas.toBlob(r, "image/png"));`
+  8. `const url = URL.createObjectURL(blob);` set the row `done` with `{ url, filename: cutoutOutName(row.file.name) }` (import `cutoutOutName`/`normalizeBgFill` from `@event-editor/core/cutout`; resolve the fill colour once before the loop via `normalizeBgFill({ mode: fill, color: customColor })`).
+  9. On throw, set the row `error` + a readable message; continue the loop.
+- **Per-row UI**: filename + status; `loading` → `Loader2` + "Preparing the background remover…"; `busy` → `Loader2` + "Removing…"; `done` → result `<img src={row.url}>` on a **checkerboard backdrop** (a CSS checkerboard: a small `repeating-conic-gradient(#ccc 0% 25%, transparent 0% 50%)` background sized ~16px, behind the image) + `<a className="btn" href={row.url} download={row.filename}>`; `error` → `text-danger` + Retry (re-runs just that row).
+- **Removing a row** revokes its `url` and drops it.
+- No em dashes. No server fetch other than the same-origin `/mediapipe/*` static assets the browser loads via the library. No API route.
 
 - [ ] **Step 7: Verify build + bundling**
 
 Run: `cd packages/web && npx tsc --noEmit`
 Expected: only the 5 pre-existing errors.
 Run: `cd packages/web && npm run build`
-Expected: succeeds (prebuild copies the assets first), lists `/cutout` as a route, and `@imgly/background-removal` bundles into the client without a node-only-builtin error. If the build fails on a node built-in pulled by the library, note it — the library should have a browser build; confirm the import path/entry is the browser one.
+Expected: succeeds (prebuild fetches assets first), lists `/cutout`, and `@mediapipe/tasks-vision` bundles into the client without a node-only-builtin error.
 
 - [ ] **Step 8: Commit**
 
 ```bash
 git add packages/core/src/cutout.ts packages/core/test/cutout.test.ts packages/core/package.json packages/web/app/cutout
-git commit -m "feat(cutout): client-side background removal tool"
+git commit -m "feat(cutout): client-side MediaPipe background removal tool"
 ```
 
 ---
@@ -247,21 +286,18 @@ git commit -m "feat(cutout): client-side background removal tool"
 **Files:**
 - Modify: `packages/web/components/tools.ts`
 
-**Interfaces:**
-- Consumes: the `Tool` type already in `tools.ts`.
-
 - [ ] **Step 1: Add the icon import and entry**
 
-Extend the `lucide-react` import in `tools.ts` with `Eraser` (verify it exists in the installed `lucide-react`; if not, use `ImageOff` or `Scissors`-adjacent and note the swap). Append to `TOOLS`:
+Extend the `lucide-react` import in `tools.ts` with `Eraser` (verify it exists; if not, use `ImageOff` and note the swap). Append to `TOOLS`:
 ```typescript
   {
     id: "cutout",
     href: "/cutout",
     title: "Remove a background",
-    body: "Cut the subject out of a photo onto a transparent or solid background.",
+    body: "Cut a person out of a photo onto a transparent or solid background.",
     Icon: Eraser,
     defaultGroups: ["images"],
-    tags: ["background", "remove", "cutout", "transparent", "png", "photo"],
+    tags: ["background", "remove", "cutout", "transparent", "png", "person", "photo"],
   },
 ```
 
@@ -271,11 +307,11 @@ Run:
 ```bash
 cd packages/web && npx tsc --noEmit && npx vitest run && npm run build
 ```
-Expected: tsc only the 5 pre-existing; vitest green (a registry test asserting the tool-id list / count will need `cutout` added — update it to include `cutout` in the expected ids, matching how Build #9's Task 8 handled the 6-tool additions; do NOT weaken any assertion); `next build` lists `/cutout` among the routes (now 12 tool routes).
+Expected: tsc only the 5 pre-existing; vitest green (a registry test asserting the tool-id list / count needs `cutout` added to the expected ids — update it to include `cutout`, matching how Build #9's Task 8 handled additions; do NOT weaken any assertion); `next build` lists `/cutout` (now 12 tool routes).
 
-- [ ] **Step 3: Live smoke (report as owed to the controller/Caleb if headless)**
+- [ ] **Step 3: Live smoke (report as owed if headless)**
 
-Run the app; on the home grid confirm the `cutout` card appears in the Images group and search finds it by "background"/"cutout". Open `/cutout` and confirm it loads without a client error. A REAL removal (drop a photo → transparent PNG) needs a browser + a real image — if you cannot do that headless, report it as owed.
+Run the app; confirm the `cutout` card appears in Images and search finds it by "background"/"cutout"; `/cutout` loads without a client error. A REAL removal (photo of a person → transparent PNG) needs a browser + a real image — if you cannot do that headless, report it as owed to Caleb.
 
 - [ ] **Step 4: Commit**
 
@@ -288,8 +324,10 @@ git commit -m "feat(cutout): register the background removal tool"
 
 ## Self-review notes (for the executor)
 
-- **License gate (Task 1 Step 2):** the one thing that can sink this tool is `@imgly/background-removal`'s license. Check it early and report before building the client — if it needs a commercial license, stop and escalate.
-- **publicPath is the load-bearing config:** if `publicPath` doesn't resolve to the copied assets, the model silently fails to load at runtime (the build passes). Task 1 must determine the correct value from the real dist layout, and Task 2 must use exactly that value. The manual smoke is what proves it.
-- **Object-URL cleanup:** use the ref-synced-to-rows pattern from the splice tool, not a `[]`-deps cleanup over the initial rows — that exact stale-closure leak was a caught bug.
-- **No native module, no job dir, no route** — if any appear in the diff, that's over-build.
-- **Desktop app:** the assets ship via `public/` in the standalone output; confirm during a later desktop rebuild that `/imgly/` resolves in the packaged app (not this plan's scope, but note it).
+- **License re-confirm (Task 1 Step 1):** `@mediapipe/tasks-vision` should be Apache-2.0. If it isn't, stop — the switch's whole purpose was a permissive license.
+- **Asset paths are load-bearing:** `FilesetResolver.forVisionTasks("/mediapipe/wasm")` and `modelAssetPath: "/mediapipe/selfie_segmenter.tflite"` must match exactly where Task 1 puts the files. If they don't resolve, the model silently fails at runtime while the build passes — the manual smoke is what proves it.
+- **Mask orientation:** confidence near 1 = person (opaque), near 0 = background (transparent). If the cutout comes out inverted (background kept, person removed), flip to `255 - conf*255` — but verify against the selfie segmenter's actual output; do not guess in code, test with a real image in the smoke.
+- **Mask vs image dimensions:** if `mask.width/height` differ from the bitmap, draw the image scaled to the mask size (or scale the mask) so pixel indices line up. Handle it, don't assume.
+- **Object-URL cleanup:** ref-synced-to-rows pattern (splice lesson), not `[]`-deps over initial rows.
+- **No native module, no job dir, no route** — any of those in the diff = over-build.
+- **Person-only is expected**, not a bug — the copy says "Best for photos of people."

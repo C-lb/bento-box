@@ -1,188 +1,188 @@
-# Spec B — Batch E: background removal tool
+# Spec B — Batch E: background removal tool (MediaPipe)
 
 Date: 2026-07-04
-Status: design, pending review
+Status: design, pending review (revised after the @imgly AGPL block)
 
 ## Context
 
 Build #9 shipped Spec B batches A–D (6 tools). This spec covers **Batch E —
-background removal**, one of the two tools deferred from the original Spec B
-because it carries a real design decision (which inference engine). Batch F
-(certificate / badge mail-merge) remains a separate later spec.
+background removal**, deferred from the original Spec B because it carries a real
+engine decision. Batch F (certificate / badge mail-merge) remains a separate
+later spec.
 
-One new tool: **Remove a background** (`cutout`, `/cutout`) — drop a photo (or
-several), get each subject cut out onto transparency, download as a PNG.
+**Revision note:** the first cut of this spec chose `@imgly/background-removal`.
+That library is **AGPL-3.0**, which for a closed-source internal SPARK tool that
+bundles it client-side triggers the network-use source-disclosure clause and is
+unusable without a paid commercial license (caught by a license gate before any
+build). Caleb chose to switch to **MediaPipe** (Apache-2.0). This spec is the
+MediaPipe design.
 
-## The engine decision (primary, flag for veto)
+One new tool: **Remove a background** (`cutout`, `/cutout`) — drop a photo of a
+person (or several), get each subject cut out onto transparency (or a solid
+colour), download as a PNG. **Person-focused** (see scope note).
 
-Background removal runs a U^2-Net-style semantic segmentation model — a neural
-net that classifies each pixel as foreground (subject) or background, producing
-an alpha matte the tool applies to cut the subject out. Hosted APIs (remove.bg,
-Replicate) are ruled out: they send confidential event photos to a third party,
-cost per image, and need a key — all against this app's local-and-private ethos.
+## Engine: MediaPipe Image Segmenter (client-side, Apache-2.0)
 
-That leaves running the model locally. Two ways, and the fork changes the whole
-build:
+`@mediapipe/tasks-vision` runs a selfie / person **semantic segmentation** model
+in the browser via WebAssembly — a neural net that outputs a per-pixel
+confidence that each pixel is foreground (a person). We use that confidence as an
+alpha matte to cut the subject out on a `<canvas>`. Apache-2.0, permissive, no
+API key, the photo never leaves the machine, and **no native module** — so zero
+added Electron packaging risk (the whole reason to stay client-side).
 
-- **CHOSEN — client-side WASM.** `@imgly/background-removal` runs the model in
-  the browser via ONNX Runtime Web (WebAssembly). Like the QR tool: **no API
-  route, no job dir, the photo never leaves the browser.** No native module, so
-  **zero added Electron packaging risk** — which matters because the desktop app
-  already went through a multi-fix debugging saga getting `better-sqlite3` and
-  `sharp` native binaries to resolve in the relocated bundle. Cost: first use
-  loads ~40MB of model + WASM assets (cached after), and WASM inference is
-  slower than native (a few seconds per photo). Acceptable for headshot-scale
-  batches.
-- Rejected for this batch — server-side native (`@imgly/background-removal-node`
-  via `onnxruntime-node`): faster, and fits the existing yt-dlp "managed
-  dependency" UX, but adds another native binary that must resolve in the
-  packaged desktop app — the exact ABI/relocation bug class that cost real time
-  before. Not worth it for a single tool when the WASM path is private and works.
-
-If you'd rather take the server-side path, this spec's architecture changes
-substantially (route + job dir + native-module packaging work) — say so before
-the plan is executed.
-
-## Model asset hosting (secondary decision)
-
-`@imgly/background-removal` fetches its model + WASM assets from IMG.LY's CDN by
-default. The CDN only serves the *model*, never the image, so privacy holds
-either way — but the desktop app is offline-capable, so relying on a CDN would
-break it with no internet. Therefore **self-host the assets**:
-
-- Add `@imgly/background-removal-data` as a dependency (the model/WASM dist as an
-  npm package, version-pinned alongside the library).
-- A build step copies `node_modules/@imgly/background-removal-data/dist/*` into
-  `packages/web/public/imgly/` (git-ignored — it is a copy of a dependency, not
-  source), wired into `predev` and `prebuild` so it is always present before the
-  app runs or builds.
-- Configure the library with `publicPath: "/imgly/"` so it loads from the app's
-  own origin. Assets in `public/` are included in the Next standalone output, so
-  they ship inside the packaged desktop app and work offline.
-
-Alternative (open item): commit the assets to the repo (+~40MB) instead of the
-copy step, or keep the CDN default and accept online-only first use. Default is
-the copy step.
+**Scope — person-focused.** The selfie segmenter is trained on people, so this
+tool cuts out a person cleanly but will not reliably isolate an arbitrary object
+(a product, a logo). That matches the app's real use (event photos of people /
+headshots). The tool's copy says so plainly: "Best for photos of people." A
+general-subject cutout would need a different (and, in this space, usually
+non-commercial) model — out of scope.
 
 ## Established pattern (reuse)
 
-This tool is client-only, so it follows the **QR tool's shape**, not the
-server-tool shape:
+Client-only, so it follows the **QR tool's shape**, not the server-tool shape:
 
 - **`packages/core/src/cutout.ts`** — pure, tested helpers only (thin, like
   `qr.ts`): output-name derivation and background-fill option normalisation. No
   IO, no model code.
-- **`packages/web/app/cutout/{page.tsx, CutoutClient.tsx}`** — a client
-  component that dynamically imports `@imgly/background-removal` and does the
-  work in the browser. No `lib/cutout.ts`, no `app/api/cutout/**`, no job dir.
+- **`packages/web/app/cutout/{page.tsx, CutoutClient.tsx}`** — a client component
+  that dynamically imports `@mediapipe/tasks-vision`, runs the segmenter, and
+  composites the cutout on a canvas, all in the browser. No `lib/cutout.ts`, no
+  `app/api/cutout/**`, no job dir.
 - **Register** in `packages/web/components/tools.ts`.
 
 The multi-file "row per file" UX mirrors `HeicClient` / `ResizeClient`, but every
 step runs client-side.
 
+## Self-hosted assets
+
+`@mediapipe/tasks-vision` needs two things at runtime, both self-hosted under
+`packages/web/public/mediapipe/` so nothing hits a Google CDN (offline-capable,
+private, ships in the desktop standalone):
+
+1. **The WASM runtime** — the `wasm/` folder from the installed
+   `@mediapipe/tasks-vision` npm package. Copied at pre-build (like Build #9's
+   pattern), passed to `FilesetResolver.forVisionTasks("/mediapipe/wasm")`.
+2. **The model** — the selfie segmenter `.tflite` (~250KB, hosted on Google's
+   model storage, NOT in the npm package). A build script downloads it once into
+   `public/mediapipe/` (skips if already present) and it is passed as
+   `baseOptions.modelAssetPath`. At ~250KB it is small enough to commit instead
+   of download if hermetic offline builds are wanted — see open items; default is
+   the download-and-cache script.
+
+Both live under a git-ignored `public/mediapipe/` and are populated by a
+`predev`/`prebuild` step, exactly like the copy-assets approach scoped in Build
+#9's plan. `public/` is included in the Next standalone output, so the desktop
+app ships them and works offline.
+
 ## Tool design: Remove a background (`cutout`, `/cutout`)
 
-- **UI**: multi-file drop (`accept="image/*"`). Each file becomes a row:
-  original thumbnail, status (`idle | preparing | busy | done | error`), and on
-  completion a result preview shown on a **checkerboard backdrop** (so
-  transparency reads clearly) plus a Download button.
-- **Background fill option** (a `Segmented`): `Transparent | White | Custom
-  colour`. Transparent → the raw cutout PNG (alpha preserved). White/Custom →
-  composite the cutout over that solid colour on a `<canvas>` and export that
-  PNG. Default transparent.
-- **Run**: a "Remove backgrounds" button loops rows **serially** (not
-  `Promise.all` — WASM inference is memory-heavy; one at a time avoids blowing
-  up on a batch). For each row: `removeBackground(file, { publicPath: "/imgly/",
-  progress })` → a `Blob` (PNG with alpha) → if a fill colour is set, composite
-  on canvas → object URL → set the row `done` with its result URL + output name.
-- **First-use model load**: the library's `progress` callback distinguishes
-  "downloading/compiling the model" from "processing the image". The first run
-  shows a one-time "Preparing the background remover…" state; later runs skip it
-  (model cached). Surface progress on the active row.
-- **Download**: `<a href={row.url} download={row.filename}>`; filename from
-  `cutoutOutName(srcName)`. Object URLs are revoked on row removal and on unmount
-  — using the `clipsRef`-style ref pattern from the splice tool (a `useEffect`
-  cleanup keyed on `[]` that reads a ref synced to the live rows, NOT a stale
-  initial closure — this exact bug was caught and fixed in splice).
-- **SSR safety**: `CutoutClient` is `"use client"`, and the
-  `import("@imgly/background-removal")` happens **inside the run handler**, never
-  at module top level, so SSR/build never tries to instantiate WASM.
+- **UI**: multi-file drop (`accept="image/*"`). Each file → a row: original
+  thumbnail, status (`idle | loading | busy | done | error`), and on completion a
+  result preview on a **checkerboard backdrop** (so transparency reads) plus a
+  Download button. A one-line helper: "Best for photos of people."
+- **Background fill** (a `Segmented`): `Transparent | White | Custom colour`.
+  Transparent → the cutout PNG with alpha. White/Custom → composite the cutout
+  over that solid colour on the canvas and export that PNG. Default transparent.
+- **Run** ("Remove backgrounds", `.btn.btn-accent`): loops rows **serially** (one
+  at a time — segmentation + canvas work is memory-heavy). For each row:
+  1. Ensure a single shared `ImageSegmenter` is created (once, cached across
+     rows) from the self-hosted WASM fileset + model, in
+     `runningMode: "IMAGE"` with `outputConfidenceMasks: true`.
+  2. Decode the file to an `ImageBitmap`.
+  3. `segmenter.segment(bitmap)` → a confidence mask (per-pixel person
+     probability) at the image's dimensions.
+  4. On a `<canvas>` sized to the image: draw the original, read its `ImageData`,
+     and set each pixel's **alpha** from the mask (person confidence → opaque,
+     background → transparent). If a fill colour is set, first fill the canvas
+     with that colour and draw the masked subject over it. `canvas.toBlob(...,
+     "image/png")`.
+  5. Object URL → row `done` with `{ url, filename: cutoutOutName(name) }`.
+  6. On throw, row `error` + message + per-row retry; the loop continues.
+- **First-use load**: creating the `ImageSegmenter` downloads/compiles the WASM +
+  model the first time; the active row shows a one-time "Preparing the background
+  remover…" state, later runs reuse the cached segmenter.
+- **Download**: `<a href={row.url} download={row.filename}>`.
+- **Object-URL cleanup**: revoke result URLs on row removal AND on unmount using a
+  ref synced to the live rows (the splice-tool pattern), NOT a `useEffect([])`
+  cleanup closing over the initial empty rows (that stale-closure leak was a real
+  splice bug).
+- **SSR safety**: `CutoutClient` is `"use client"`; the
+  `import("@mediapipe/tasks-vision")` and segmenter creation happen INSIDE the run
+  handler, never at module top level (WASM must not load during SSR/build).
 - **core/src/cutout.ts**:
   - `cutoutOutName(srcName)` → `<base>-cutout.png` (via `swapExt`).
   - `type BgFill = "transparent" | { color: string }`; `normalizeBgFill(raw:
-    { mode?: string; color?: string })` → validates `#rrggbb`, returns
-    `"transparent"` by default, `{ color }` for white/custom (white = `#ffffff`).
-  - Both pure and unit-tested; that is the whole of the core module.
+    { mode?: string; color?: string })` → `#rrggbb` validated, `"transparent"`
+    default, white → `#ffffff`.
+  - `maskToAlpha` decision is inline in the client (touches `ImageData`); core
+    stays pure/DOM-free. Optionally a pure `alphaFromConfidence(conf: number,
+    threshold?: number): number` helper if it helps testing — keep core DOM-free.
 
 ## Registry addition (`components/tools.ts`)
 
-One new `Tool` entry:
-
 | id | title | group | lucide icon | tags |
 |----|-------|-------|-------------|------|
-| `cutout` | Remove a background | images | `Eraser` | background, remove, cutout, transparent, png, photo |
+| `cutout` | Remove a background | images | `Eraser` | background, remove, cutout, transparent, png, person, photo |
 
 `Eraser` verified to exist in `lucide-react` during implementation (swap if
-missing). Group `images` already exists — no new group needed.
+missing). Group `images` already exists.
 
 ## Packaging
 
-- **No native module** — nothing to unpack from asar, no ABI concern. This is
-  the whole point of the client-side choice.
-- The self-hosted model assets live under `packages/web/public/imgly/` and are
-  included in the Next standalone `public/` output, so they ship in the packaged
-  desktop app and work offline. Confirm the desktop `assemble-server` step copies
-  `public/` into the bundle (it already must, for existing static assets) — note
-  it as a verification point, not new work.
+- **No native module** — nothing to unpack from asar, no ABI concern.
+- Self-hosted WASM + model live under `packages/web/public/mediapipe/` and ship
+  in the Next standalone `public/` output, so the packaged desktop app has them
+  and works offline. Confirm the desktop `assemble-server` copies `public/` (it
+  already must, for existing assets) — a verification point, not new work.
 
 ## Error handling
 
-- A file that fails segmentation (corrupt image, unsupported content) sets that
-  row to `error` with a readable message and a per-row retry; other rows are
-  unaffected (serial loop continues).
-- If model assets fail to load (missing `/imgly/` — a build-wiring failure), the
-  first run surfaces a clear "Could not load the background remover" message
-  rather than a raw stack.
+- A file that fails (decode error, segmenter failure) → that row `error` with a
+  readable message + per-row retry; other rows unaffected (serial loop continues).
+- If the WASM/model fail to load (missing `/mediapipe/` — a build-wiring failure),
+  the first run surfaces "Could not load the background remover" rather than a raw
+  stack.
 
 ## Testing
 
 - **core** unit tests: `cutoutOutName` (extension swap, sanitisation),
-  `normalizeBgFill` (transparent default, white → `#ffffff`, custom hex
-  validation, junk → transparent).
-- The segmentation library itself is not unit-tested (browser WASM). Build check:
-  `next build` succeeds and `@imgly/background-removal` bundles into the client
-  without pulling node-only built-ins (same check the QR tool needed).
-- **Manual**: a real photo of a person → transparent PNG cutout that opens with
-  the background gone; a second run reuses the model (no re-download); the White
-  fill produces a white-background PNG; a batch of 3 processes one after another.
+  `normalizeBgFill` (transparent default, white → `#ffffff`, custom hex validate,
+  junk → transparent), and `alphaFromConfidence` if added.
+- The segmenter + canvas compositing are not unit-tested (browser WASM + DOM).
+  Build check: `next build` succeeds and `@mediapipe/tasks-vision` bundles into
+  the client without node-only built-ins.
+- **Manual**: a real photo of a person → transparent PNG with the background gone
+  and a reasonably clean person edge; a second run reuses the model (no
+  re-download); White fill → white-background PNG; a batch of 3 processes serially.
 
 ## Build / sequencing
 
-Small — one tool, three tasks:
+One tool, three tasks:
 
-1. **Model-asset infra** — add `@imgly/background-removal` +
-   `@imgly/background-removal-data` deps; `scripts/copy-bg-assets.mjs`; wire into
-   `predev`/`prebuild`; git-ignore `public/imgly/`; verify assets land and
-   `publicPath` resolves.
-2. **The tool** — `core/src/cutout.ts` (TDD) + `app/cutout/{page,CutoutClient}` +
-   the browser removal/preview/download flow with correct object-URL cleanup.
-3. **Registry + smoke** — register `cutout` in `tools.ts`; `next build` lists
-   `/cutout` and bundles the library; live smoke.
+1. **Asset infra** — add `@mediapipe/tasks-vision`; a script that copies the
+   package `wasm/` and downloads the selfie `.tflite` into
+   `public/mediapipe/` (skip-if-present); wire `predev`/`prebuild`; git-ignore
+   `public/mediapipe/`; record the exact model URL + the `FilesetResolver`/
+   `modelAssetPath` values Task 2 needs.
+2. **The tool** — `core/src/cutout.ts` (TDD) + `app/cutout/{page,CutoutClient}`
+   with the segmenter + canvas-composite flow and correct object-URL cleanup.
+3. **Registry + smoke** — register `cutout`; `next build` lists `/cutout` and
+   bundles the library; live smoke.
 
 Subagent-driven, per-task reviewer gate, atomic commits, push to main.
 
 ## Open items for review
 
-- **Engine choice** — confirm client-side WASM (default) vs the server-side
-  native path. This is the big one; it reshapes the whole build.
-- **License** — verify `@imgly/background-removal` / its model assets are
-  licensed for this use before shipping. IMG.LY's terms should be checked during
-  Task 1; if they require a commercial licence or attribution, surface it (this
-  is a genuine unknown, not an assumed-fine).
-- **Model asset hosting** — copy-from-npm-into-public (default) vs commit the
-  ~40MB vs CDN-default (online-only). Default is the copy step.
-- **Background fill** — ship the Transparent/White/Custom option in the MVP, or
-  transparent-only and add fills later? Default: include the fill option (small).
-- **Batch size guard** — cap the number of files per run (WASM memory), or leave
-  unbounded with serial processing? Default: serial, no hard cap, with a note if
-  a very large batch is slow.
+- **License** — `@mediapipe/tasks-vision` is Apache-2.0 (confirmed direction);
+  Task 1 re-confirms the installed package's license field + the model's terms
+  before building.
+- **Model hosting** — download-and-cache script (default) vs commit the ~250KB
+  `.tflite` for hermetic offline builds. Default download.
+- **Which model** — the plain `selfie_segmenter.tflite` (person vs background) is
+  the MVP; the `selfie_multiclass` model (hair/skin/clothes classes) is available
+  if finer control is wanted later. Default: single-class selfie segmenter.
+- **Background fill** — ship Transparent/White/Custom (default) or transparent
+  only. Default: include the fill option.
+- **Edge quality** — MediaPipe person edges (esp. hair) are softer than a
+  dedicated matting model; acceptable for the MVP. A feathering/threshold tweak
+  can be a follow-up.
