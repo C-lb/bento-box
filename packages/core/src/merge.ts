@@ -31,3 +31,28 @@ export function resolveText(template: string, row: Record<string, string>): stri
     return v == null ? "" : String(v);
   });
 }
+
+export function parseDelimited(text: string): Rows {
+  const lines = text.split(/\r?\n/).map((l) => l.trim()).filter((l) => l.length > 0);
+  if (lines.length === 0) return { headers: [], rows: [] };
+
+  const delim = lines[0].includes("\t") ? "\t" : lines[0].includes(",") ? "," : null;
+
+  // Single value, no delimiter, one line -> one Name row, no header line.
+  if (delim === null && lines.length === 1) {
+    return { headers: ["Name"], rows: [{ Name: lines[0] }] };
+  }
+
+  const split = (l: string) => (delim ? l.split(delim).map((c) => c.trim()) : [l]);
+  const headers = delim ? split(lines[0]) : ["Name"];
+  const bodyStart = delim ? 1 : 1; // first line is always header for multi-line input
+  const dataLines = delim ? lines.slice(1) : lines.slice(1);
+
+  const rows = dataLines.map((l) => {
+    const cells = split(l);
+    const row: Record<string, string> = {};
+    headers.forEach((h, i) => { row[h] = cells[i] ?? ""; });
+    return row;
+  });
+  return { headers, rows };
+}
