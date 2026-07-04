@@ -14,3 +14,5 @@ export * from "./headshot.js";
 export * from "./ranking-context.js";
 export * from "./slice-runs.js";
 export * from "./convert.js";
+export * from "./merge.js";
+export * from "./certificate.js";

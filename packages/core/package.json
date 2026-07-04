@@ -35,7 +35,9 @@
     "./video": "./dist/video.js",
     "./splice": "./dist/splice.js",
     "./qr": "./dist/qr.js",
-    "./cutout": "./dist/cutout.js"
+    "./cutout": "./dist/cutout.js",
+    "./merge": "./dist/merge.js",
+    "./certificate": "./dist/certificate.js"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
