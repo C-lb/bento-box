@@ -3,6 +3,7 @@ import { PDFDocument } from "pdf-lib";
 import JSZip from "jszip";
 import { renderCombined, renderZip } from "./merge-render";
 import type { DocumentSpec } from "@event-editor/core/merge";
+import type { DocumentSpec as DS2 } from "@event-editor/core/merge";
 
 const spec: DocumentSpec = {
   page: { width: 841.89, height: 595.28 },
@@ -40,5 +41,29 @@ describe("renderZip", () => {
     const blob = await renderZip(spec, dup, "Name");
     const zip = await JSZip.loadAsync(await blob.arrayBuffer());
     expect(Object.keys(zip.files).sort()).toEqual(["Ada-2.pdf", "Ada.pdf"]);
+  });
+});
+
+describe("renderCombined with a QR element", () => {
+  it("renders a page per row and does not throw on qr elements", async () => {
+    const spec: DS2 = {
+      page: { width: 288, height: 216 },
+      elements: [
+        { kind: "text", template: "{Name}", x: 144, y: 120, size: 20, font: "heading", align: "center", color: "#111111" },
+        { kind: "qr", value: "{Name}", x: 122, y: 20, size: 44 },
+      ],
+    };
+    const bytes = await renderCombined(spec, [{ Name: "Ada" }, { Name: "Grace" }]);
+    const doc = await PDFDocument.load(bytes);
+    expect(doc.getPageCount()).toBe(2);
+  });
+  it("skips a qr whose resolved value is empty", async () => {
+    const spec: DS2 = {
+      page: { width: 288, height: 216 },
+      elements: [{ kind: "qr", value: "{Code}", x: 122, y: 20, size: 44 }],
+    };
+    const bytes = await renderCombined(spec, [{ Name: "Ada" }]); // no Code -> empty -> skip
+    const doc = await PDFDocument.load(bytes);
+    expect(doc.getPageCount()).toBe(1);
   });
 });

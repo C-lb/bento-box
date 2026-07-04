@@ -23,20 +23,34 @@ async function embedFonts(doc: PDFDocument, fonts?: FontBytes) {
   return { heading, body };
 }
 
-function drawPage(
+async function drawPage(
   page: import("pdf-lib").PDFPage,
   spec: DocumentSpec,
   row: Record<string, string>,
   f: { heading: PDFFont; body: PDFFont },
+  ox = 0,
+  oy = 0,
 ) {
+  const doc = page.doc;
   for (const el of spec.elements) {
-    if (el.kind !== "text") continue; // image elements land in F3
-    const str = resolveText(el.template, row);
-    if (!str) continue;
-    const font = el.font === "heading" ? f.heading : f.body;
-    const w = font.widthOfTextAtSize(str, el.size);
-    const x = el.align === "center" ? el.x - w / 2 : el.align === "right" ? el.x - w : el.x;
-    page.drawText(str, { x, y: el.y, size: el.size, font, color: hexToRgb(el.color) });
+    if (el.kind === "text") {
+      const str = resolveText(el.template, row);
+      if (!str) continue;
+      const font = el.font === "heading" ? f.heading : f.body;
+      const w = font.widthOfTextAtSize(str, el.size);
+      const x = el.align === "center" ? el.x - w / 2 : el.align === "right" ? el.x - w : el.x;
+      page.drawText(str, { x: ox + x, y: oy + el.y, size: el.size, font, color: hexToRgb(el.color) });
+    } else if (el.kind === "image") {
+      const png = await doc.embedPng(el.src);
+      page.drawImage(png, { x: ox + el.x, y: oy + el.y, width: el.width, height: el.height });
+    } else if (el.kind === "qr") {
+      const str = resolveText(el.value, row);
+      if (!str) continue;
+      const QRCode = (await import("qrcode")).default;
+      const dataUrl = await QRCode.toDataURL(str, { width: Math.round(el.size * 3), margin: 0 });
+      const png = await doc.embedPng(dataUrl);
+      page.drawImage(png, { x: ox + el.x, y: oy + el.y, width: el.size, height: el.size });
+    }
   }
 }
 
@@ -49,7 +63,7 @@ export async function renderCombined(
   const f = await embedFonts(doc, fonts);
   for (const row of rows) {
     const page = doc.addPage([spec.page.width, spec.page.height]);
-    drawPage(page, spec, row, f);
+    await drawPage(page, spec, row, f);
   }
   return doc.save({ addDefaultPage: false });
 }
@@ -62,7 +76,7 @@ async function renderOne(
   const doc = await PDFDocument.create();
   const f = await embedFonts(doc, fonts);
   const page = doc.addPage([spec.page.width, spec.page.height]);
-  drawPage(page, spec, row, f);
+  await drawPage(page, spec, row, f);
   return doc.save();
 }
 
