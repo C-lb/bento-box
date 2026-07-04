@@ -23,8 +23,8 @@ describe("resolveText", () => {
 });
 
 describe("parseDelimited", () => {
-  it("treats a single column of lines as Name rows (first line is header)", () => {
-    const out = parseDelimited("Name\nAda\nGrace");
+  it("treats every line of a single column as a Name row (no header)", () => {
+    const out = parseDelimited("Ada\nGrace");
     expect(out.headers).toEqual(["Name"]);
     expect(out.rows).toEqual([{ Name: "Ada" }, { Name: "Grace" }]);
   });
@@ -46,7 +46,7 @@ describe("parseDelimited", () => {
     expect(out.rows).toEqual([{ Name: "Ada", Org: "Analytical" }]);
   });
   it("ignores blank lines and trims cells", () => {
-    const out = parseDelimited("Name\n Ada \n\nGrace\n");
+    const out = parseDelimited(" Ada \n\nGrace\n");
     expect(out.rows).toEqual([{ Name: "Ada" }, { Name: "Grace" }]);
   });
 });

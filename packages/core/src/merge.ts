@@ -38,17 +38,15 @@ export function parseDelimited(text: string): Rows {
 
   const delim = lines[0].includes("\t") ? "\t" : lines[0].includes(",") ? "," : null;
 
-  // Single value, no delimiter, one line -> one Name row, no header line.
-  if (delim === null && lines.length === 1) {
-    return { headers: ["Name"], rows: [{ Name: lines[0] }] };
+  // No delimiter: single column, every line is a name (no header row).
+  if (delim === null) {
+    return { headers: ["Name"], rows: lines.map((l) => ({ Name: l })) };
   }
 
-  const split = (l: string) => (delim ? l.split(delim).map((c) => c.trim()) : [l]);
-  const headers = delim ? split(lines[0]) : ["Name"];
-  const bodyStart = delim ? 1 : 1; // first line is always header for multi-line input
-  const dataLines = delim ? lines.slice(1) : lines.slice(1);
-
-  const rows = dataLines.map((l) => {
+  // Delimited: first line is the header.
+  const split = (l: string) => l.split(delim).map((c) => c.trim());
+  const headers = split(lines[0]);
+  const rows = lines.slice(1).map((l) => {
     const cells = split(l);
     const row: Record<string, string> = {};
     headers.forEach((h, i) => { row[h] = cells[i] ?? ""; });

@@ -87,7 +87,8 @@ export function CertificateClient() {
   }
 
   const count = mergedRows.length;
-  const ready = count > 0 && !!recipientColumn;
+  const columnOk = rows.headers.length === 0 || rows.headers.includes(recipientColumn);
+  const ready = count > 0 && columnOk;
 
   return (
     <div className="mt-8 space-y-5">

@@ -85,7 +85,11 @@ export async function renderZip(
 }
 
 export async function loadBundledFonts(): Promise<FontBytes> {
-  const get = async (p: string) => new Uint8Array(await (await fetch(p)).arrayBuffer());
+  const get = async (p: string) => {
+    const res = await fetch(p);
+    if (!res.ok) throw new Error(`font ${p}: ${res.status}`);
+    return new Uint8Array(await res.arrayBuffer());
+  };
   const [heading, body] = await Promise.all([
     get("/fonts/heading.ttf"),
     get("/fonts/body.ttf"),
