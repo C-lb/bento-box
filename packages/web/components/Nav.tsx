@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { Home, Settings } from "lucide-react";
+import { Settings } from "lucide-react";
 import { useToolShell } from "@/components/tool-shell-context";
 import { ALL, FAV } from "@/components/tool-store";
 
@@ -61,7 +61,14 @@ export function Nav() {
           onClick={() => setActiveGroup(ALL)}
           className="flex shrink-0 items-center gap-2 text-sm font-semibold text-ink"
         >
-          <Home size={18} strokeWidth={1.75} aria-hidden />
+          <svg viewBox="0 0 600 600" width={21} height={21} className="shrink-0" aria-hidden>
+            {/* tray tracks text colour (ink here) so it reads on light or dark nav;
+                compartments use the bar surface so they invert cleanly either way */}
+            <rect width="600" height="600" rx="75" fill="currentColor" />
+            <rect x="60" y="60" width="202.83" height="480" rx="45" className="fill-surface" />
+            <rect x="300" y="60" width="240" height="220.99" rx="45" className="fill-surface" />
+            <rect x="300" y="318.57" width="240" height="221.43" rx="45" className="fill-surface" />
+          </svg>
           <span className="hidden sm:inline">Bento</span>
         </Link>
 
