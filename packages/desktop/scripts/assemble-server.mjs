@@ -125,14 +125,24 @@ const __EE_EXTERNALS__ = ${externals};
 const __ee_origLoad = module._load;
 const __ee_bundleRoot = path.join(__dirname, '..', '..');
 function __ee_pkgOf(after){ const p = after.split('/'); return p[0].startsWith('@') ? p.slice(0, 2).join('/') : p[0]; }
+// Turbopack (Next 16) externalises native packages under a hashed alias, e.g.
+// "better-sqlite3-90e2652d1716b047". Match the real package by exact name OR by a
+// "<pkg>-<hash>" prefix, then redirect to the bundle's own (Electron-ABI) copy.
+function __ee_realOf(name){
+  for (const e of __EE_EXTERNALS__) { if (name === e || name.startsWith(e + '-')) return e; }
+  return null;
+}
 module._load = function (request, parent, isMain) {
   if (typeof request === 'string') {
     const i = request.lastIndexOf('/node_modules/');
     if (i !== -1) {
       const after = request.slice(i + 14);
-      if (__EE_EXTERNALS__.includes(__ee_pkgOf(after))) return __ee_origLoad.call(this, path.join(__ee_bundleRoot, 'node_modules', after), parent, isMain);
-    } else if (__EE_EXTERNALS__.includes(request)) {
-      return __ee_origLoad.call(this, path.join(__ee_bundleRoot, 'node_modules', request), parent, isMain);
+      const pkg = __ee_pkgOf(after);
+      const real = __ee_realOf(pkg);
+      if (real) return __ee_origLoad.call(this, path.join(__ee_bundleRoot, 'node_modules', real + after.slice(pkg.length)), parent, isMain);
+    } else {
+      const real = __ee_realOf(request);
+      if (real) return __ee_origLoad.call(this, path.join(__ee_bundleRoot, 'node_modules', real), parent, isMain);
     }
   }
   return __ee_origLoad.apply(this, arguments);
