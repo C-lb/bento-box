@@ -67,9 +67,9 @@ export function Nav() {
                 so it reads and inverts cleanly on a light or dark nav.
                 Regenerate/tune via scripts/gen-home-glyph.mjs. */}
             <rect width="600" height="600" rx="96" fill="currentColor" />
-            <rect x="64" y="64" width="164" height="472" rx="52" className="fill-surface" />
-            <rect x="288" y="64" width="248" height="206" rx="52" className="fill-surface" />
-            <rect x="288" y="330" width="248" height="206" rx="52" className="fill-surface" />
+            <rect x="78" y="78" width="150" height="444" rx="50" className="fill-surface" />
+            <rect x="314" y="78" width="208" height="179" rx="50" className="fill-surface" />
+            <rect x="314" y="343" width="208" height="179" rx="50" className="fill-surface" />
           </svg>
           <span className="hidden sm:inline">Bento</span>
         </Link>

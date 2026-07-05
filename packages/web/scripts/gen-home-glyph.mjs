@@ -8,11 +8,11 @@
 //
 // Tune breathing room here:
 const VB = 600;   // viewBox
-const PAD = 64;   // black margin around the outside
-const GAP = 60;   // black space between compartments (thicker = more breathable)
+const PAD = 78;   // black margin around the outside
+const GAP = 86;   // black space between compartments (thicker = more breathable)
 const R_TRAY = 96; // outer corner radius
-const R_CELL = 52; // compartment corner radius
-const LEFT_W = 164; // width of the tall rice column
+const R_CELL = 50; // compartment corner radius
+const LEFT_W = 150; // width of the tall rice column
 
 const inner = VB - 2 * PAD;                 // 472
 const rightX = PAD + LEFT_W + GAP;          // start of the right column
