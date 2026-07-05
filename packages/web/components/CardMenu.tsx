@@ -1,7 +1,7 @@
 "use client";
 import type { CSSProperties } from "react";
 import { useEffect, useRef, useState } from "react";
-import { MoreHorizontal, Star } from "lucide-react";
+import { Star } from "lucide-react";
 import type { Tool } from "@/components/tools";
 import { useToolShell } from "@/components/tool-shell-context";
 import { effectiveGroups } from "@/components/tool-store";
@@ -51,9 +51,14 @@ export function CardMenu({ tool }: { tool: Tool }) {
           e.stopPropagation();
           setOpen((v) => !v);
         }}
-        className="rounded-lg border border-line bg-surface p-1.5 text-muted shadow-soft hover:text-ink"
+        className="dots-trigger rounded-lg border border-line bg-surface p-1.5 text-muted shadow-soft hover:text-ink"
       >
-        <MoreHorizontal size={16} strokeWidth={1.75} aria-hidden />
+        {/* Inline dots in left-to-right DOM order so the hover wave lifts them in sequence. */}
+        <svg viewBox="0 0 24 24" width={16} height={16} className="dots-wave" fill="currentColor" aria-hidden>
+          <circle cx="5" cy="12" r="1.7" />
+          <circle cx="12" cy="12" r="1.7" />
+          <circle cx="19" cy="12" r="1.7" />
+        </svg>
       </button>
 
       {open && (
