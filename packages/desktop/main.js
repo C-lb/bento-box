@@ -2,10 +2,11 @@
 const { app, BrowserWindow, dialog, ipcMain } = require("electron");
 const { fork } = require("node:child_process");
 
-// Force the app name so userData resolves to ".../Application Support/Event Editor"
+// Force the app name so userData resolves to ".../Application Support/Bento"
 // (the package name "@event-editor/desktop" would otherwise create an ugly nested
 // folder and not match the setup docs). Must run before any app.getPath("userData").
-app.setName("Event Editor");
+// Note: renamed from "Event Editor" — packaged installs get a fresh data dir once.
+app.setName("Bento");
 const { readFileSync, mkdirSync, existsSync, writeFileSync } = require("node:fs");
 const path = require("node:path");
 const net = require("node:net");

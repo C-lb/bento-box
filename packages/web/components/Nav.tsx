@@ -62,7 +62,7 @@ export function Nav() {
           className="flex shrink-0 items-center gap-2 text-sm font-semibold text-ink"
         >
           <Home size={18} strokeWidth={1.75} aria-hidden />
-          <span className="hidden sm:inline">Event Editor</span>
+          <span className="hidden sm:inline">Bento</span>
         </Link>
 
         <nav className="relative flex flex-1 items-center gap-1 overflow-x-auto">

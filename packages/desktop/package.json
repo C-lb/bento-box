@@ -2,7 +2,7 @@
   "name": "@event-editor/desktop",
   "version": "0.0.7",
   "private": true,
-  "description": "Event Editor desktop app",
+  "description": "Bento desktop app",
   "author": "Spark",
   "main": "main.js",
   "scripts": {
@@ -17,7 +17,7 @@
   },
   "build": {
     "appId": "sg.spark.eventeditor",
-    "productName": "Event Editor",
+    "productName": "Bento",
     "directories": {
       "output": "dist"
     },

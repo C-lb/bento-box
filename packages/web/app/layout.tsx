@@ -4,7 +4,7 @@ import { Nav } from "@/components/Nav";
 import { ToolSearch } from "@/components/ToolSearch";
 import { ToolShellProvider } from "@/components/tool-shell-context";
 
-export const metadata = { title: "event-editor", description: "Media and event tools" };
+export const metadata = { title: "Bento", description: "A box of small tools for events, images, media, and documents" };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (

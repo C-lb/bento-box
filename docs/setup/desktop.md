@@ -1,13 +1,13 @@
 # Desktop app setup
 
-The desktop build packages Event Editor as a native application for macOS and Windows.
+The desktop build packages Bento as a native application for macOS and Windows.
 
 ## Keys file location
 
 On first launch, the app creates a template keys file in your user data folder. Fill in the required API credentials, then relaunch the app.
 
-- **macOS:** `~/Library/Application Support/Event Editor/.env`
-- **Windows:** `%APPDATA%\Event Editor\.env`
+- **macOS:** `~/Library/Application Support/Bento/.env`
+- **Windows:** `%APPDATA%\Bento\.env`
 
 The template includes placeholders for:
 
@@ -47,7 +47,7 @@ The first time you launch the app, your OS will block it as an unsigned binary. 
 
 ### macOS
 
-1. Right-click the Event Editor app in Finder.
+1. Right-click the Bento app in Finder.
 2. Select **Open**.
 3. Click **Open** again in the confirmation dialog (Gatekeeper).
 
@@ -55,7 +55,7 @@ The app launches. Future launches will not show this dialog.
 
 ### Windows
 
-1. Run the Event Editor installer.
+1. Run the Bento installer.
 2. If SmartScreen appears with "Windows Defender SmartScreen prevented an unrecognized app from starting", click **More info**.
 3. Click **Run anyway**.
 
@@ -63,10 +63,10 @@ The app launches. Future launches will not show this dialog.
 
 ## Data location
 
-All application data (database, rendered headshots, thumbnails) is stored in your user data folder under `Event Editor/data/`. This folder is private to your user account.
+All application data (database, rendered headshots, thumbnails) is stored in your user data folder under `Bento/data/`. This folder is private to your user account.
 
-- **macOS:** `~/Library/Application Support/Event Editor/data/`
-- **Windows:** `%APPDATA%\Event Editor\data\`
+- **macOS:** `~/Library/Application Support/Bento/data/`
+- **Windows:** `%APPDATA%\Bento\data\`
 
 To reset the app to a clean state, delete this folder. The app will recreate it on the next launch.
 
@@ -82,7 +82,7 @@ Releases are published via GitHub Actions. To get the latest build for your OS:
 
 ## Port note
 
-The app uses a local loopback port (`127.0.0.1:4571`) for its built-in web server. If the app fails to start with a message about the port being busy, another application is using port 4571. Close that application and relaunch the Event Editor app.
+The app uses a local loopback port (`127.0.0.1:4571`) for its built-in web server. If the app fails to start with a message about the port being busy, another application is using port 4571. Close that application and relaunch the Bento app.
 
 To manually check if port 4571 is in use, run:
 
