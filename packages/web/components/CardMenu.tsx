@@ -1,4 +1,5 @@
 "use client";
+import type { CSSProperties } from "react";
 import { useEffect, useRef, useState } from "react";
 import { MoreHorizontal, Star } from "lucide-react";
 import type { Tool } from "@/components/tools";
@@ -9,6 +10,7 @@ export function CardMenu({ tool }: { tool: Tool }) {
   const shell = useToolShell();
   const [open, setOpen] = useState(false);
   const [newGroup, setNewGroup] = useState("");
+  const [burst, setBurst] = useState(0);
   const ref = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -65,10 +67,33 @@ export function CardMenu({ tool }: { tool: Tool }) {
         >
           <button
             type="button"
-            onClick={() => shell.toggleFavourite(tool.id)}
+            onClick={() => {
+              if (!isFav) setBurst((n) => n + 1); // celebrate only on add
+              shell.toggleFavourite(tool.id);
+            }}
             className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-ink hover:bg-[#eef0f3]"
           >
-            <Star size={16} strokeWidth={1.75} className={isFav ? "fill-current text-ink" : "text-muted"} aria-hidden />
+            <span key={burst} className="relative inline-flex text-ink">
+              <Star
+                size={16}
+                strokeWidth={1.75}
+                className={`${isFav ? "fill-current text-ink" : "text-muted"} ${burst > 0 ? "fav-pop" : ""}`}
+                aria-hidden
+              />
+              {burst > 0 && (
+                <span className="fav-spark pointer-events-none" aria-hidden>
+                  {Array.from({ length: 6 }).map((_, i) => {
+                    const a = (i / 6) * Math.PI * 2;
+                    return (
+                      <i
+                        key={i}
+                        style={{ "--tx": `${Math.cos(a) * 13}px`, "--ty": `${Math.sin(a) * 13}px` } as CSSProperties}
+                      />
+                    );
+                  })}
+                </span>
+              )}
+            </span>
             {isFav ? "Remove from favourites" : "Add to favourites"}
           </button>
 

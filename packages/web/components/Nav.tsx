@@ -107,7 +107,7 @@ export function Nav() {
           aria-current={path.startsWith("/settings") ? "page" : undefined}
           className="flex shrink-0 items-center rounded-lg px-2 py-2 text-muted hover:text-ink"
         >
-          <Settings size={18} strokeWidth={1.75} aria-hidden />
+          <Settings size={18} strokeWidth={1.75} className="spin-hover" aria-hidden />
         </Link>
       </div>
     </header>
