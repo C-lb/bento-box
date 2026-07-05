@@ -24,28 +24,36 @@ export function SorterIllus() {
 }
 
 export function StudioIllus() {
-  // Portrait frame fills the box; accent frame draws in on hover, brand bar underneath.
+  // A centered person: round head + shoulders bust, drawn as a fixed-ratio SVG so
+  // it never stretches with the (wide) card box. Shoulders bleed off the bottom.
+  // Accent frame draws in on hover (the one accent touch).
   return (
-    <div className="flex h-full flex-col gap-3">
-      <div className={`relative grid flex-1 place-items-center rounded-xl ${TILE} ring-0 ring-accent transition-all duration-300 motion-safe:group-hover:ring-2`}>
-        <div className={`h-16 w-16 rounded-full ${TILE2}`} />
-      </div>
-      <div className="h-3 w-full rounded-full bg-accent opacity-90 transition-transform duration-300 origin-left motion-safe:group-hover:scale-x-105" />
+    <div className={`relative grid h-full place-items-center overflow-hidden rounded-xl ${TILE} ring-0 ring-accent transition-all duration-300 motion-safe:group-hover:ring-2`}>
+      <svg
+        viewBox="0 0 100 100"
+        preserveAspectRatio="xMidYMid meet"
+        className="h-full w-full transition-transform duration-300 motion-safe:group-hover:scale-105"
+        fill="#d7dbe1"
+        aria-hidden
+      >
+        <circle cx="50" cy="35" r="18" />
+        <path d="M50 57c-17 0-30 12-32 29a2 2 0 0 0 2 3h60a2 2 0 0 0 2-3c-2-17-15-29-32-29Z" />
+      </svg>
     </div>
   );
 }
 
 export function TranscribeIllus() {
-  const bars = [30, 62, 22, 82, 44, 70, 28, 56, 38, 74, 26, 60];
+  const bars = [28, 54, 20, 72, 40, 64, 24, 50, 34, 68, 22, 58, 30, 76, 44, 60, 26, 52, 38, 70, 24, 62, 32, 56];
   // Waveform fills the upper area, transcript lines wipe in below.
   return (
     <div className="flex h-full flex-col">
-      <div className="flex flex-1 items-end gap-1.5">
+      <div className="flex flex-1 items-end gap-[2px]">
         {bars.map((h, i) => (
           <span
             key={i}
             className={`flex-1 origin-bottom rounded-full ${TILE} motion-safe:group-hover:animate-[eq_0.7s_ease-in-out_infinite]`}
-            style={{ height: `${h}%`, animationDelay: `${i * 60}ms` }}
+            style={{ height: `${h}%`, animationDelay: `${i * 40}ms` }}
           />
         ))}
       </div>
@@ -58,7 +66,7 @@ export function TranscribeIllus() {
 }
 
 export function ConvertIllus() {
-  const bars = [34, 60, 26, 78, 40, 66, 30, 84, 46, 58, 24, 70, 36, 62];
+  const bars = [32, 58, 24, 74, 38, 62, 28, 80, 44, 54, 22, 68, 36, 60, 26, 72, 40, 64, 30, 56, 42, 66, 20, 70];
   // Link chip becomes audio: a link + mp3 pill on top, a full waveform filling below.
   return (
     <div className="flex h-full flex-col gap-3">
@@ -77,12 +85,12 @@ export function ConvertIllus() {
         </svg>
         <span className="grid h-9 place-items-center rounded-xl bg-accent px-3 text-[11px] font-semibold text-white shadow-soft">mp3</span>
       </div>
-      <div className="flex flex-1 items-center gap-1.5">
+      <div className="flex flex-1 items-center gap-[2px]">
         {bars.map((h, i) => (
           <span
             key={i}
             className={`flex-1 rounded-full ${TILE} motion-safe:group-hover:animate-[eq_0.7s_ease-in-out_infinite]`}
-            style={{ height: `${h}%`, animationDelay: `${i * 55}ms` }}
+            style={{ height: `${h}%`, animationDelay: `${i * 38}ms` }}
           />
         ))}
       </div>
