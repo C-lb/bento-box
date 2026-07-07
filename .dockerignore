@@ -1,0 +1,8 @@
+node_modules
+packages/*/node_modules
+packages/web/.next
+packages/desktop
+data
+docs
+*.md
+.env*
