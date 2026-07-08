@@ -11,8 +11,22 @@ type MatchStatus = "matched" | "ambiguous" | "unmatched";
 interface RowMatch { status: MatchStatus; driveFileId?: string; candidates?: string[]; }
 interface MatchedRow { index: number; name: string; title: string; match: RowMatch; }
 type Mapping = { name: number | null; title: number | null; photo: number | null };
-interface BatchHeadshot { id: number; status: string; imageUrl: string | null; errorMessage: string | null; nameText: string; }
+export interface BatchHeadshot { id: number; status: string; imageUrl: string | null; errorMessage: string | null; nameText: string; }
 interface SubmittedRow { driveFileId: string; nameText: string; titleText: string; }
+
+/** True once every row has reached a terminal state; gates the status poll. */
+export function isBatchSettled(headshots: BatchHeadshot[]): boolean {
+  return headshots.length > 0 && headshots.every((h) => h.status === "done" || h.status === "error");
+}
+
+/** Optimistic local transition for a row retry. Flipping the row back to
+ *  pending makes isBatchSettled false again, which re-arms the visibility
+ *  poll; without it, a retry on a fully settled batch would never refetch
+ *  (the poll's `active` gate stays false and the pollKey bump re-runs an
+ *  effect that early-returns). */
+export function applyRetry(headshots: BatchHeadshot[], id: number): BatchHeadshot[] {
+  return headshots.map((h) => (h.id === id ? { ...h, status: "pending", errorMessage: null } : h));
+}
 
 function StatusChip({ status }: { status: MatchStatus }) {
   if (status === "matched") {
@@ -116,8 +130,7 @@ export function StudioBatchClient() {
   }, [selected, matched]);
 
   // Poll batch status while batchId is set; stop when every row is done or error
-  const batchSettled =
-    batchHeadshots.length > 0 && batchHeadshots.every((h) => h.status === "done" || h.status === "error");
+  const batchSettled = isBatchSettled(batchHeadshots);
   // Stable callback: usePollWhileVisible re-arms its interval whenever `fn`
   // changes identity, so this must be memoized (see transcribe/TranscribeClient).
   const pollTick = useCallback(() => {
@@ -242,6 +255,9 @@ export function StudioBatchClient() {
 
   async function retryRow(id: number) {
     await fetch(`/api/studio/batch/${batchId}/retry/${id}`, { method: "POST" });
+    // Optimistic pending transition re-arms the settled poll (see applyRetry);
+    // the pollKey bump forces an immediate refetch on a still-running batch.
+    setBatchHeadshots((prev) => applyRetry(prev, id));
     setPollKey((k) => k + 1);
   }
 
