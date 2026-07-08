@@ -65,9 +65,9 @@ export function StyleExamples() {
         {loading && !data && <p className="text-sm text-muted">Loading…</p>}
 
         {loadError && (
-          <div className="flex items-center justify-between gap-3">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <p className="text-sm text-danger">{loadError}</p>
-            <button type="button" className="btn" onClick={() => load(format)}>
+            <button type="button" className="btn min-h-[44px] sm:min-h-0 w-full sm:w-auto justify-center" onClick={() => load(format)}>
               Try again
             </button>
           </div>
@@ -155,7 +155,7 @@ function AddExample({ format, onAdded }: { format: Format; onAdded: () => void }
         disabled={busy}
       />
       <div className="mt-2 flex items-center gap-3">
-        <button type="button" className="btn btn-accent" onClick={add} disabled={busy || !text.trim()}>
+        <button type="button" className="btn btn-accent min-h-[44px] sm:min-h-0 w-full sm:w-auto justify-center" onClick={add} disabled={busy || !text.trim()}>
           {busy ? "Adding…" : "Add"}
         </button>
         {error && <span className="text-sm text-danger">{error}</span>}
@@ -233,8 +233,8 @@ function ExampleRow({
         onChange={(e) => setText(e.target.value)}
         disabled={busy}
       />
-      <div className="mt-2 flex flex-wrap items-center gap-3">
-        <button type="button" className="btn" onClick={save} disabled={busy || !dirty}>
+      <div className="mt-2 flex flex-wrap items-center gap-1 sm:gap-3">
+        <button type="button" className="btn min-h-[44px] sm:min-h-0" onClick={save} disabled={busy || !dirty}>
           {saving ? "Saving…" : saved ? "Saved" : "Save"}
         </button>
         {confirmingDelete ? (
@@ -242,7 +242,7 @@ function ExampleRow({
             <span className="text-danger">Delete this example?</span>
             <button
               type="button"
-              className="text-danger underline underline-offset-2 disabled:pointer-events-none disabled:opacity-50"
+              className="p-2 -m-2 min-h-[44px] sm:min-h-0 sm:p-0 sm:m-0 text-danger underline underline-offset-2 disabled:pointer-events-none disabled:opacity-50"
               onClick={doDelete}
               disabled={deleting}
             >
@@ -250,7 +250,7 @@ function ExampleRow({
             </button>
             <button
               type="button"
-              className="text-ink underline underline-offset-2 disabled:pointer-events-none disabled:opacity-50"
+              className="p-2 -m-2 min-h-[44px] sm:min-h-0 sm:p-0 sm:m-0 text-ink underline underline-offset-2 disabled:pointer-events-none disabled:opacity-50"
               onClick={() => setConfirmingDelete(false)}
               disabled={deleting}
             >
@@ -260,7 +260,7 @@ function ExampleRow({
         ) : (
           <button
             type="button"
-            className="text-sm text-danger underline underline-offset-2 disabled:pointer-events-none disabled:opacity-50"
+            className="p-2 -m-2 min-h-[44px] sm:min-h-0 sm:p-0 sm:m-0 text-sm text-danger underline underline-offset-2 disabled:pointer-events-none disabled:opacity-50"
             onClick={() => setConfirmingDelete(true)}
             disabled={busy}
           >
@@ -295,13 +295,13 @@ function LikedRow({ item, onChanged }: { item: ExampleItem; onChanged: () => voi
   return (
     <div>
       <p className="whitespace-pre-wrap text-sm text-ink">{item.text}</p>
-      <div className="mt-2 flex flex-wrap items-center gap-3">
+      <div className="mt-2 flex flex-wrap items-center gap-1 sm:gap-3">
         {confirmingRemove ? (
           <span className="flex items-center gap-2 text-sm">
             <span className="text-danger">Remove this liked draft?</span>
             <button
               type="button"
-              className="text-danger underline underline-offset-2 disabled:pointer-events-none disabled:opacity-50"
+              className="p-2 -m-2 min-h-[44px] sm:min-h-0 sm:p-0 sm:m-0 text-danger underline underline-offset-2 disabled:pointer-events-none disabled:opacity-50"
               onClick={doRemove}
               disabled={removing}
             >
@@ -309,7 +309,7 @@ function LikedRow({ item, onChanged }: { item: ExampleItem; onChanged: () => voi
             </button>
             <button
               type="button"
-              className="text-ink underline underline-offset-2 disabled:pointer-events-none disabled:opacity-50"
+              className="p-2 -m-2 min-h-[44px] sm:min-h-0 sm:p-0 sm:m-0 text-ink underline underline-offset-2 disabled:pointer-events-none disabled:opacity-50"
               onClick={() => setConfirmingRemove(false)}
               disabled={removing}
             >
@@ -319,7 +319,7 @@ function LikedRow({ item, onChanged }: { item: ExampleItem; onChanged: () => voi
         ) : (
           <button
             type="button"
-            className="text-sm text-danger underline underline-offset-2 disabled:pointer-events-none disabled:opacity-50"
+            className="p-2 -m-2 min-h-[44px] sm:min-h-0 sm:p-0 sm:m-0 text-sm text-danger underline underline-offset-2 disabled:pointer-events-none disabled:opacity-50"
             onClick={() => setConfirmingRemove(true)}
             disabled={removing}
           >

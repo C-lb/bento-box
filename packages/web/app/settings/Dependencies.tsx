@@ -79,7 +79,7 @@ function DependencyRow({ dep }: { dep: Dep }) {
       {dep.managed && (
         <button
           type="button"
-          className="btn btn-accent shrink-0"
+          className="btn btn-accent shrink-0 min-h-[44px] sm:min-h-0 w-full sm:w-auto justify-center"
           disabled={pending}
           onClick={downloadYtDlp}
         >
@@ -91,7 +91,7 @@ function DependencyRow({ dep }: { dep: Dep }) {
       {!dep.managed && dep.installUrl && (
         <button
           type="button"
-          className="btn shrink-0"
+          className="btn shrink-0 min-h-[44px] sm:min-h-0 w-full sm:w-auto justify-center"
           onClick={() => window.open(dep.installUrl!, "_blank", "noopener")}
         >
           Open download page

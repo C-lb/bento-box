@@ -56,9 +56,9 @@ export function RankingContexts() {
               setStatus((s) => ({ ...s, [p.id]: "" }));
             }}
           />
-          <div className="mt-2 flex items-center gap-3">
-            <button type="button" className="btn btn-accent" onClick={() => save(p.id)}>Save</button>
-            <button type="button" className="btn" onClick={() => reset(p.id)}>Reset to default</button>
+          <div className="mt-2 flex flex-col sm:flex-row sm:items-center gap-3">
+            <button type="button" className="btn btn-accent min-h-[44px] sm:min-h-0 w-full sm:w-auto justify-center" onClick={() => save(p.id)}>Save</button>
+            <button type="button" className="btn min-h-[44px] sm:min-h-0 w-full sm:w-auto justify-center" onClick={() => reset(p.id)}>Reset to default</button>
             {status[p.id] && <span className="text-sm text-muted">{status[p.id]}</span>}
           </div>
         </div>

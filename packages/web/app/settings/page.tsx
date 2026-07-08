@@ -57,9 +57,9 @@ async function SettingsBody({ searchParams }: { searchParams: Promise<{ google?:
       {canva === "error" && <p className="mt-3 text-danger">Canva connection failed. Check CANVA_CLIENT_ID and try again.</p>}
       <ul className="mt-8 space-y-3">
         {connections.map((c) => (
-          <li key={c.id} className="card flex items-center justify-between">
+          <li key={c.id} className="card flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <span>{c.label}</span>
-            <span className="flex items-center gap-3">
+            <span className="flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:gap-3">
               <span className={c.configured ? "text-success" : "text-muted"}>
                 {c.configured ? "Connected" : "Not configured"}
               </span>
@@ -69,21 +69,21 @@ async function SettingsBody({ searchParams }: { searchParams: Promise<{ google?:
                 </span>
               )}
               {c.id === "google" && c.configured && (
-                <a className="btn" href="/api/google/auth">Re-auth</a>
+                <a className="btn min-h-[44px] sm:min-h-0 w-full sm:w-auto justify-center" href="/api/google/auth">Re-auth</a>
               )}
             </span>
           </li>
         ))}
       </ul>
       <ul className="mt-3 space-y-3">
-        <li className="card flex items-center justify-between">
+        <li className="card flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <span>Canva (Headshot Studio)</span>
-          <span className="flex items-center gap-3">
+          <span className="flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:gap-3">
             <span className={canvaToken ? "text-success" : canvaConfigured ? "text-muted" : "text-danger"}>
               {canvaToken ? "Connected" : canvaConfigured ? "Not connected" : "Set CANVA_CLIENT_ID"}
             </span>
             {canvaConfigured && (
-              <a className="btn" href="/api/canva/auth">{canvaToken ? "Re-auth" : "Connect"}</a>
+              <a className="btn min-h-[44px] sm:min-h-0 w-full sm:w-auto justify-center" href="/api/canva/auth">{canvaToken ? "Re-auth" : "Connect"}</a>
             )}
           </span>
         </li>

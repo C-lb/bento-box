@@ -76,7 +76,7 @@ export function KeyForm({ present, configPath }: { present: Record<string, boole
                     )}
                   </span>
                   <input
-                    className="field"
+                    className="field min-h-[44px] sm:min-h-0"
                     type="password"
                     name={f.name}
                     autoComplete="off"
@@ -91,8 +91,8 @@ export function KeyForm({ present, configPath }: { present: Record<string, boole
         ))}
       </div>
 
-      <div className="mt-6 flex items-center gap-3">
-        <button type="submit" className="btn btn-accent" disabled={pending}>
+      <div className="mt-6 flex flex-col sm:flex-row sm:items-center gap-3">
+        <button type="submit" className="btn btn-accent min-h-[44px] sm:min-h-0 w-full sm:w-auto justify-center" disabled={pending}>
           {pending && (
             <svg className="ico animate-spin" viewBox="0 0 24 24" fill="none" aria-hidden>
               <circle cx="12" cy="12" r="9" stroke="currentColor" strokeOpacity="0.3" strokeWidth="3" />
@@ -102,7 +102,7 @@ export function KeyForm({ present, configPath }: { present: Record<string, boole
           {pending ? "Saving" : "Save keys"}
         </button>
         {state?.ok && canRelaunch && (
-          <button type="button" className="btn" onClick={() => window.ee?.relaunch()}>
+          <button type="button" className="btn min-h-[44px] sm:min-h-0 w-full sm:w-auto justify-center" onClick={() => window.ee?.relaunch()}>
             Restart now
           </button>
         )}
