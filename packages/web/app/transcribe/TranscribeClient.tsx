@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Smile } from "lucide-react";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -10,34 +10,7 @@ import { summaryToHtml, summaryToPlain } from "@/lib/render-summary";
 import { EventDetailsPanel } from "./EventDetailsPanel";
 import { FileDrop } from "@/components/FileDrop";
 import { usePollWhileVisible } from "@/lib/use-visible-poll";
-
-// The transcribe endpoint reads a raw streamed body (not multipart), so it
-// can't go through the shared uploadWithProgress helper (FormData-only).
-// Same progress-reporting shape via XHR, sent as a raw body with headers.
-type RawUploadResponse = { ok: boolean; status: number; json: () => Promise<any> };
-function uploadRawWithProgress(
-  url: string,
-  file: File,
-  headers: Record<string, string>,
-  onProgress: (frac: number) => void,
-): Promise<RawUploadResponse> {
-  return new Promise((resolve, reject) => {
-    const xhr = new XMLHttpRequest();
-    xhr.open("POST", url);
-    for (const [k, v] of Object.entries(headers)) xhr.setRequestHeader(k, v);
-    xhr.upload.onprogress = (e) => {
-      if (e.lengthComputable && e.total > 0) onProgress(e.loaded / e.total);
-    };
-    xhr.onload = () =>
-      resolve({
-        ok: xhr.status >= 200 && xhr.status < 300,
-        status: xhr.status,
-        json: async () => JSON.parse(xhr.responseText),
-      });
-    xhr.onerror = () => reject(new Error("Upload failed. Check the connection."));
-    xhr.send(file);
-  });
-}
+import { uploadRawWithProgress } from "@/lib/upload";
 
 // Shared 401 handling for the tool's other POST endpoints (summary, retry,
 // like): bounce to login instead of failing silently.
@@ -122,26 +95,26 @@ export function TranscribeClient() {
   }, [searchParams]);
 
   const txSettled = tx != null && (tx.status === "done" || tx.status === "error");
-  usePollWhileVisible(
-    () => {
-      if (id == null) return;
-      (async () => {
-        const r = await fetch(`/api/transcribe/${id}`);
-        if (!r.ok) {
-          setTx((t) => ({
-            ...(t ?? ({} as Transcription)),
-            status: "error",
-            errorMessage: "This transcription is no longer available.",
-          } as Transcription));
-          return;
-        }
-        const data = await r.json();
-        setTx(data.transcription);
-      })();
-    },
-    1500,
-    id != null && !txSettled,
-  );
+  // Stable callback: the hook's effect depends on `fn`, so an inline closure
+  // would re-arm the interval on every poll-driven render and fire immediately,
+  // degrading the 1500ms cadence into a network-latency-bound tight loop.
+  const pollTick = useCallback(() => {
+    if (id == null) return;
+    (async () => {
+      const r = await fetch(`/api/transcribe/${id}`);
+      if (!r.ok) {
+        setTx((t) => ({
+          ...(t ?? ({} as Transcription)),
+          status: "error",
+          errorMessage: "This transcription is no longer available.",
+        } as Transcription));
+        return;
+      }
+      const data = await r.json();
+      setTx(data.transcription);
+    })();
+  }, [id]);
+  usePollWhileVisible(pollTick, 1500, id != null && !txSettled);
 
   async function upload() {
     const file = fileRef.current?.files?.[0];
@@ -164,7 +137,7 @@ export function TranscribeClient() {
       if (contextId) headers["x-context-id"] = contextId;
       const r = await uploadRawWithProgress("/api/transcribe", file, headers, setProgress);
       if (r.status === 401) { window.location.assign("/login"); return; }
-      const data = await r.json().catch(() => null);
+      const data: any = await r.json().catch(() => null);
       if (r.status === 413) {
         setUploadError(data?.error ?? "File is too large.");
         return;
@@ -264,13 +237,17 @@ export function TranscribeClient() {
 
   async function toggleLike(fmt: "linkedin" | "article") {
     if (id == null) return;
-    await saveEdits(fmt); // ensure the saved draft matches what is on screen
-    const r = await fetch(`/api/transcribe/${id}/like`, {
-      method: "POST", headers: { "content-type": "application/json" },
-      body: JSON.stringify({ format: fmt }),
-    });
-    const d = await jsonOr401(r);
-    if (r.ok) setLiked((l) => ({ ...l, [fmt]: !!d.liked }));
+    setFormatError(null);
+    try {
+      await saveEdits(fmt); // ensure the saved draft matches what is on screen
+      const r = await fetch(`/api/transcribe/${id}/like`, {
+        method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify({ format: fmt }),
+      });
+      const d = await jsonOr401(r);
+      if (r.ok) setLiked((l) => ({ ...l, [fmt]: !!d?.liked }));
+      else setFormatError(d?.error ?? "Could not save the like.");
+    } catch { setFormatError("Could not save the like."); }
   }
 
   const inProgress = busy || (id != null && tx != null && tx.status !== "done" && tx.status !== "error");

@@ -90,7 +90,7 @@ export function HistoryPanel<T extends HistoryItem>({
                     <li key={String(item.id)} className="py-3 first:pt-0 last:pb-0">
                       {renderRow(item)}
                       {(renderActions || deleteItem) && (
-                        <div className="mt-2 flex flex-wrap items-center gap-1">
+                        <div className="mt-2 flex flex-wrap items-center gap-1 sm:gap-3">
                           {renderActions?.(item)}
                           {deleteItem &&
                             (confirmingId === item.id ? (

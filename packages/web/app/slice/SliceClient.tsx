@@ -5,37 +5,10 @@ import { FileDrop } from "@/components/FileDrop";
 import { StatusBadge } from "@/components/StatusBadge";
 import { sliceStatusView } from "@/lib/status";
 import type { SlideText, SpeakerGroup } from "@event-editor/core/pptx";
+import { uploadRawWithProgress } from "@/lib/upload";
 
 interface GroupRow { label: string; ranges: string }
 interface OutFile { label: string; filename: string }
-
-// The deck upload streams a raw body (not multipart), so it can't go through
-// the shared uploadWithProgress helper (FormData-only). Same progress shape
-// via XHR, sent as a raw body with headers.
-type RawUploadResponse = { ok: boolean; status: number; json: () => Promise<any> };
-function uploadRawWithProgress(
-  url: string,
-  file: File,
-  headers: Record<string, string>,
-  onProgress: (frac: number) => void,
-): Promise<RawUploadResponse> {
-  return new Promise((resolve, reject) => {
-    const xhr = new XMLHttpRequest();
-    xhr.open("POST", url);
-    for (const [k, v] of Object.entries(headers)) xhr.setRequestHeader(k, v);
-    xhr.upload.onprogress = (e) => {
-      if (e.lengthComputable && e.total > 0) onProgress(e.loaded / e.total);
-    };
-    xhr.onload = () =>
-      resolve({
-        ok: xhr.status >= 200 && xhr.status < 300,
-        status: xhr.status,
-        json: async () => JSON.parse(xhr.responseText),
-      });
-    xhr.onerror = () => reject(new Error("Upload failed. Check the connection."));
-    xhr.send(file);
-  });
-}
 
 // Shared 401 handling for the tool's other POST endpoints: bounce to login
 // instead of failing silently.
@@ -227,7 +200,7 @@ export function SliceClient({ hasAi }: { hasAi: boolean }) {
       <div className="card">
         <p className="eyebrow">1. Choose a deck</p>
         <div className="mt-3">
-          <FileDrop inputRef={fileRef} accept=".pptx,.pdf" label="Drop a .pptx here, or click to browse" />
+          <FileDrop inputRef={fileRef} accept=".pptx,.pdf" label="Drop a .pptx or .pdf here, or click to browse" />
         </div>
         <div className="mt-3">
           <button type="button" className="btn min-h-[44px] sm:min-h-0 w-full sm:w-auto" onClick={chooseFromDrive}>

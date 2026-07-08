@@ -116,7 +116,7 @@ export function PastTranscriptions() {
                         {it.hasLinkedin && <span className="text-xs text-muted">· LinkedIn</span>}
                         {it.hasArticle && <span className="text-xs text-muted">· Article</span>}
                       </div>
-                      <div className="mt-2 flex flex-wrap items-center gap-1">
+                      <div className="mt-2 flex flex-wrap items-center gap-1 sm:gap-3">
                         <button
                           type="button"
                           className="p-2 -m-2 min-h-[44px] sm:min-h-0 sm:p-0 sm:m-0 text-xs text-ink underline underline-offset-2 disabled:pointer-events-none disabled:opacity-50"
