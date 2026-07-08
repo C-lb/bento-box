@@ -2,6 +2,7 @@
 import { useRef, useState } from "react";
 import { Download, Loader2 } from "lucide-react";
 import { Segmented } from "@/components/Segmented";
+import { uploadWithProgress } from "@/lib/upload";
 
 interface Result { id: string; filename: string; bytesIn: number; bytesOut: number }
 
@@ -22,6 +23,7 @@ export function VideoClient() {
   const [hasFile, setHasFile] = useState(false);
 
   const [busy, setBusy] = useState(false);
+  const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<Result | null>(null);
 
@@ -39,13 +41,16 @@ export function VideoClient() {
     setError(null);
     setResult(null);
     setBusy(true);
+    setProgress(0);
     try {
       const fd = new FormData();
       fd.append("file", f);
       fd.append("preset", preset);
       fd.append("scale", scale);
-      const r = await fetch("/api/video", { method: "POST", body: fd });
-      const data = await r.json().catch(() => null);
+      const r = await uploadWithProgress("/api/video", fd, setProgress);
+      if (r.status === 401) { window.location.assign("/login"); return; }
+      const data: any = await r.json().catch(() => null);
+      if (r.status === 413) throw new Error(data?.error ?? "File is too large.");
       if (!r.ok || !data?.id) throw new Error(data?.error ?? "Compression failed");
       setResult({ id: data.id, filename: data.filename, bytesIn: data.bytesIn, bytesOut: data.bytesOut });
     } catch (e) {
@@ -64,7 +69,7 @@ export function VideoClient() {
             type="file"
             accept="video/*"
             onChange={onPickFile}
-            className="field mt-1 file:mr-3 file:rounded-md file:border-0 file:bg-raised file:px-3 file:py-1 file:text-ink"
+            className="field mt-1 min-h-[44px] sm:min-h-0 file:mr-3 file:rounded-md file:border-0 file:bg-raised file:px-3 file:py-1 file:text-ink"
           />
         </label>
 
@@ -98,12 +103,26 @@ export function VideoClient() {
           </div>
         </div>
 
-        <div className="mt-4 flex items-center gap-3">
-          <button type="button" className="btn btn-accent" onClick={compress} disabled={!canCompress}>
+        <div className="mt-4 flex flex-col sm:flex-row sm:items-center gap-3">
+          <button
+            type="button"
+            className="btn btn-accent min-h-[44px] sm:min-h-0 w-full sm:w-auto justify-center"
+            onClick={compress}
+            disabled={!canCompress}
+          >
             {busy ? <><Loader2 className="w-4 h-4 animate-spin" strokeWidth={1.75} /> Compressing…</> : "Compress"}
           </button>
           {busy && <span className="text-sm text-muted">This can take a while for long videos.</span>}
         </div>
+
+        {busy && (
+          <div className="mt-3 h-1.5 w-full rounded-full bg-line overflow-hidden">
+            <div
+              className="h-1.5 rounded-full bg-accent transition-[width]"
+              style={{ width: `${Math.round(progress * 100)}%` }}
+            />
+          </div>
+        )}
 
         {error && <p className="mt-3 text-sm text-danger">{error}</p>}
       </div>
@@ -114,9 +133,9 @@ export function VideoClient() {
           <p className="mt-1 text-sm">{result.filename}</p>
           <p className="mt-1 text-sm text-muted">{formatBytes(result.bytesIn)} → {formatBytes(result.bytesOut)}</p>
 
-          <div className="mt-3 flex flex-wrap items-center gap-3">
+          <div className="mt-3 flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-3">
             <a
-              className="btn inline-flex items-center gap-2"
+              className="btn min-h-[44px] sm:min-h-0 w-full sm:w-auto inline-flex items-center justify-center gap-2"
               href={`/api/video/${result.id}?name=${encodeURIComponent(result.filename)}`}
               download
             >
