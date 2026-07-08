@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { verifyToken, authEnabled, AUTH_COOKIE } from "@/lib/auth";
-import { capForPath, MB } from "@/lib/limits";
+import { capForPath, isPublicAsset, MB } from "@/lib/limits";
 
 const PUBLIC = new Set(["/login", "/api/auth/login", "/api/health"]);
 
@@ -18,7 +18,9 @@ export async function middleware(req: NextRequest) {
     }
   }
 
-  if (!authEnabled() || PUBLIC.has(pathname)) return NextResponse.next();
+  if (!authEnabled() || PUBLIC.has(pathname) || isPublicAsset(pathname)) {
+    return NextResponse.next();
+  }
 
   const ok = await verifyToken(
     process.env.EE_AUTH_SECRET!,
@@ -38,6 +40,8 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  // Everything except Next internals and static assets (public/ files have extensions).
-  matcher: ["/((?!_next/|mediapipe/|.*\\.(?:svg|png|ico|js|wasm|tflite|css|map)$).*)"],
+  // Exclude only true static prefixes. Extension-based exemptions are decided
+  // inside the middleware via isPublicAsset() so that /api/... paths ending in
+  // an asset extension can never bypass auth or upload caps.
+  matcher: ["/((?!_next/|mediapipe/).*)"],
 };
