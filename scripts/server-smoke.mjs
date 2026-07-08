@@ -1,12 +1,17 @@
 // scripts/server-smoke.mjs — real-file round trips against a running Bento server.
-// Usage: node scripts/server-smoke.mjs [baseUrl]   (default http://localhost:3000)
+// Usage: node scripts/server-smoke.mjs [baseUrl] [--passcode <code>]   (default http://localhost:3000)
+//
+// When the server has auth enabled (EE_AUTH_PASSCODE set), pass --passcode <code>
+// to log in first: POSTs {code} to /api/auth/login, captures the Set-Cookie
+// header, and threads that cookie onto every subsequent request. fetch() does
+// not persist cookies across calls on its own, so this is done manually.
 //
 // Every route here does its work synchronously inside the POST handler and
 // returns the final result in the response body — there is no async job
 // queue anywhere in this app, so there is nothing to poll. Each check does a
 // real POST round trip and then a real GET download of the produced file.
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, writeFileSync, readFileSync } from "node:fs";
+import { mkdtempSync, writeFileSync, readFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { createRequire } from "node:module";
@@ -16,9 +21,45 @@ const ffmpeg = require("ffmpeg-static");
 const JSZip = require("jszip");
 const { PDFDocument } = require("pdf-lib");
 
-const BASE = process.argv[2] ?? "http://localhost:3000";
+const rawArgs = process.argv.slice(2);
+let PASSCODE = null;
+const positional = [];
+for (let i = 0; i < rawArgs.length; i++) {
+  if (rawArgs[i] === "--passcode") {
+    PASSCODE = rawArgs[++i];
+  } else {
+    positional.push(rawArgs[i]);
+  }
+}
+const BASE = positional[0] ?? "http://localhost:3000";
 const dir = mkdtempSync(join(tmpdir(), "bento-smoke-"));
 const results = [];
+let cookie = "";
+
+process.on("exit", () => {
+  try {
+    rmSync(dir, { recursive: true, force: true });
+  } catch {
+    // best-effort cleanup
+  }
+});
+
+async function login(code) {
+  try {
+    const res = await fetch(`${BASE}/api/auth/login`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ code }),
+    });
+    const body = await res.json().catch(() => ({}));
+    const setCookie = res.headers.get("set-cookie");
+    if (setCookie) cookie = setCookie.split(";")[0];
+    results.push({ label: "auth:login", pass: res.ok && !!cookie, detail: res.ok ? "" : `${res.status} ${body.error ?? ""}` });
+  } catch (err) {
+    results.push({ label: "auth:login", pass: false, detail: String(err) });
+  }
+}
+if (PASSCODE) await login(PASSCODE);
 
 function fixtureVideo() {
   const p = join(dir, "in.mp4");
@@ -120,12 +161,15 @@ async function fixturePptx() {
   return p;
 }
 
+function authHeaders(extra = {}) {
+  return cookie ? { ...extra, cookie } : extra;
+}
 async function post(label, path, field, filePath, extra = {}) {
   try {
     const form = new FormData();
     form.set(field, new Blob([readFileSync(filePath)]), filePath.split("/").pop());
     for (const [k, v] of Object.entries(extra)) form.set(k, v);
-    const res = await fetch(`${BASE}${path}`, { method: "POST", body: form });
+    const res = await fetch(`${BASE}${path}`, { method: "POST", body: form, headers: authHeaders() });
     const body = await res.json().catch(() => ({}));
     results.push({ label, pass: res.ok, detail: res.ok ? "" : `${res.status} ${body.error ?? ""}` });
     return res.ok ? body : null;
@@ -136,7 +180,7 @@ async function post(label, path, field, filePath, extra = {}) {
 }
 async function download(label, path) {
   try {
-    const res = await fetch(`${BASE}${path}`);
+    const res = await fetch(`${BASE}${path}`, { headers: authHeaders() });
     const buf = new Uint8Array(await res.arrayBuffer());
     results.push({ label, pass: res.ok && buf.length > 0, detail: res.ok ? `${buf.length}B` : `${res.status}` });
   } catch (err) {
@@ -179,7 +223,7 @@ const splRes = await (async () => {
     form.append("file", new Blob([readFileSync(clipPath)]), "clip1.mp4");
     form.append("file", new Blob([readFileSync(clipPath)]), "clip2.mp4");
     form.set("manifest", splMan);
-    const res = await fetch(`${BASE}/api/splice`, { method: "POST", body: form });
+    const res = await fetch(`${BASE}/api/splice`, { method: "POST", body: form, headers: authHeaders() });
     const body = await res.json().catch(() => ({}));
     results.push({ label: "splice:upload", pass: res.ok, detail: res.ok ? "" : `${res.status} ${body.error ?? ""}` });
     return res.ok ? body : null;
@@ -197,7 +241,7 @@ await (async () => {
     const pptxPath = await fixturePptx();
     const res = await fetch(`${BASE}/api/slice/convert`, {
       method: "POST",
-      headers: { "content-type": "application/octet-stream", "x-filename": "in.pptx" },
+      headers: authHeaders({ "content-type": "application/octet-stream", "x-filename": "in.pptx" }),
       body: readFileSync(pptxPath),
     });
     const body = await res.json().catch(() => ({}));
