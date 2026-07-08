@@ -40,7 +40,7 @@ export function CardMenu({ tool }: { tool: Tool }) {
   }
 
   return (
-    <div ref={ref} className="absolute right-2 top-2 z-20">
+    <div ref={ref} className="absolute right-2 top-1/2 z-20 -translate-y-1/2 sm:top-2 sm:translate-y-0">
       <button
         type="button"
         aria-label="Card options"

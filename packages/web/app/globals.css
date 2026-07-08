@@ -92,7 +92,7 @@ body {
 
 /* Mobile: bigger rem-based type and iOS safe areas. Tailwind's rem sizes
    (text-sm etc) scale with this; the 13px `text-base` token stays desktop-only. */
-@media (max-width: 640px) {
+@media (max-width: 639.98px) {
   :root { font-size: 17px; }
   body {
     padding-left: env(safe-area-inset-left);
