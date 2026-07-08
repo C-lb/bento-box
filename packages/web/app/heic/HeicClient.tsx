@@ -2,6 +2,7 @@
 import { useRef, useState } from "react";
 import { Download, Loader2 } from "lucide-react";
 import { Segmented } from "@/components/Segmented";
+import { uploadWithProgress } from "@/lib/upload";
 
 type Status = "idle" | "busy" | "done" | "error";
 
@@ -10,10 +11,19 @@ interface Row {
   file: File;
   name: string;
   status: Status;
+  progress?: number;
   id?: string;
   filename?: string;
   outFormat?: "jpg" | "png";
   error?: string;
+}
+
+// 401 bounces to login, 413 surfaces the server's own message.
+async function readJsonOrThrow(res: { status: number; json: () => Promise<any> }) {
+  if (res.status === 401) { window.location.assign("/login"); throw new Error("Signed out."); }
+  const data = await res.json().catch(() => null);
+  if (res.status === 413) throw new Error(data?.error ?? "File is too large.");
+  return data;
 }
 
 export function HeicClient() {
@@ -38,14 +48,16 @@ export function HeicClient() {
   async function convertRow(key: string) {
     const row = rows.find((r) => r.key === key);
     if (!row) return;
-    setRows((prev) => prev.map((r) => (r.key === key ? { ...r, status: "busy", error: undefined } : r)));
+    setRows((prev) => prev.map((r) => (r.key === key ? { ...r, status: "busy", progress: 0, error: undefined } : r)));
     try {
       const fd = new FormData();
       fd.append("file", row.file);
       fd.append("format", format);
       fd.append("quality", String(quality));
-      const r = await fetch("/api/heic", { method: "POST", body: fd });
-      const data = await r.json().catch(() => null);
+      const r = await uploadWithProgress("/api/heic", fd, (p) =>
+        setRows((prev) => prev.map((row) => (row.key === key ? { ...row, progress: p } : row))),
+      );
+      const data = await readJsonOrThrow(r);
       if (!r.ok || !data?.id) throw new Error(data?.error ?? "Conversion failed");
       setRows((prev) =>
         prev.map((row) =>
@@ -80,7 +92,7 @@ export function HeicClient() {
             multiple
             accept=".heic,.heif,image/heic,image/heif"
             onChange={onPickFiles}
-            className="field mt-1 file:mr-3 file:rounded-md file:border-0 file:bg-raised file:px-3 file:py-1 file:text-ink"
+            className="field mt-1 min-h-[44px] sm:min-h-0 file:mr-3 file:rounded-md file:border-0 file:bg-raised file:px-3 file:py-1 file:text-ink"
           />
         </label>
         <p className="mt-1 text-sm text-muted">Pick one or more HEIC or HEIF photos.</p>
@@ -112,7 +124,7 @@ export function HeicClient() {
         )}
 
         <div className="mt-4 flex items-center gap-3">
-          <button type="button" className="btn btn-accent" onClick={convertAll} disabled={!canConvert}>
+          <button type="button" className="btn btn-accent min-h-[44px] sm:min-h-0 w-full sm:w-auto justify-center" onClick={convertAll} disabled={!canConvert}>
             {anyBusy ? <><Loader2 className="w-4 h-4 animate-spin" strokeWidth={1.75} /> Converting…</> : "Convert all"}
           </button>
         </div>
@@ -126,14 +138,19 @@ export function HeicClient() {
               <span className="text-sm flex-1 min-w-0 truncate">{row.name}</span>
 
               {row.status === "busy" && (
-                <span className="inline-flex items-center gap-2 text-sm text-muted">
-                  <Loader2 className="w-4 h-4 animate-spin" strokeWidth={1.75} /> Converting…
-                </span>
+                <div className="flex w-full items-center gap-2 sm:w-auto">
+                  <span className="inline-flex items-center gap-2 text-sm text-muted">
+                    <Loader2 className="w-4 h-4 animate-spin" strokeWidth={1.75} /> Converting… {Math.round((row.progress ?? 0) * 100)}%
+                  </span>
+                  <div className="ml-auto h-1.5 w-24 shrink-0 rounded-full bg-line overflow-hidden sm:ml-0">
+                    <div className="h-1.5 rounded-full bg-accent transition-[width]" style={{ width: `${Math.round((row.progress ?? 0) * 100)}%` }} />
+                  </div>
+                </div>
               )}
 
               {row.status === "done" && row.id && (
                 <a
-                  className="btn inline-flex items-center gap-2"
+                  className="btn inline-flex items-center gap-2 min-h-[44px] sm:min-h-0 w-full sm:w-auto justify-center"
                   href={`/api/heic/${row.id}?name=${encodeURIComponent(row.filename ?? row.name)}&format=${row.outFormat ?? "jpg"}`}
                   download
                 >
@@ -146,7 +163,7 @@ export function HeicClient() {
                   <span className="text-sm text-danger">{row.error}</span>
                   <button
                     type="button"
-                    className="btn"
+                    className="btn min-h-[44px] sm:min-h-0 w-full sm:w-auto justify-center"
                     onClick={() => convertRow(row.key)}
                   >
                     Retry
