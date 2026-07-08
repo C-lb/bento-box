@@ -51,7 +51,7 @@ export function CardMenu({ tool }: { tool: Tool }) {
           e.stopPropagation();
           setOpen((v) => !v);
         }}
-        className="dots-trigger rounded-lg border border-line bg-surface p-1.5 text-muted shadow-soft hover:text-ink"
+        className="dots-trigger flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg border border-line bg-surface p-1.5 text-muted shadow-soft hover:text-ink"
       >
         {/* Inline dots in left-to-right DOM order so the hover wave lifts them in sequence. */}
         <svg viewBox="0 0 24 24" width={16} height={16} className="dots-wave" fill="currentColor" aria-hidden>
@@ -76,7 +76,7 @@ export function CardMenu({ tool }: { tool: Tool }) {
               if (!isFav) setBurst((n) => n + 1); // celebrate only on add
               shell.toggleFavourite(tool.id);
             }}
-            className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-ink hover:bg-[#eef0f3]"
+            className="flex min-h-[44px] w-full items-center gap-2 rounded-lg px-2 py-1.5 text-ink hover:bg-[#eef0f3]"
           >
             <span key={burst} className="relative inline-flex text-ink">
               <Star
@@ -106,7 +106,7 @@ export function CardMenu({ tool }: { tool: Tool }) {
 
           <div className="max-h-48 overflow-y-auto">
             {shell.state.groups.map((gid) => (
-              <label key={gid} className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-[#eef0f3]">
+              <label key={gid} className="flex min-h-[44px] cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-[#eef0f3]">
                 <input
                   type="checkbox"
                   checked={inGroups.has(gid)}
@@ -129,7 +129,11 @@ export function CardMenu({ tool }: { tool: Tool }) {
               placeholder="New group"
               className="min-w-0 flex-1 rounded-lg border border-line bg-surface px-2 py-1 text-sm outline-none"
             />
-            <button type="button" onClick={addGroup} className="rounded-lg border border-line px-2 py-1 text-muted hover:text-ink">
+            <button
+              type="button"
+              onClick={addGroup}
+              className="min-h-[44px] rounded-lg border border-line px-3 py-1 text-muted hover:text-ink"
+            >
               Add
             </button>
           </div>

@@ -28,14 +28,14 @@ export function ToolSearch() {
       }`}
       style={{ transform: visible ? "translateY(0)" : "translateY(-100%)" }}
     >
-      <div className="mx-auto flex max-w-5xl items-center gap-2 px-6 py-2">
+      <div className="mx-auto flex max-w-5xl items-center gap-2 px-4 py-2 sm:px-6">
         <Search size={16} strokeWidth={1.75} className="text-muted" aria-hidden />
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search tools by name or tag"
           aria-label="Search tools"
-          className="w-full bg-transparent py-1 text-sm outline-none placeholder:text-muted"
+          className="min-h-12 w-full bg-transparent py-1 text-sm outline-none placeholder:text-muted sm:min-h-0"
         />
       </div>
     </div>

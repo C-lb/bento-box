@@ -15,15 +15,15 @@ export function ToolCard({ tool }: { tool: Tool }) {
           {tool.title}
         </h2>
         <p className="mt-1.5 text-[13px] text-muted">{tool.body}</p>
+        <div className="mt-2 flex flex-wrap gap-1">
+          {tool.tags.slice(0, 4).map((t) => (
+            <span key={t} className="rounded-md bg-[#eef0f3] px-1.5 py-0.5 text-[11px] text-muted">
+              {t}
+            </span>
+          ))}
+          {tool.tags.length > 4 && <span className="px-1 py-0.5 text-[11px] text-muted">+{tool.tags.length - 4}</span>}
+        </div>
       </Link>
-      <div className="mt-2 flex flex-wrap gap-1">
-        {tool.tags.slice(0, 4).map((t) => (
-          <span key={t} className="rounded-md bg-[#eef0f3] px-1.5 py-0.5 text-[11px] text-muted">
-            {t}
-          </span>
-        ))}
-        {tool.tags.length > 4 && <span className="px-1 py-0.5 text-[11px] text-muted">+{tool.tags.length - 4}</span>}
-      </div>
     </div>
   );
 }

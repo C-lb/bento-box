@@ -74,7 +74,7 @@ export function Nav() {
           <span className="hidden sm:inline">Bento</span>
         </Link>
 
-        <nav className="relative flex flex-1 items-center gap-1 overflow-x-auto">
+        <nav className="relative flex flex-1 items-center gap-1 overflow-x-auto overscroll-x-contain">
           <span
             ref={thumbRef}
             aria-hidden
@@ -91,7 +91,7 @@ export function Nav() {
                 }}
                 onClick={() => pick(p.id)}
                 aria-pressed={active}
-                className={`relative z-10 inline-flex items-center whitespace-nowrap rounded-lg px-3 py-2 text-sm transition-colors ${
+                className={`relative z-10 inline-flex min-h-[44px] items-center whitespace-nowrap rounded-lg px-3 py-2 text-sm transition-colors ${
                   active ? "text-white" : "text-muted hover:text-ink"
                 }`}
               >
@@ -105,7 +105,7 @@ export function Nav() {
           href="/settings"
           aria-label="Settings"
           aria-current={path.startsWith("/settings") ? "page" : undefined}
-          className="flex shrink-0 items-center rounded-lg px-2 py-2 text-muted hover:text-ink"
+          className="flex min-h-[44px] min-w-[44px] shrink-0 items-center justify-center rounded-lg px-2 py-2 text-muted hover:text-ink"
         >
           <Settings size={18} strokeWidth={1.75} className="spin-hover" aria-hidden />
         </Link>
