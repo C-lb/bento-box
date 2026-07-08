@@ -11,14 +11,14 @@ export function StudioTabs() {
         <button
           type="button"
           onClick={() => setTab("single")}
-          className={`rounded-md px-3 py-1.5 text-sm ${tab === "single" ? "bg-raised text-ink shadow-raisededge" : "text-muted"}`}
+          className={`min-h-[44px] sm:min-h-0 rounded-md px-3 py-1.5 text-sm ${tab === "single" ? "bg-raised text-ink shadow-raisededge" : "text-muted"}`}
         >
           Single
         </button>
         <button
           type="button"
           onClick={() => setTab("batch")}
-          className={`rounded-md px-3 py-1.5 text-sm ${tab === "batch" ? "bg-raised text-ink shadow-raisededge" : "text-muted"}`}
+          className={`min-h-[44px] sm:min-h-0 rounded-md px-3 py-1.5 text-sm ${tab === "batch" ? "bg-raised text-ink shadow-raisededge" : "text-muted"}`}
         >
           Batch
         </button>

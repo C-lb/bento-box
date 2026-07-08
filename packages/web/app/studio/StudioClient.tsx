@@ -1,8 +1,9 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { FRAME_LIST } from "@event-editor/core/frames";
 import { StatusBadge } from "@/components/StatusBadge";
 import { headshotStatusView } from "@/lib/status";
+import { usePollWhileVisible } from "@/lib/use-visible-poll";
 
 interface Folder { id: string; name: string; }
 interface DriveImg { id: string; name: string; }
@@ -50,23 +51,19 @@ export function StudioClient() {
     }).catch(() => setCanvaConnected(false));
   }, [renderer, canvaConnected]);
 
-  useEffect(() => {
+  const hsSettled = hs != null && (hs.status === "done" || hs.status === "error");
+  // Stable callback: usePollWhileVisible re-arms its interval whenever `fn`
+  // changes identity, so this must be memoized (see transcribe/TranscribeClient).
+  const pollTick = useCallback(() => {
     if (hsId == null) return;
-    let stop = false;
-    const loop = async () => {
-      while (!stop) {
-        const r = await fetch(`/api/studio/headshots/${hsId}`);
-        if (r.ok) {
-          const d = await r.json();
-          setHs(d.headshot);
-          if (d.headshot.status === "done" || d.headshot.status === "error") break;
-        }
-        await new Promise((res) => setTimeout(res, 1000));
-      }
-    };
-    loop();
-    return () => { stop = true; };
+    (async () => {
+      const r = await fetch(`/api/studio/headshots/${hsId}`);
+      if (!r.ok) return;
+      const d = await r.json();
+      setHs(d.headshot);
+    })();
   }, [hsId]);
+  usePollWhileVisible(pollTick, 1000, hsId != null && !hsSettled);
 
   async function generate() {
     if (!fileId) return;
@@ -109,7 +106,7 @@ export function StudioClient() {
     return (
       <div className="card mt-8">
         <p className="text-muted">Connect your Google account to read Drive folders.</p>
-        <a className="btn btn-accent mt-4" href="/api/google/auth">Connect Google Drive</a>
+        <a className="btn btn-accent mt-4 min-h-[44px] sm:min-h-0 w-full sm:w-auto justify-center inline-flex items-center" href="/api/google/auth">Connect Google Drive</a>
       </div>
     );
   }
@@ -119,7 +116,7 @@ export function StudioClient() {
       <div className="card">
         <p className="eyebrow">Step 1: choose a photo</p>
         <select
-          className="mt-3 rounded-lg border border-line bg-surface px-3 py-2"
+          className="field mt-3 w-full sm:w-auto min-h-[44px] sm:min-h-0"
           value={folderId}
           onChange={(e) => setFolderId(e.target.value)}
         >
@@ -127,7 +124,7 @@ export function StudioClient() {
           {folders.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
         </select>
         {images.length > 0 && (
-          <div className="mt-4 grid grid-cols-4 gap-3">
+          <div className="mt-4 grid grid-cols-3 gap-3 sm:grid-cols-4">
             {images.map((img) => (
               <button
                 key={img.id}
@@ -151,7 +148,7 @@ export function StudioClient() {
               key={r}
               type="button"
               onClick={() => setRenderer(r)}
-              className={`px-4 py-1.5 rounded-md text-sm ${renderer === r ? "bg-accent text-white" : "text-muted"}`}
+              className={`min-h-[44px] sm:min-h-0 px-4 py-1.5 rounded-md text-sm ${renderer === r ? "bg-accent text-white" : "text-muted"}`}
             >
               {r === "local" ? "Local" : "Canva"}
             </button>
@@ -164,7 +161,7 @@ export function StudioClient() {
               <button
                 key={f.id}
                 onClick={() => setFrameId(f.id)}
-                className={`btn ${frameId === f.id ? "btn-accent" : ""}`}
+                className={`btn min-h-[44px] sm:min-h-0 ${frameId === f.id ? "btn-accent" : ""}`}
               >
                 {f.label}
               </button>
@@ -182,7 +179,7 @@ export function StudioClient() {
           <label className="mt-4 block">
             <span className="eyebrow">Brand template</span>
             <select
-              className="mt-1 rounded-lg border border-line bg-surface px-3 py-2"
+              className="field mt-1 w-full sm:w-auto min-h-[44px] sm:min-h-0"
               value={templateId}
               onChange={(e) => setTemplateId(e.target.value)}
             >
@@ -196,13 +193,13 @@ export function StudioClient() {
       <div className="card">
         <p className="eyebrow">Step 3: details</p>
         <div className="mt-3 flex flex-col gap-3 sm:max-w-md">
-          <input className="rounded-lg border border-line bg-surface px-3 py-2" placeholder="Name"
+          <input className="field min-h-[44px] sm:min-h-0" placeholder="Name"
             value={nameText} onChange={(e) => setNameText(e.target.value)} />
-          <input className="rounded-lg border border-line bg-surface px-3 py-2" placeholder="Title"
+          <input className="field min-h-[44px] sm:min-h-0" placeholder="Title"
             value={titleText} onChange={(e) => setTitleText(e.target.value)} />
         </div>
         <button
-          className="btn btn-accent mt-4"
+          className="btn btn-accent mt-4 min-h-[44px] sm:min-h-0 w-full sm:w-auto justify-center"
           onClick={generate}
           disabled={busy || !fileId || (renderer === "canva" ? !templateId : !frameId)}
         >
@@ -213,7 +210,7 @@ export function StudioClient() {
             Pick a photo and a {renderer === "canva" ? "template" : "frame"} first.
           </p>
         )}
-        {err && <p className="mt-3 text-muted">{err}</p>}
+        {err && <p className="mt-3 text-danger">{err}</p>}
       </div>
 
       {hs && (
@@ -225,19 +222,19 @@ export function StudioClient() {
           {hs.status === "error" && (
             <div className="mt-3">
               <p className="text-sm text-danger">{hs.errorMessage ?? "Something went wrong."}</p>
-              <div className="mt-3 flex gap-2">
-                <button className="btn btn-accent" onClick={generate} disabled={busy}>Try again</button>
-                <button className="btn" onClick={startOver}>Start over</button>
+              <div className="mt-3 flex flex-col sm:flex-row gap-2">
+                <button className="btn btn-accent min-h-[44px] sm:min-h-0 w-full sm:w-auto justify-center" onClick={generate} disabled={busy}>Try again</button>
+                <button className="btn min-h-[44px] sm:min-h-0 w-full sm:w-auto justify-center" onClick={startOver}>Start over</button>
               </div>
             </div>
           )}
           {hs.status === "done" && hs.imageUrl && (
             <div className="mt-3">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={hs.imageUrl} alt="headshot" className="w-72 rounded-lg border border-line" />
-              <div className="mt-4 flex gap-2">
-                <a className="btn btn-accent" href={hs.imageUrl} download={`headshot-${hs.id}.png`}>Download PNG</a>
-                <button className="btn" onClick={startOver}>Start over</button>
+              <img src={hs.imageUrl} alt="headshot" className="w-full max-w-72 rounded-lg border border-line" />
+              <div className="mt-4 flex flex-col sm:flex-row gap-2">
+                <a className="btn btn-accent min-h-[44px] sm:min-h-0 w-full sm:w-auto justify-center inline-flex items-center" href={hs.imageUrl} download={`headshot-${hs.id}.png`}>Download PNG</a>
+                <button className="btn min-h-[44px] sm:min-h-0 w-full sm:w-auto justify-center" onClick={startOver}>Start over</button>
               </div>
             </div>
           )}

@@ -1,7 +1,8 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { StatusBadge } from "@/components/StatusBadge";
 import { jobStatusView } from "@/lib/status";
+import { usePollWhileVisible } from "@/lib/use-visible-poll";
 
 interface Folder { id: string; name: string; }
 interface Job { id: number; status: string; total: number; processed: number; errorMessage: string | null; }
@@ -35,21 +36,20 @@ export function SorterClient() {
     }).catch(() => setConnected(false));
   }, []);
 
-  useEffect(() => {
+  const jobSettled = job != null && (job.status === "done" || job.status === "error");
+  // Stable callback: usePollWhileVisible re-arms its interval whenever `fn`
+  // changes identity, so this must be memoized (see transcribe/TranscribeClient).
+  const pollTick = useCallback(() => {
     if (jobId == null) return;
-    const tick = async () => {
+    (async () => {
       const r = await fetch(`/api/sorter/jobs/${jobId}`);
-      if (!r.ok) return false;
+      if (!r.ok) return;
       const data = await r.json();
       setJob(data.job);
       setPhotos(data.photos ?? []);
-      return data.job.status === "done" || data.job.status === "error";
-    };
-    let stop = false;
-    const loop = async () => { while (!stop) { if (await tick()) break; await new Promise((r) => setTimeout(r, 1000)); } };
-    loop();
-    return () => { stop = true; };
+    })();
   }, [jobId]);
+  usePollWhileVisible(pollTick, 1000, jobId != null && !jobSettled);
 
   async function scan() {
     if (!folderId) return;
@@ -78,7 +78,7 @@ export function SorterClient() {
     return (
       <div className="card mt-8">
         <p className="text-muted">Connect your Google account to read Drive folders.</p>
-        <a className="btn btn-accent mt-4" href="/api/google/auth">Connect Google Drive</a>
+        <a className="btn btn-accent mt-4 min-h-[44px] sm:min-h-0 w-full sm:w-auto justify-center inline-flex items-center" href="/api/google/auth">Connect Google Drive</a>
       </div>
     );
   }
@@ -88,7 +88,7 @@ export function SorterClient() {
       <div className="card">
         <div className="mb-4">
           <span className="mb-1.5 block text-sm text-muted">Rank photos for</span>
-          <div className="inline-flex rounded-lg border border-line bg-[#eef0f3] p-0.5">
+          <div className="inline-flex flex-wrap rounded-lg border border-line bg-[#eef0f3] p-0.5">
             {([
               { id: "instagram", label: "Instagram" },
               { id: "linkedin", label: "LinkedIn" },
@@ -99,7 +99,7 @@ export function SorterClient() {
                 type="button"
                 onClick={() => setPlatform(opt.id)}
                 disabled={busy}
-                className={`rounded-md px-3 py-1.5 text-sm transition-colors ${
+                className={`min-h-[44px] sm:min-h-0 rounded-md px-3 py-1.5 text-sm transition-colors ${
                   platform === opt.id ? "bg-surface text-ink shadow-soft" : "text-muted hover:text-ink"
                 }`}
               >
@@ -108,16 +108,16 @@ export function SorterClient() {
             ))}
           </div>
         </div>
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3">
           <select
-            className="rounded-lg border border-line bg-surface px-3 py-2"
+            className="field w-full sm:w-auto min-h-[44px] sm:min-h-0"
             value={folderId}
             onChange={(e) => setFolderId(e.target.value)}
           >
             <option value="">Choose a folder</option>
             {folders.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
           </select>
-          <button className="btn btn-accent" onClick={scan} disabled={!folderId || busy}>
+          <button className="btn btn-accent min-h-[44px] sm:min-h-0 w-full sm:w-auto justify-center" onClick={scan} disabled={!folderId || busy}>
             {busy ? "Starting…" : "Scan folder"}
           </button>
           {!folderId && <span className="text-sm text-muted">Pick a folder first</span>}
@@ -136,9 +136,9 @@ export function SorterClient() {
           {job.status === "error" && (
             <div className="mt-3">
               <p className="text-sm text-danger">{job.errorMessage ?? "Something went wrong."}</p>
-              <div className="mt-3 flex gap-2">
-                <button className="btn btn-accent" onClick={scan} disabled={busy}>Scan again</button>
-                <button className="btn" onClick={startOver}>Start over</button>
+              <div className="mt-3 flex flex-col sm:flex-row gap-2">
+                <button className="btn btn-accent min-h-[44px] sm:min-h-0 w-full sm:w-auto justify-center" onClick={scan} disabled={busy}>Scan again</button>
+                <button className="btn min-h-[44px] sm:min-h-0 w-full sm:w-auto justify-center" onClick={startOver}>Start over</button>
               </div>
             </div>
           )}
@@ -168,7 +168,7 @@ export function SorterClient() {
                     <p className="mt-1 text-xs text-danger">Could not score{p.errorMessage ? `: ${p.errorMessage}` : ""}</p>
                   )}
                   {p.stage === "ranked" && (
-                    <a className="btn mt-2 w-full justify-center text-xs" href={`/studio?photoId=${p.id}`}>
+                    <a className="btn mt-2 min-h-[44px] sm:min-h-0 w-full justify-center text-xs" href={`/studio?photoId=${p.id}`}>
                       Send to Headshot Studio
                     </a>
                   )}

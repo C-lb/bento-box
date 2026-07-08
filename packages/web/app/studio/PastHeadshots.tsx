@@ -46,7 +46,7 @@ export function PastHeadshots() {
       )}
       renderActions={(it) =>
         it.downloadUrl ? (
-          <a className="text-xs text-ink underline underline-offset-2" href={it.downloadUrl} target="_blank" rel="noreferrer">
+          <a className="p-2 -m-2 min-h-[44px] sm:min-h-0 sm:p-0 sm:m-0 inline-flex items-center text-xs text-ink underline underline-offset-2" href={it.downloadUrl} target="_blank" rel="noreferrer">
             Download
           </a>
         ) : null
