@@ -85,7 +85,7 @@ export function PastTranscriptions() {
 
   return (
     <div className="relative">
-      <button className="btn" onClick={toggle} aria-expanded={open}>See past transcriptions</button>
+      <button className="btn min-h-[44px] sm:min-h-0 w-full sm:w-auto" onClick={toggle} aria-expanded={open}>See past transcriptions</button>
       {open && (
         <>
           {/* click-away closer */}
@@ -95,7 +95,7 @@ export function PastTranscriptions() {
             className="fixed inset-0 z-10 cursor-default"
             onClick={() => setOpen(false)}
           />
-          <div className="card absolute right-0 z-20 mt-2 w-[420px]">
+          <div className="card absolute right-0 z-20 mt-2 w-[calc(100vw-2.5rem)] max-w-[420px] sm:w-[420px]">
             <p className="eyebrow">Recent transcriptions</p>
             {loading && <p className="mt-3 text-sm text-muted">Loading…</p>}
             {!loading && items && items.length === 0 && (
@@ -116,10 +116,10 @@ export function PastTranscriptions() {
                         {it.hasLinkedin && <span className="text-xs text-muted">· LinkedIn</span>}
                         {it.hasArticle && <span className="text-xs text-muted">· Article</span>}
                       </div>
-                      <div className="mt-2 flex flex-wrap items-center gap-3">
+                      <div className="mt-2 flex flex-wrap items-center gap-1">
                         <button
                           type="button"
-                          className="text-xs text-ink underline underline-offset-2 disabled:pointer-events-none disabled:opacity-50"
+                          className="p-2 -m-2 min-h-[44px] sm:min-h-0 sm:p-0 sm:m-0 text-xs text-ink underline underline-offset-2 disabled:pointer-events-none disabled:opacity-50"
                           onClick={() => openRow(it.id)}
                           disabled={rowBusy}
                         >
@@ -127,7 +127,7 @@ export function PastTranscriptions() {
                         </button>
                         {it.docUrl && (
                           <a
-                            className="text-xs text-ink underline underline-offset-2"
+                            className="p-2 -m-2 min-h-[44px] sm:min-h-0 sm:p-0 sm:m-0 inline-flex items-center text-xs text-ink underline underline-offset-2"
                             href={it.docUrl}
                             target="_blank"
                             rel="noreferrer"
@@ -137,7 +137,7 @@ export function PastTranscriptions() {
                         )}
                         <button
                           type="button"
-                          className="text-xs text-ink underline underline-offset-2 disabled:pointer-events-none disabled:opacity-50"
+                          className="p-2 -m-2 min-h-[44px] sm:min-h-0 sm:p-0 sm:m-0 text-xs text-ink underline underline-offset-2 disabled:pointer-events-none disabled:opacity-50"
                           onClick={() => clearDrafts(it.id)}
                           disabled={rowBusy}
                         >
@@ -148,7 +148,7 @@ export function PastTranscriptions() {
                             <span className="text-danger">Delete?</span>
                             <button
                               type="button"
-                              className="text-danger underline underline-offset-2 disabled:pointer-events-none disabled:opacity-50"
+                              className="p-2 -m-2 min-h-[44px] sm:min-h-0 sm:p-0 sm:m-0 text-danger underline underline-offset-2 disabled:pointer-events-none disabled:opacity-50"
                               onClick={() => doDelete(it.id)}
                               disabled={deletingId === it.id}
                             >
@@ -156,7 +156,7 @@ export function PastTranscriptions() {
                             </button>
                             <button
                               type="button"
-                              className="text-ink underline underline-offset-2 disabled:pointer-events-none disabled:opacity-50"
+                              className="p-2 -m-2 min-h-[44px] sm:min-h-0 sm:p-0 sm:m-0 text-ink underline underline-offset-2 disabled:pointer-events-none disabled:opacity-50"
                               onClick={() => setConfirmingId(null)}
                               disabled={deletingId === it.id}
                             >
@@ -166,7 +166,7 @@ export function PastTranscriptions() {
                         ) : (
                           <button
                             type="button"
-                            className="text-xs text-danger underline underline-offset-2 disabled:pointer-events-none disabled:opacity-50"
+                            className="p-2 -m-2 min-h-[44px] sm:min-h-0 sm:p-0 sm:m-0 text-xs text-danger underline underline-offset-2 disabled:pointer-events-none disabled:opacity-50"
                             onClick={() => setConfirmingId(it.id)}
                             disabled={rowBusy}
                           >

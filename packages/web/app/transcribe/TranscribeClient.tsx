@@ -9,6 +9,42 @@ import { CopyButton } from "@/components/CopyButton";
 import { summaryToHtml, summaryToPlain } from "@/lib/render-summary";
 import { EventDetailsPanel } from "./EventDetailsPanel";
 import { FileDrop } from "@/components/FileDrop";
+import { usePollWhileVisible } from "@/lib/use-visible-poll";
+
+// The transcribe endpoint reads a raw streamed body (not multipart), so it
+// can't go through the shared uploadWithProgress helper (FormData-only).
+// Same progress-reporting shape via XHR, sent as a raw body with headers.
+type RawUploadResponse = { ok: boolean; status: number; json: () => Promise<any> };
+function uploadRawWithProgress(
+  url: string,
+  file: File,
+  headers: Record<string, string>,
+  onProgress: (frac: number) => void,
+): Promise<RawUploadResponse> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", url);
+    for (const [k, v] of Object.entries(headers)) xhr.setRequestHeader(k, v);
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable && e.total > 0) onProgress(e.loaded / e.total);
+    };
+    xhr.onload = () =>
+      resolve({
+        ok: xhr.status >= 200 && xhr.status < 300,
+        status: xhr.status,
+        json: async () => JSON.parse(xhr.responseText),
+      });
+    xhr.onerror = () => reject(new Error("Upload failed. Check the connection."));
+    xhr.send(file);
+  });
+}
+
+// Shared 401 handling for the tool's other POST endpoints (summary, retry,
+// like): bounce to login instead of failing silently.
+async function jsonOr401(r: Response) {
+  if (r.status === 401) { window.location.assign("/login"); throw new Error("Signed out."); }
+  return r.json().catch(() => null);
+}
 
 // Anything ffmpeg can decode works — the file is re-encoded to mono 16kHz mp3
 // chunks before transcription. Keep this list in sync with the input's accept.
@@ -37,9 +73,9 @@ export function TranscribeClient() {
   const [id, setId] = useState<number | null>(null);
   const [tx, setTx] = useState<Transcription | null>(null);
   const [busy, setBusy] = useState(false);
+  const [progress, setProgress] = useState(0);
   const [hasFile, setHasFile] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
-  const [retryNonce, setRetryNonce] = useState(0);
   const fileRef = useRef<HTMLInputElement>(null);
   const ctxRef = useRef<HTMLInputElement>(null);
   const CONTEXT_ACCEPT = ".md,.markdown,.html,.pdf,.pptx";
@@ -64,7 +100,7 @@ export function TranscribeClient() {
     setUploadError(null);
     try {
       const r = await fetch(`/api/transcribe/${openId}`);
-      const d = await r.json().catch(() => null);
+      const d = await jsonOr401(r);
       const t = d?.transcription;
       if (!t) return;
       setTx({ ...t });
@@ -85,32 +121,33 @@ export function TranscribeClient() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
 
-  useEffect(() => {
-    if (id == null) return;
-    let stop = false;
-    const tick = async () => {
-      const r = await fetch(`/api/transcribe/${id}`);
-      if (!r.ok) {
-        setTx((t) => ({
-          ...(t ?? ({} as Transcription)),
-          status: "error",
-          errorMessage: "This transcription is no longer available.",
-        } as Transcription));
-        return true;
-      }
-      const data = await r.json();
-      setTx(data.transcription);
-      return data.transcription.status === "done" || data.transcription.status === "error";
-    };
-    const loop = async () => { while (!stop) { if (await tick()) break; await new Promise((r) => setTimeout(r, 1500)); } };
-    loop();
-    return () => { stop = true; };
-  }, [id, retryNonce]);
+  const txSettled = tx != null && (tx.status === "done" || tx.status === "error");
+  usePollWhileVisible(
+    () => {
+      if (id == null) return;
+      (async () => {
+        const r = await fetch(`/api/transcribe/${id}`);
+        if (!r.ok) {
+          setTx((t) => ({
+            ...(t ?? ({} as Transcription)),
+            status: "error",
+            errorMessage: "This transcription is no longer available.",
+          } as Transcription));
+          return;
+        }
+        const data = await r.json();
+        setTx(data.transcription);
+      })();
+    },
+    1500,
+    id != null && !txSettled,
+  );
 
   async function upload() {
     const file = fileRef.current?.files?.[0];
     if (!file) return;
     setBusy(true);
+    setProgress(0);
     setTx(null);
     setUploadError(null);
     try {
@@ -120,15 +157,20 @@ export function TranscribeClient() {
         const fd = new FormData();
         fd.append("file", ctxFile);
         const cr = await fetch("/api/transcribe/context", { method: "POST", body: fd });
-        const cd = await cr.json().catch(() => null);
+        const cd = await jsonOr401(cr);
         if (cr.ok && cd?.contextId) contextId = cd.contextId;
       }
       const headers: Record<string, string> = { "x-filename": file.name };
       if (contextId) headers["x-context-id"] = contextId;
-      const r = await fetch("/api/transcribe", { method: "POST", headers, body: file });
+      const r = await uploadRawWithProgress("/api/transcribe", file, headers, setProgress);
+      if (r.status === 401) { window.location.assign("/login"); return; }
       const data = await r.json().catch(() => null);
+      if (r.status === 413) {
+        setUploadError(data?.error ?? "File is too large.");
+        return;
+      }
       if (!r.ok || !data?.id) {
-        setUploadError("Upload failed. Please try again.");
+        setUploadError(data?.error ?? "Upload failed. Please try again.");
         return;
       }
       setId(data.id);
@@ -146,7 +188,6 @@ export function TranscribeClient() {
       const r = await fetch(`/api/transcribe/${id}/retry`, { method: "POST" });
       if (!r.ok) { setUploadError("Could not restart. Please try again."); return; }
       setTx((t) => (t ? { ...t, status: "transcribing", errorMessage: null } : t));
-      setRetryNonce((n) => n + 1);
     } finally {
       setBusy(false);
     }
@@ -173,7 +214,7 @@ export function TranscribeClient() {
       const r = await fetch(`/api/transcribe/${id}/summary`, {
         method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ format: fmt }),
       });
-      const d = await r.json().catch(() => null);
+      const d = await jsonOr401(r);
       if (r.ok && d?.text) setFormatText((m) => ({ ...m, [fmt]: d.text }));
       else setFormatError(d?.error ?? "Could not generate this format.");
     } catch { setFormatError("Could not generate this format."); }
@@ -188,7 +229,7 @@ export function TranscribeClient() {
         method: "POST", headers: { "content-type": "application/json" },
         body: JSON.stringify({ format: fmt, regenerate: true }),
       });
-      const d = await r.json().catch(() => null);
+      const d = await jsonOr401(r);
       if (r.ok && d?.text) { setFormatText((m) => ({ ...m, [fmt]: d.text })); setLiked((l) => ({ ...l, [fmt]: false })); setSelRange(null); }
       else setFormatError(d?.error ?? "Could not regenerate.");
     } catch { setFormatError("Could not regenerate."); }
@@ -204,7 +245,7 @@ export function TranscribeClient() {
         method: "POST", headers: { "content-type": "application/json" },
         body: JSON.stringify({ format: fmt, draft, selStart: selRange.start, selEnd: selRange.end }),
       });
-      const d = await r.json().catch(() => null);
+      const d = await jsonOr401(r);
       if (r.ok && d?.text) { setFormatText((m) => ({ ...m, [fmt]: d.text })); setLiked((l) => ({ ...l, [fmt]: false })); setSelRange(null); }
       else setFormatError(d?.error ?? "Could not regenerate the selection.");
     } catch { setFormatError("Could not regenerate the selection."); }
@@ -228,7 +269,7 @@ export function TranscribeClient() {
       method: "POST", headers: { "content-type": "application/json" },
       body: JSON.stringify({ format: fmt }),
     });
-    const d = await r.json().catch(() => null);
+    const d = await jsonOr401(r);
     if (r.ok) setLiked((l) => ({ ...l, [fmt]: !!d.liked }));
   }
 
@@ -236,8 +277,8 @@ export function TranscribeClient() {
 
   return (
     <div className="mt-8">
-      <div className="card flex flex-wrap items-center gap-3">
-        <div className="min-w-[260px] flex-1">
+      <div className="card flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-3">
+        <div className="w-full sm:min-w-[260px] sm:flex-1">
           <FileDrop
             inputRef={fileRef}
             accept={ACCEPT}
@@ -246,13 +287,27 @@ export function TranscribeClient() {
           />
         </div>
         <button
-          className={`btn ${inProgress ? "btn-progress" : "btn-accent"}`}
+          className={`btn min-h-[44px] sm:min-h-0 w-full sm:w-auto justify-center ${inProgress ? "btn-progress" : "btn-accent"}`}
           onClick={upload}
           disabled={inProgress || !hasFile}
         >
           {inProgress ? "Transcribing!" : "Transcribe"}
         </button>
         {!hasFile && <span className="text-sm text-muted">Add a file first</span>}
+        {busy && (
+          <div className="basis-full">
+            <div className="flex items-center justify-between text-sm text-muted">
+              <span>Uploading</span>
+              <span>{Math.round(progress * 100)}%</span>
+            </div>
+            <div className="mt-1.5 h-1.5 w-full rounded-full bg-line overflow-hidden">
+              <div
+                className="h-1.5 rounded-full bg-accent transition-[width]"
+                style={{ width: `${Math.round(progress * 100)}%` }}
+              />
+            </div>
+          </div>
+        )}
         <div className="basis-full text-sm text-muted">
           <p>Audio: {AUDIO_FORMATS.join(", ")}.</p>
           <p className="mt-1">Video (audio is extracted): {VIDEO_FORMATS.join(", ")}.</p>
@@ -281,9 +336,9 @@ export function TranscribeClient() {
           {tx.status === "error" && (
             <div className="mt-3">
               <p className="text-sm text-danger">{tx.errorMessage ?? "Something went wrong."}</p>
-              <div className="mt-3 flex gap-2">
-                <button className="btn btn-accent" onClick={retry} disabled={busy}>Try again</button>
-                <button className="btn" onClick={startOver}>Start over</button>
+              <div className="mt-3 flex flex-col sm:flex-row gap-2">
+                <button className="btn btn-accent min-h-[44px] sm:min-h-0 justify-center" onClick={retry} disabled={busy}>Try again</button>
+                <button className="btn min-h-[44px] sm:min-h-0 justify-center" onClick={startOver}>Start over</button>
               </div>
             </div>
           )}
@@ -291,7 +346,12 @@ export function TranscribeClient() {
           {tx.status === "done" && (
             <>
               {tx.docUrl && (
-                <a className="btn btn-accent mt-3" href={tx.docUrl} target="_blank" rel="noreferrer">
+                <a
+                  className="btn btn-accent mt-3 inline-flex items-center justify-center min-h-[44px] sm:min-h-0 w-full sm:w-auto"
+                  href={tx.docUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                >
                   Open in Google Docs
                 </a>
               )}
@@ -317,7 +377,7 @@ export function TranscribeClient() {
                     : formatError ? (
                       <div>
                         <p className="text-danger">{formatError}</p>
-                        <button className="btn mt-3" onClick={() => loadFormat(format)}>Try again</button>
+                        <button className="btn mt-3 min-h-[44px] sm:min-h-0" onClick={() => loadFormat(format)}>Try again</button>
                       </div>
                     ) : (
                       <>
@@ -357,7 +417,7 @@ export function TranscribeClient() {
                         {formatText[format] && (
                           <div className="mt-3 flex flex-wrap items-center gap-2">
                             <button
-                              className="btn"
+                              className="btn min-h-[44px] sm:min-h-0"
                               onClick={() => regenerateAll(format as "linkedin" | "article")}
                               disabled={actionBusy}
                               title="Regenerate the whole draft"
@@ -365,7 +425,7 @@ export function TranscribeClient() {
                               {actionBusy ? "Regenerating!" : "Regenerate all"}
                             </button>
                             <button
-                              className="btn"
+                              className="btn min-h-[44px] sm:min-h-0"
                               onClick={() => regenerateSelection(format as "linkedin" | "article")}
                               disabled={actionBusy || draftMode !== "edit" || !selRange || selRange.end <= selRange.start}
                               title="Regenerate only the selected text"
@@ -377,7 +437,7 @@ export function TranscribeClient() {
                               type="button"
                               title="Mark this draft as good. Future drafts will use it as inspiration."
                               aria-pressed={liked[format as "linkedin" | "article"]}
-                              className={`btn inline-flex items-center gap-2 ${liked[format as "linkedin" | "article"] ? "text-accent" : ""}`}
+                              className={`btn min-h-[44px] sm:min-h-0 inline-flex items-center gap-2 ${liked[format as "linkedin" | "article"] ? "text-accent" : ""}`}
                               onClick={() => toggleLike(format as "linkedin" | "article")}
                             >
                               <Smile className="w-4 h-4" strokeWidth={1.75} />
