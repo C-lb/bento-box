@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import { ArrowDown, ArrowUp, Download, Loader2, Volume2, VolumeX, X } from "lucide-react";
 import { Segmented } from "@/components/Segmented";
+import { uploadWithProgress } from "@/lib/upload";
 
 type Kind = "video" | "audio";
 type Scale = "match" | "1080" | "720";
@@ -40,6 +41,7 @@ export function SpliceClient() {
   const [clips, setClips] = useState<ClipRow[]>([]);
 
   const [busy, setBusy] = useState(false);
+  const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<Result | null>(null);
 
@@ -124,6 +126,7 @@ export function SpliceClient() {
     setError(null);
     setResult(null);
     setBusy(true);
+    setProgress(0);
     try {
       const manifest = {
         kind,
@@ -133,8 +136,10 @@ export function SpliceClient() {
       const fd = new FormData();
       for (const c of clips) fd.append("file", c.file);
       fd.append("manifest", JSON.stringify(manifest));
-      const r = await fetch("/api/splice", { method: "POST", body: fd });
-      const data = await r.json().catch(() => null);
+      const r = await uploadWithProgress("/api/splice", fd, setProgress);
+      if (r.status === 401) { window.location.assign("/login"); return; }
+      const data: any = await r.json().catch(() => null);
+      if (r.status === 413) throw new Error(data?.error ?? "Files are too large.");
       if (!r.ok || !data?.id) throw new Error(data?.error ?? "Join failed");
       setResult({ id: data.id, filename: data.filename, kind: data.kind ?? kind });
     } catch (e) {
@@ -151,10 +156,10 @@ export function SpliceClient() {
           <input
             ref={fileRef}
             type="file"
-            accept="video/*,audio/*"
+            accept={kind === "video" ? "video/*" : kind === "audio" ? "audio/*" : "video/*,audio/*"}
             multiple
             onChange={onPickFiles}
-            className="field mt-1 file:mr-3 file:rounded-md file:border-0 file:bg-raised file:px-3 file:py-1 file:text-ink"
+            className="field mt-1 min-h-[44px] sm:min-h-0 file:mr-3 file:rounded-md file:border-0 file:bg-raised file:px-3 file:py-1 file:text-ink"
           />
         </label>
         <p className="mt-1 text-sm text-muted">
@@ -190,7 +195,7 @@ export function SpliceClient() {
                 <div className="flex items-center gap-1">
                   <button
                     type="button"
-                    className="btn" style={{ padding: "6px 10px" }}
+                    className="btn py-1.5 px-2.5 min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 justify-center"
                     onClick={() => moveClip(c.key, -1)}
                     disabled={i === 0}
                     aria-label="Move up"
@@ -199,7 +204,7 @@ export function SpliceClient() {
                   </button>
                   <button
                     type="button"
-                    className="btn" style={{ padding: "6px 10px" }}
+                    className="btn py-1.5 px-2.5 min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 justify-center"
                     onClick={() => moveClip(c.key, 1)}
                     disabled={i === clips.length - 1}
                     aria-label="Move down"
@@ -208,7 +213,7 @@ export function SpliceClient() {
                   </button>
                   <button
                     type="button"
-                    className="btn" style={{ padding: "6px 10px" }}
+                    className="btn py-1.5 px-2.5 min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 justify-center"
                     onClick={() => removeClip(c.key)}
                     aria-label="Remove clip"
                   >
@@ -232,7 +237,7 @@ export function SpliceClient() {
                     <p className="text-sm font-medium">
                       Trim: {fmt(c.start)} to {fmt(c.end)} <span className="text-muted">({fmt(c.end - c.start)} kept)</span>
                     </p>
-                    <div className="mt-2 flex items-center gap-3">
+                    <div className="mt-2 flex flex-col sm:flex-row sm:items-center gap-3">
                       <label className="flex-1 text-sm text-muted">Start
                         <input
                           type="range"
@@ -267,7 +272,7 @@ export function SpliceClient() {
                   <div className="mt-3 flex items-center gap-3">
                     <button
                       type="button"
-                      className="btn" style={{ padding: "6px 10px" }}
+                      className="btn py-1.5 px-2.5 min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 justify-center"
                       onClick={() => toggleMute(c.key)}
                       aria-label={c.volume === 0 ? "Unmute" : "Mute"}
                     >
@@ -296,12 +301,25 @@ export function SpliceClient() {
 
       {clips.length > 0 && (
         <div className="card">
-          <div className="flex items-center gap-3">
-            <button type="button" className="btn btn-accent" onClick={join} disabled={!canJoin}>
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+            <button
+              type="button"
+              className="btn btn-accent min-h-[44px] sm:min-h-0 w-full sm:w-auto justify-center"
+              onClick={join}
+              disabled={!canJoin}
+            >
               {busy ? <><Loader2 className="w-4 h-4 animate-spin" strokeWidth={1.75} /> Joining…</> : "Join clips"}
             </button>
             {busy && <span className="text-sm text-muted">This can take a while for long clips.</span>}
           </div>
+          {busy && (
+            <div className="mt-3 h-1.5 w-full rounded-full bg-line overflow-hidden">
+              <div
+                className="h-1.5 rounded-full bg-accent transition-[width]"
+                style={{ width: `${Math.round(progress * 100)}%` }}
+              />
+            </div>
+          )}
         </div>
       )}
 
@@ -310,9 +328,9 @@ export function SpliceClient() {
           <p className="eyebrow">Ready</p>
           <p className="mt-1 text-sm">{result.filename}</p>
 
-          <div className="mt-3 flex flex-wrap items-center gap-3">
+          <div className="mt-3 flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-3">
             <a
-              className="btn inline-flex items-center gap-2"
+              className="btn min-h-[44px] sm:min-h-0 w-full sm:w-auto inline-flex items-center justify-center gap-2"
               href={`/api/splice/${result.id}?name=${encodeURIComponent(result.filename)}&kind=${result.kind}`}
               download
             >
