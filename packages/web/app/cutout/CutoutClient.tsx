@@ -173,7 +173,7 @@ export function CutoutClient() {
             multiple
             accept="image/*"
             onChange={onPickFiles}
-            className="field mt-1 file:mr-3 file:rounded-md file:border-0 file:bg-raised file:px-3 file:py-1 file:text-ink"
+            className="field mt-1 min-h-[44px] sm:min-h-0 file:mr-3 file:rounded-md file:border-0 file:bg-raised file:px-3 file:py-1 file:text-ink"
           />
         </label>
         <p className="mt-1 text-sm text-muted">Pick one or more photos. Best for photos of people.</p>
@@ -205,7 +205,7 @@ export function CutoutClient() {
         </div>
 
         <div className="mt-4">
-          <button type="button" className="btn btn-accent" onClick={runAll} disabled={!canRun}>
+          <button type="button" className="btn btn-accent min-h-[44px] sm:min-h-0 w-full sm:w-auto justify-center" onClick={runAll} disabled={!canRun}>
             {anyBusy ? (
               <>
                 <Loader2 className="w-4 h-4 animate-spin" strokeWidth={1.75} /> Removing…
@@ -225,7 +225,7 @@ export function CutoutClient() {
               <div className="flex-1 min-w-0 space-y-2">
                 <div className="flex items-center gap-3">
                   <span className="text-sm flex-1 min-w-0 truncate">{row.name}</span>
-                  <button type="button" className="btn" onClick={() => removeRow(row.key)}>
+                  <button type="button" className="btn min-h-[44px] sm:min-h-0" onClick={() => removeRow(row.key)}>
                     Remove
                   </button>
                 </div>
@@ -256,7 +256,7 @@ export function CutoutClient() {
                       <img src={row.url} alt={`Cutout of ${row.name}`} className="max-h-48 max-w-full" />
                     </div>
                     <div>
-                      <a className="btn inline-flex items-center gap-2" href={row.url} download={row.filename}>
+                      <a className="btn inline-flex items-center gap-2 min-h-[44px] sm:min-h-0 w-full sm:w-auto justify-center" href={row.url} download={row.filename}>
                         <Download className="w-4 h-4" strokeWidth={1.75} /> Download
                       </a>
                     </div>
@@ -268,7 +268,7 @@ export function CutoutClient() {
                     <span className="text-sm text-danger">{row.error}</span>
                     <button
                       type="button"
-                      className="btn"
+                      className="btn min-h-[44px] sm:min-h-0"
                       disabled={anyBusy}
                       onClick={() => runRow(row.key, normalizeBgFill({ mode: fill, color: customColor }))}
                     >

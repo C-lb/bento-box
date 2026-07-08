@@ -2,10 +2,19 @@
 import { useRef, useState } from "react";
 import { ArrowDown, ArrowUp, Download, Loader2, X } from "lucide-react";
 import { Segmented } from "@/components/Segmented";
+import { uploadWithProgress } from "@/lib/upload";
 
 type Mode = "merge" | "split" | "compress";
 interface Result { id: string; filename: string; kind: "pdf" | "zip" }
 interface Picked { key: string; file: File }
+
+// 401 bounces to login, 413 surfaces the server's own message.
+async function readJsonOrThrow(res: { status: number; json: () => Promise<any> }) {
+  if (res.status === 401) { window.location.assign("/login"); throw new Error("Signed out."); }
+  const data = await res.json().catch(() => null);
+  if (res.status === 413) throw new Error(data?.error ?? "File is too large.");
+  return data;
+}
 
 export function PdfClient() {
   const mergeFileRef = useRef<HTMLInputElement | null>(null);
@@ -18,6 +27,7 @@ export function PdfClient() {
   const [single, setSingle] = useState(false);
 
   const [busy, setBusy] = useState(false);
+  const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<Result | null>(null);
 
@@ -74,6 +84,7 @@ export function PdfClient() {
   async function submit() {
     resetOutcome();
     setBusy(true);
+    setProgress(0);
     try {
       const fd = new FormData();
       if (mode === "merge") {
@@ -87,8 +98,8 @@ export function PdfClient() {
         if (!singleFile) throw new Error("Choose a PDF first.");
         fd.append("file", singleFile);
       }
-      const r = await fetch(`/api/pdf/process/${mode}`, { method: "POST", body: fd });
-      const data = await r.json().catch(() => null);
+      const r = await uploadWithProgress(`/api/pdf/process/${mode}`, fd, setProgress);
+      const data = await readJsonOrThrow(r);
       if (!r.ok || !data?.id) throw new Error(data?.error ?? "That didn't work.");
       setResult({ id: data.id, filename: data.filename, kind: data.kind === "zip" ? "zip" : "pdf" });
     } catch (e) {
@@ -120,7 +131,7 @@ export function PdfClient() {
                 multiple
                 accept="application/pdf"
                 onChange={onPickMergeFiles}
-                className="field mt-1 file:mr-3 file:rounded-md file:border-0 file:bg-raised file:px-3 file:py-1 file:text-ink"
+                className="field mt-1 min-h-[44px] sm:min-h-0 file:mr-3 file:rounded-md file:border-0 file:bg-raised file:px-3 file:py-1 file:text-ink"
               />
             </label>
             <p className="mt-1 text-sm text-muted">Pages are combined in this order. Use the arrows to reorder.</p>
@@ -128,14 +139,14 @@ export function PdfClient() {
             {mergeFiles.length > 0 && (
               <ul className="mt-3 space-y-2">
                 {mergeFiles.map((p, i) => (
-                  <li key={p.key} className="flex items-center gap-3 rounded-lg border border-line bg-raised px-3 py-2 shadow-raisededge">
+                  <li key={p.key} className="flex items-center gap-1 sm:gap-3 rounded-lg border border-line bg-raised px-3 py-2 shadow-raisededge">
                     <span className="flex-1 truncate text-sm">{p.file.name}</span>
                     <button
                       type="button"
                       onClick={() => moveMergeFile(i, -1)}
                       disabled={i === 0}
                       aria-label="Move up"
-                      className="text-muted hover:text-ink disabled:opacity-40 disabled:pointer-events-none"
+                      className="flex items-center justify-center min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 text-muted hover:text-ink disabled:opacity-40 disabled:pointer-events-none"
                     >
                       <ArrowUp className="w-4 h-4" strokeWidth={1.75} />
                     </button>
@@ -144,7 +155,7 @@ export function PdfClient() {
                       onClick={() => moveMergeFile(i, 1)}
                       disabled={i === mergeFiles.length - 1}
                       aria-label="Move down"
-                      className="text-muted hover:text-ink disabled:opacity-40 disabled:pointer-events-none"
+                      className="flex items-center justify-center min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 text-muted hover:text-ink disabled:opacity-40 disabled:pointer-events-none"
                     >
                       <ArrowDown className="w-4 h-4" strokeWidth={1.75} />
                     </button>
@@ -152,7 +163,7 @@ export function PdfClient() {
                       type="button"
                       onClick={() => removeMergeFile(p.key)}
                       aria-label="Remove"
-                      className="text-muted hover:text-ink"
+                      className="flex items-center justify-center min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 text-muted hover:text-ink"
                     >
                       <X className="w-4 h-4" strokeWidth={1.75} />
                     </button>
@@ -171,12 +182,12 @@ export function PdfClient() {
                 type="file"
                 accept="application/pdf"
                 onChange={onPickSingleFile}
-                className="field mt-1 file:mr-3 file:rounded-md file:border-0 file:bg-raised file:px-3 file:py-1 file:text-ink"
+                className="field mt-1 min-h-[44px] sm:min-h-0 file:mr-3 file:rounded-md file:border-0 file:bg-raised file:px-3 file:py-1 file:text-ink"
               />
             </label>
             <label className="block text-sm font-medium">Pages
               <input
-                className="field mt-1"
+                className="field mt-1 min-h-[44px] sm:min-h-0"
                 placeholder="1-3, 5, 8-10"
                 value={ranges}
                 onChange={(e) => { setRanges(e.target.value); resetOutcome(); }}
@@ -201,19 +212,25 @@ export function PdfClient() {
                 type="file"
                 accept="application/pdf"
                 onChange={onPickSingleFile}
-                className="field mt-1 file:mr-3 file:rounded-md file:border-0 file:bg-raised file:px-3 file:py-1 file:text-ink"
+                className="field mt-1 min-h-[44px] sm:min-h-0 file:mr-3 file:rounded-md file:border-0 file:bg-raised file:px-3 file:py-1 file:text-ink"
               />
             </label>
             <p className="mt-1 text-sm text-muted">Tidies the file structure. It won't shrink image-heavy PDFs.</p>
           </div>
         )}
 
-        <div className="mt-4 flex items-center gap-3">
-          <button type="button" className="btn btn-accent" onClick={submit} disabled={!canSubmit}>
+        <div className="mt-4 flex flex-col sm:flex-row sm:items-center gap-3">
+          <button type="button" className="btn btn-accent min-h-[44px] sm:min-h-0 w-full sm:w-auto justify-center" onClick={submit} disabled={!canSubmit}>
             {busy ? <><Loader2 className="w-4 h-4 animate-spin" strokeWidth={1.75} /> Working…</> : "Run"}
           </button>
-          {busy && <span className="text-sm text-muted">Working…</span>}
+          {busy && <span className="text-sm text-muted">Uploading {Math.round(progress * 100)}%</span>}
         </div>
+
+        {busy && (
+          <div className="mt-3 h-1.5 w-full rounded-full bg-line overflow-hidden">
+            <div className="h-1.5 rounded-full bg-accent transition-[width]" style={{ width: `${Math.round(progress * 100)}%` }} />
+          </div>
+        )}
 
         {error && <p className="mt-3 text-sm text-danger">{error}</p>}
       </div>
@@ -225,7 +242,7 @@ export function PdfClient() {
 
           <div className="mt-3 flex flex-wrap items-center gap-3">
             <a
-              className="btn inline-flex items-center gap-2"
+              className="btn inline-flex items-center gap-2 min-h-[44px] sm:min-h-0 w-full sm:w-auto justify-center"
               href={`/api/pdf/file/${result.id}?name=${encodeURIComponent(result.filename)}&kind=${result.kind}`}
               download
             >

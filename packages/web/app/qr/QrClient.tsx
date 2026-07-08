@@ -82,7 +82,7 @@ export function QrClient() {
       <div className="card">
         <label className="block text-sm font-medium">Text or URL
           <input
-            className="field mt-1"
+            className="field mt-1 min-h-[44px] sm:min-h-0"
             placeholder="https://..."
             value={text}
             onChange={(e) => setText(e.target.value)}
@@ -178,14 +178,14 @@ export function QrClient() {
               )}
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
               {format === "png" && dataUrl && (
-                <a className="btn btn-accent inline-flex items-center gap-2" href={dataUrl} download="qr.png">
+                <a className="btn btn-accent inline-flex items-center justify-center gap-2 min-h-[44px] sm:min-h-0 w-full sm:w-auto" href={dataUrl} download="qr.png">
                   <Download className="w-4 h-4" strokeWidth={1.75} /> Download PNG
                 </a>
               )}
               {format === "svg" && svgDownloadUrl && (
-                <a className="btn btn-accent inline-flex items-center gap-2" href={svgDownloadUrl} download="qr.svg">
+                <a className="btn btn-accent inline-flex items-center justify-center gap-2 min-h-[44px] sm:min-h-0 w-full sm:w-auto" href={svgDownloadUrl} download="qr.svg">
                   <Download className="w-4 h-4" strokeWidth={1.75} /> Download SVG
                 </a>
               )}
