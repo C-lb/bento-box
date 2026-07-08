@@ -84,11 +84,11 @@ export function MergeToolClient(config: MergeToolConfig) {
         <Segmented options={config.layouts.map((l) => ({ value: l.id, label: l.label }))} value={layout} onChange={setLayout} />
         {config.copyFields.map((f) => (
           <label key={f.key} className="block text-sm font-medium">{f.label}
-            <input className="field mt-1 w-full" value={text[f.key] ?? ""} onChange={(e) => setText((s) => ({ ...s, [f.key]: e.target.value }))} />
+            <input className="field mt-1 w-full min-h-[44px] sm:min-h-0" value={text[f.key] ?? ""} onChange={(e) => setText((s) => ({ ...s, [f.key]: e.target.value }))} />
           </label>
         ))}
         <label className="block text-sm font-medium">{config.recipientLabel}
-          <input className="field mt-1 w-full" value={recipientField} onChange={(e) => setRecipientField(e.target.value)} />
+          <input className="field mt-1 w-full min-h-[44px] sm:min-h-0" value={recipientField} onChange={(e) => setRecipientField(e.target.value)} />
         </label>
         {(config.toggles ?? []).map((t) => (
           <label key={t.key} className="flex items-center gap-2 text-sm font-medium">
@@ -103,15 +103,15 @@ export function MergeToolClient(config: MergeToolConfig) {
 
       {error && <p className="text-sm text-danger">{error}</p>}
 
-      <div className="card flex flex-wrap gap-3">
-        <button className="btn btn-accent inline-flex items-center gap-2" onClick={() => download("combined")} disabled={!ready || busy}>
+      <div className="card flex flex-col sm:flex-row sm:flex-wrap gap-3">
+        <button className="btn btn-accent inline-flex items-center justify-center gap-2 min-h-[44px] sm:min-h-0 w-full sm:w-auto" onClick={() => download("combined")} disabled={!ready || busy}>
           <Download className="w-4 h-4" strokeWidth={1.75} /> Combined PDF
         </button>
-        <button className="btn inline-flex items-center gap-2" onClick={() => download("zip")} disabled={!ready || busy}>
+        <button className="btn inline-flex items-center justify-center gap-2 min-h-[44px] sm:min-h-0 w-full sm:w-auto" onClick={() => download("zip")} disabled={!ready || busy}>
           <Download className="w-4 h-4" strokeWidth={1.75} /> Zip of files
         </button>
         {config.sheet && (
-          <button className="btn inline-flex items-center gap-2" onClick={() => download("sheet")} disabled={!ready || busy}>
+          <button className="btn inline-flex items-center justify-center gap-2 min-h-[44px] sm:min-h-0 w-full sm:w-auto" onClick={() => download("sheet")} disabled={!ready || busy}>
             <Download className="w-4 h-4" strokeWidth={1.75} /> Cut sheet
           </button>
         )}

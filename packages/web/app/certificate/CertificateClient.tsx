@@ -125,10 +125,10 @@ export function CertificateClient() {
           </div>
         )}
         {source === "sheet" && (
-          <div className="mt-3 flex gap-2">
-            <input className="field flex-1" placeholder="Paste a Google Sheet link"
+          <div className="mt-3 flex flex-col sm:flex-row gap-2">
+            <input className="field flex-1 min-h-[44px] sm:min-h-0" placeholder="Paste a Google Sheet link"
               value={sheetUrl} onChange={(e) => setSheetUrl(e.target.value)} />
-            <button className="btn" onClick={loadSheet} disabled={busy || !sheetUrl}>Load</button>
+            <button className="btn min-h-[44px] sm:min-h-0 w-full sm:w-auto justify-center" onClick={loadSheet} disabled={busy || !sheetUrl}>Load</button>
           </div>
         )}
         <p className="mt-2 text-sm text-muted">{count} {count === 1 ? "row" : "rows"} loaded</p>
@@ -158,12 +158,12 @@ export function CertificateClient() {
       {error && <p className="text-sm text-danger">{error}</p>}
 
       {/* 3. output */}
-      <div className="card flex flex-wrap gap-3">
-        <button className="btn btn-accent inline-flex items-center gap-2"
+      <div className="card flex flex-col sm:flex-row sm:flex-wrap gap-3">
+        <button className="btn btn-accent inline-flex items-center justify-center gap-2 min-h-[44px] sm:min-h-0 w-full sm:w-auto"
           onClick={() => download("combined")} disabled={!ready || busy}>
           <Download className="w-4 h-4" strokeWidth={1.75} /> Combined PDF
         </button>
-        <button className="btn inline-flex items-center gap-2"
+        <button className="btn inline-flex items-center justify-center gap-2 min-h-[44px] sm:min-h-0 w-full sm:w-auto"
           onClick={() => download("zip")} disabled={!ready || busy}>
           <Download className="w-4 h-4" strokeWidth={1.75} /> Zip of files
         </button>
@@ -175,7 +175,7 @@ export function CertificateClient() {
 function LabeledInput({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
   return (
     <label className="block text-sm font-medium">{label}
-      <input className="field mt-1 w-full" value={value} onChange={(e) => onChange(e.target.value)} />
+      <input className="field mt-1 w-full min-h-[44px] sm:min-h-0" value={value} onChange={(e) => onChange(e.target.value)} />
     </label>
   );
 }

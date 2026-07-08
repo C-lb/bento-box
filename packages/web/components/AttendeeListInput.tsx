@@ -68,9 +68,9 @@ export function AttendeeListInput({ onRows }: { onRows: (r: Rows) => void }) {
         </div>
       )}
       {source === "sheet" && (
-        <div className="mt-3 flex gap-2">
-          <input className="field flex-1" placeholder="Paste a Google Sheet link" value={sheetUrl} onChange={(e) => setSheetUrl(e.target.value)} />
-          <button className="btn" onClick={loadSheet} disabled={busy || !sheetUrl}>Load</button>
+        <div className="mt-3 flex flex-col sm:flex-row gap-2">
+          <input className="field flex-1 min-h-[44px] sm:min-h-0" placeholder="Paste a Google Sheet link" value={sheetUrl} onChange={(e) => setSheetUrl(e.target.value)} />
+          <button className="btn min-h-[44px] sm:min-h-0 w-full sm:w-auto justify-center" onClick={loadSheet} disabled={busy || !sheetUrl}>Load</button>
         </div>
       )}
       {error && <p className="mt-2 text-sm text-danger">{error}</p>}
