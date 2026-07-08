@@ -9,6 +9,41 @@ import type { SlideText, SpeakerGroup } from "@event-editor/core/pptx";
 interface GroupRow { label: string; ranges: string }
 interface OutFile { label: string; filename: string }
 
+// The deck upload streams a raw body (not multipart), so it can't go through
+// the shared uploadWithProgress helper (FormData-only). Same progress shape
+// via XHR, sent as a raw body with headers.
+type RawUploadResponse = { ok: boolean; status: number; json: () => Promise<any> };
+function uploadRawWithProgress(
+  url: string,
+  file: File,
+  headers: Record<string, string>,
+  onProgress: (frac: number) => void,
+): Promise<RawUploadResponse> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", url);
+    for (const [k, v] of Object.entries(headers)) xhr.setRequestHeader(k, v);
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable && e.total > 0) onProgress(e.loaded / e.total);
+    };
+    xhr.onload = () =>
+      resolve({
+        ok: xhr.status >= 200 && xhr.status < 300,
+        status: xhr.status,
+        json: async () => JSON.parse(xhr.responseText),
+      });
+    xhr.onerror = () => reject(new Error("Upload failed. Check the connection."));
+    xhr.send(file);
+  });
+}
+
+// Shared 401 handling for the tool's other POST endpoints: bounce to login
+// instead of failing silently.
+async function jsonOr401(r: Response) {
+  if (r.status === 401) { window.location.assign("/login"); throw new Error("Signed out."); }
+  return r.json();
+}
+
 export function SliceClient({ hasAi }: { hasAi: boolean }) {
   const fileRef = useRef<HTMLInputElement | null>(null);
   const [status, setStatus] = useState<string>("idle");
@@ -32,6 +67,7 @@ export function SliceClient({ hasAi }: { hasAi: boolean }) {
   const [saved, setSaved] = useState<{ filename: string; url: string }[]>([]);
 
   const busy = ["converting", "reading", "segmenting", "exporting", "saving"].includes(status);
+  const [progress, setProgress] = useState(0);
 
   async function convert() {
     const f = fileRef.current?.files?.[0];
@@ -39,13 +75,21 @@ export function SliceClient({ hasAi }: { hasAi: boolean }) {
     if (!f && !driveId) { setError("Drop a .pptx file or choose one from Drive first."); return; }
     setError(null);
     setStatus("converting");
+    setProgress(0);
     setFiles([]); setSaved([]); setWarnings([]);
     try {
-      const r = f
-        ? await fetch("/api/slice/convert", { method: "POST", headers: { "x-filename": f.name }, body: f })
-        : await fetch("/api/slice/convert", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ driveFileId: driveId }) });
-      const data = await r.json();
-      if (!r.ok) throw new Error(data.error ?? "Conversion failed");
+      let data: any;
+      if (f) {
+        const r = await uploadRawWithProgress("/api/slice/convert", f, { "x-filename": f.name }, setProgress);
+        if (r.status === 401) { window.location.assign("/login"); return; }
+        data = await r.json().catch(() => null);
+        if (r.status === 413) throw new Error(data?.error ?? "File is too large.");
+        if (!r.ok) throw new Error(data?.error ?? "Conversion failed");
+      } else {
+        const r = await fetch("/api/slice/convert", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ driveFileId: driveId }) });
+        data = await jsonOr401(r);
+        if (!r.ok) throw new Error(data.error ?? "Conversion failed");
+      }
       setRunId(data.runId);
       setPageCount(data.pageCount);
       setSlides(data.slides);
@@ -66,7 +110,7 @@ export function SliceClient({ hasAi }: { hasAi: boolean }) {
       const r = await fetch("/api/slice/segment", {
         method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ slides, by: mode === "topic" ? "topic" : "speaker" }),
       });
-      const data = await r.json();
+      const data = await jsonOr401(r);
       if (!r.ok) throw new Error(data.error ?? "Segmentation failed");
       const groups: SpeakerGroup[] = data.groups;
       setRows(groups.map((g) => ({ label: g.speaker, ranges: g.startSlide === g.endSlide ? `${g.startSlide}` : `${g.startSlide}-${g.endSlide}` })));
@@ -87,7 +131,7 @@ export function SliceClient({ hasAi }: { hasAi: boolean }) {
         method: "POST", headers: { "content-type": "application/json" },
         body: JSON.stringify({ runId, groups: rows, confidential, watermarkText: watermark }),
       });
-      const data = await r.json();
+      const data = await jsonOr401(r);
       if (!r.ok) throw new Error(data.error ?? "Export failed");
       setFiles(data.files);
       setWarnings(data.warnings ?? []);
@@ -107,7 +151,7 @@ export function SliceClient({ hasAi }: { hasAi: boolean }) {
         method: "POST", headers: { "content-type": "application/json" },
         body: JSON.stringify({ runId, folderId: driveFolder.trim() }),
       });
-      const data = await r.json();
+      const data = await jsonOr401(r);
       if (!r.ok) throw new Error(data.error ?? "Drive save failed");
       setSaved(data.uploaded);
       setStatus("done");
@@ -183,10 +227,10 @@ export function SliceClient({ hasAi }: { hasAi: boolean }) {
       <div className="card">
         <p className="eyebrow">1. Choose a deck</p>
         <div className="mt-3">
-          <FileDrop inputRef={fileRef} accept=".pptx" label="Drop a .pptx here, or click to browse" />
+          <FileDrop inputRef={fileRef} accept=".pptx,.pdf" label="Drop a .pptx here, or click to browse" />
         </div>
         <div className="mt-3">
-          <button type="button" className="btn" onClick={chooseFromDrive}>
+          <button type="button" className="btn min-h-[44px] sm:min-h-0 w-full sm:w-auto" onClick={chooseFromDrive}>
             {pickedName ? "Change Drive file" : "Choose from Drive"}
           </button>
           {pickedName && <span className="ml-2 text-sm text-muted">{pickedName}</span>}
@@ -194,19 +238,38 @@ export function SliceClient({ hasAi }: { hasAi: boolean }) {
           <details className="mt-2">
             <summary className="cursor-pointer text-xs text-muted">Paste a Drive file id instead</summary>
             <input
-              className="field mt-1 w-full max-w-md"
+              className="field mt-1 w-full max-w-md min-h-[44px] sm:min-h-0"
               placeholder="Drive .pptx file id"
               value={driveFileId}
               onChange={(e) => { setDriveFileId(e.target.value); setPickedName(null); }}
             />
           </details>
         </div>
-        <div className="mt-3 flex items-center gap-3">
-          <button type="button" className="btn btn-accent" onClick={convert} disabled={busy}>
+        <div className="mt-3 flex flex-col sm:flex-row sm:items-center gap-3">
+          <button
+            type="button"
+            className="btn btn-accent min-h-[44px] sm:min-h-0 w-full sm:w-auto justify-center"
+            onClick={convert}
+            disabled={busy}
+          >
             {status === "converting" ? "Converting…" : "Convert to PDF"}
           </button>
           {status !== "idle" && <StatusBadge {...sliceStatusView(status)} />}
         </div>
+        {status === "converting" && (
+          <div className="mt-3">
+            <div className="flex items-center justify-between text-sm text-muted">
+              <span>Uploading</span>
+              <span>{Math.round(progress * 100)}%</span>
+            </div>
+            <div className="mt-1.5 h-1.5 w-full rounded-full bg-line overflow-hidden">
+              <div
+                className="h-1.5 rounded-full bg-accent transition-[width]"
+                style={{ width: `${Math.round(progress * 100)}%` }}
+              />
+            </div>
+          </div>
+        )}
       </div>
 
       {runId && (
@@ -216,24 +279,24 @@ export function SliceClient({ hasAi }: { hasAi: boolean }) {
             <p className="eyebrow">2. Choose the slices</p>
             <p className="mt-1 text-sm text-muted">This deck has {pageCount} pages.</p>
 
-            <div className="mt-3 inline-flex rounded-lg border border-line p-1">
+            <div className="mt-3 flex flex-wrap sm:inline-flex gap-1 rounded-lg border border-line p-1">
               <button type="button" onClick={() => setMode("manual")}
-                className={`rounded-md px-3 py-1.5 text-sm ${mode === "manual" ? "bg-raised text-ink shadow-raisededge" : "text-muted"}`}>
+                className={`min-h-[44px] sm:min-h-0 rounded-md px-3 py-1.5 text-sm ${mode === "manual" ? "bg-raised text-ink shadow-raisededge" : "text-muted"}`}>
                 Manual page ranges
               </button>
               <button type="button" onClick={() => setMode("speaker")}
-                className={`rounded-md px-3 py-1.5 text-sm ${mode === "speaker" ? "bg-raised text-ink shadow-raisededge" : "text-muted"}`}>
+                className={`min-h-[44px] sm:min-h-0 rounded-md px-3 py-1.5 text-sm ${mode === "speaker" ? "bg-raised text-ink shadow-raisededge" : "text-muted"}`}>
                 By speaker
               </button>
               <button type="button" onClick={() => setMode("topic")}
-                className={`rounded-md px-3 py-1.5 text-sm ${mode === "topic" ? "bg-raised text-ink shadow-raisededge" : "text-muted"}`}>
+                className={`min-h-[44px] sm:min-h-0 rounded-md px-3 py-1.5 text-sm ${mode === "topic" ? "bg-raised text-ink shadow-raisededge" : "text-muted"}`}>
                 By topic
               </button>
             </div>
 
             {(mode === "speaker" || mode === "topic") && (
               <div className="mt-3">
-                <button type="button" className="btn" onClick={segment} disabled={busy || !hasAi}>
+                <button type="button" className="btn min-h-[44px] sm:min-h-0 w-full sm:w-auto" onClick={segment} disabled={busy || !hasAi}>
                   {status === "segmenting"
                     ? "Finding portions…"
                     : mode === "topic"
@@ -247,15 +310,26 @@ export function SliceClient({ hasAi }: { hasAi: boolean }) {
 
             <div className="mt-4 space-y-2">
               {rows.map((row, i) => (
-                <div key={i} className="flex gap-2">
-                  <input className="field flex-1" placeholder="Portion name" value={row.label}
+                <div key={i} className="flex flex-col sm:flex-row gap-2">
+                  <input className="field flex-1 min-h-[44px] sm:min-h-0" placeholder="Portion name" value={row.label}
                     onChange={(e) => setRows(rows.map((r, j) => j === i ? { ...r, label: e.target.value } : r))} />
-                  <input className="field w-40" placeholder="Pages e.g. 1-5, 8" value={row.ranges}
+                  <input className="field sm:w-40 min-h-[44px] sm:min-h-0" placeholder="Pages e.g. 1-5, 8" value={row.ranges}
                     onChange={(e) => setRows(rows.map((r, j) => j === i ? { ...r, ranges: e.target.value } : r))} />
-                  <button type="button" className="btn" onClick={() => setRows(rows.filter((_, j) => j !== i))}><X className="w-4 h-4" strokeWidth={1.75} /></button>
+                  <button
+                    type="button"
+                    className="btn min-h-[44px] sm:min-h-0 min-w-[44px] sm:min-w-0 justify-center"
+                    onClick={() => setRows(rows.filter((_, j) => j !== i))}
+                    aria-label="Remove portion"
+                  >
+                    <X className="w-4 h-4" strokeWidth={1.75} />
+                  </button>
                 </div>
               ))}
-              <button type="button" className="btn inline-flex items-center gap-2" onClick={() => setRows([...rows, { label: `Part ${rows.length + 1}`, ranges: "" }])}>
+              <button
+                type="button"
+                className="btn min-h-[44px] sm:min-h-0 w-full sm:w-auto inline-flex items-center justify-center gap-2"
+                onClick={() => setRows([...rows, { label: `Part ${rows.length + 1}`, ranges: "" }])}
+              >
                 <Plus className="w-4 h-4" strokeWidth={1.75} /> Add portion
               </button>
             </div>
@@ -265,12 +339,12 @@ export function SliceClient({ hasAi }: { hasAi: boolean }) {
           <div className="card">
             <p className="eyebrow">3. Confidential watermark</p>
             <label className="mt-3 flex items-center gap-2 text-sm">
-              <input type="checkbox" checked={confidential} onChange={(e) => setConfidential(e.target.checked)} />
+              <input type="checkbox" checked={confidential} onChange={(e) => setConfidential(e.target.checked)} className="h-5 w-5 sm:h-4 sm:w-4" />
               Stamp every page with a confidential watermark
             </label>
             {confidential && (
               <label className="mt-3 block text-sm font-medium">Watermark text
-                <input className="field mt-1 w-full max-w-xs" value={watermark} onChange={(e) => setWatermark(e.target.value)} />
+                <input className="field mt-1 w-full max-w-xs min-h-[44px] sm:min-h-0" value={watermark} onChange={(e) => setWatermark(e.target.value)} />
               </label>
             )}
           </div>
@@ -278,11 +352,23 @@ export function SliceClient({ hasAi }: { hasAi: boolean }) {
           {/* Export */}
           <div className="card">
             <p className="eyebrow">4. Export</p>
-            <div className="mt-3 flex flex-wrap items-center gap-3">
-              <button type="button" className="btn btn-accent" onClick={exportPdfs} disabled={busy}>
+            <div className="mt-3 flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-3">
+              <button
+                type="button"
+                className="btn btn-accent min-h-[44px] sm:min-h-0 w-full sm:w-auto justify-center"
+                onClick={exportPdfs}
+                disabled={busy}
+              >
                 {status === "exporting" ? "Building…" : "Build PDFs"}
               </button>
-              <button type="button" className="btn" onClick={reset} disabled={busy}>Start over</button>
+              <button
+                type="button"
+                className="btn min-h-[44px] sm:min-h-0 w-full sm:w-auto justify-center"
+                onClick={reset}
+                disabled={busy}
+              >
+                Start over
+              </button>
               {status !== "idle" && <StatusBadge {...sliceStatusView(status)} />}
             </div>
 
@@ -295,23 +381,34 @@ export function SliceClient({ hasAi }: { hasAi: boolean }) {
             {files.length > 0 && (
               <div className="mt-4 space-y-2">
                 {files.map((f) => (
-                  <div key={f.filename} className="flex items-center justify-between rounded-lg border border-line px-3 py-2">
+                  <div key={f.filename} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 rounded-lg border border-line px-3 py-2">
                     <span className="text-sm">{f.label} <span className="text-muted">({f.filename})</span></span>
-                    <a className="btn inline-flex items-center gap-2" href={`/api/slice/${runId}/file/${encodeURIComponent(f.filename)}`}>
+                    <a
+                      className="btn min-h-[44px] sm:min-h-0 w-full sm:w-auto inline-flex items-center justify-center gap-2"
+                      href={`/api/slice/${runId}/file/${encodeURIComponent(f.filename)}`}
+                    >
                       <Download className="w-4 h-4" strokeWidth={1.75} /> Download
                     </a>
                   </div>
                 ))}
-                <a className="btn btn-accent inline-flex items-center gap-2" href={`/api/slice/${runId}/zip`}>
+                <a
+                  className="btn btn-accent min-h-[44px] sm:min-h-0 w-full sm:w-auto inline-flex items-center justify-center gap-2"
+                  href={`/api/slice/${runId}/zip`}
+                >
                   <FileArchive className="w-4 h-4" strokeWidth={1.75} /> Download all as zip
                 </a>
 
                 <div className="mt-4 border-t border-line pt-4">
                   <p className="text-sm font-medium">Save to Google Drive</p>
                   <p className="text-xs text-muted">Optional. Sends the output PDFs to a Drive folder.</p>
-                  <div className="mt-2 flex gap-2">
-                    <input className="field flex-1" placeholder="Drive folder id" value={driveFolder} onChange={(e) => setDriveFolder(e.target.value)} />
-                    <button type="button" className="btn inline-flex items-center gap-2" onClick={saveToDrive} disabled={busy}>
+                  <div className="mt-2 flex flex-col sm:flex-row gap-2">
+                    <input className="field flex-1 min-h-[44px] sm:min-h-0" placeholder="Drive folder id" value={driveFolder} onChange={(e) => setDriveFolder(e.target.value)} />
+                    <button
+                      type="button"
+                      className="btn min-h-[44px] sm:min-h-0 w-full sm:w-auto inline-flex items-center justify-center gap-2"
+                      onClick={saveToDrive}
+                      disabled={busy}
+                    >
                       <UploadCloud className="w-4 h-4" strokeWidth={1.75} /> Save
                     </button>
                   </div>
