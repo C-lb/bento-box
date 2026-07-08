@@ -73,6 +73,30 @@ docker compose up -d --build
 
 Compose rebuilds only the changed layers and restarts `bento` with the same `bento-data` volume (DB, thumbnails, downloaded binaries all persist). `tunnel` is untouched unless its image changed.
 
+## ⚠️ Upload size limit through the tunnel
+
+The app enforces its own upload caps (2 GB for video/splice, 500 MB for audio), but every request
+to the tunnel-published hostname passes through Cloudflare's edge first. **Cloudflare's free plan
+rejects request bodies over 100 MB there** — the request never reaches the app; the client gets an
+HTML error page instead of JSON. In practice this means the in-app caps only hold below 100 MB;
+the headline mobile use case (compress a large phone video) will not work through the tunnel as
+currently documented for anything bigger.
+
+This is a Cloudflare edge constraint, not a Bento bug, and there's no single right fix — pick
+based on what you're optimizing for:
+
+- **Upgrade the Cloudflare plan** (Pro and above raise the body-size limit well past 100 MB).
+  Simplest, costs money, keeps the current zero-open-ports architecture.
+- **Expose the app port directly** behind the VM's firewall with an IP allowlist instead of routing
+  through the tunnel. Removes the Cloudflare edge from the upload path entirely; requires opening
+  an ingress rule and trusting the allowlist instead of the tunnel's zero-inbound-ports model.
+- **Tailscale Funnel** (or a similar WireGuard-based tunnel) as a swap-in for cloudflared. No
+  documented 100 MB body cap, but it's a different operational surface to set up and maintain.
+- **Split large uploads client-side** (chunked upload) so no single request body crosses 100 MB.
+  Keeps the current tunnel/architecture as-is but is real client + server work, not yet built.
+
+Caleb's call — none of the above is wired up; this is a known limit, not a fix.
+
 ## 8. Fallback: always-on Mac instead of Oracle
 
 If the Oracle free tier instance isn't available or gets reclaimed, the same compose file runs unmodified on any always-on Mac with Docker Desktop:

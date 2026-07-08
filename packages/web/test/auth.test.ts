@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { makeToken, verifyToken, authEnabled } from "@/lib/auth";
+import { makeToken, verifyToken, authEnabled, assertAuthConfig } from "@/lib/auth";
 
 const SECRET = "test-secret";
 
@@ -27,5 +27,31 @@ describe("auth tokens", () => {
     expect(authEnabled({ EE_AUTH_PASSCODE: "1", EE_AUTH_SECRET: "s" } as NodeJS.ProcessEnv)).toBe(true);
     expect(authEnabled({ EE_AUTH_PASSCODE: "1" } as NodeJS.ProcessEnv)).toBe(false);
     expect(authEnabled({ EE_AUTH_PASSCODE: "1", EE_AUTH_SECRET: "s", EE_AUTH_DISABLED: "1" } as NodeJS.ProcessEnv)).toBe(false);
+  });
+
+  describe("assertAuthConfig", () => {
+    it("throws when passcode is set without a secret", () => {
+      expect(() =>
+        assertAuthConfig({ EE_AUTH_PASSCODE: "1" } as NodeJS.ProcessEnv),
+      ).toThrow(/EE_AUTH_SECRET/);
+    });
+    it("throws when the secret is blank, not just missing", () => {
+      expect(() =>
+        assertAuthConfig({ EE_AUTH_PASSCODE: "1", EE_AUTH_SECRET: "" } as NodeJS.ProcessEnv),
+      ).toThrow(/EE_AUTH_SECRET/);
+    });
+    it("does not throw when both are set", () => {
+      expect(() =>
+        assertAuthConfig({ EE_AUTH_PASSCODE: "1", EE_AUTH_SECRET: "s" } as NodeJS.ProcessEnv),
+      ).not.toThrow();
+    });
+    it("does not throw when neither is set (auth off entirely)", () => {
+      expect(() => assertAuthConfig({} as NodeJS.ProcessEnv)).not.toThrow();
+    });
+    it("does not throw when secret is set without a passcode", () => {
+      expect(() =>
+        assertAuthConfig({ EE_AUTH_SECRET: "s" } as NodeJS.ProcessEnv),
+      ).not.toThrow();
+    });
   });
 });

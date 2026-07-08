@@ -39,3 +39,20 @@ export async function verifyToken(
 export function authEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
   return !!env.EE_AUTH_PASSCODE && !!env.EE_AUTH_SECRET && env.EE_AUTH_DISABLED !== "1";
 }
+
+/**
+ * Fail closed on half-configured auth: EE_AUTH_PASSCODE set without
+ * EE_AUTH_SECRET would otherwise leave authEnabled() false and the server
+ * silently unauthenticated (see final-review.md Important #1). Called at
+ * server boot (next.config.ts) — not per-request — so a misconfigured
+ * deploy refuses to start instead of running open.
+ */
+export function assertAuthConfig(env: NodeJS.ProcessEnv = process.env): void {
+  if (!!env.EE_AUTH_PASSCODE && !env.EE_AUTH_SECRET) {
+    throw new Error(
+      "EE_AUTH_PASSCODE is set but EE_AUTH_SECRET is missing/blank. " +
+        "Refusing to start unauthenticated on a configured-for-auth server. " +
+        "Generate one with: openssl rand -hex 32",
+    );
+  }
+}
