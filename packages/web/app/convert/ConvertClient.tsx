@@ -3,8 +3,18 @@ import { useRef, useState } from "react";
 import { Download, Loader2, UploadCloud } from "lucide-react";
 import { Segmented } from "@/components/Segmented";
 import { defaultNameFromSource } from "@event-editor/core/convert";
+import { uploadWithProgress } from "@/lib/upload";
 
 interface Result { id: string; filename: string }
+
+// Shared 413/401 handling for the tool's POST endpoints: 401 bounces to login,
+// 413 surfaces the server's own message instead of a generic failure.
+async function readJsonOrThrow(res: { ok: boolean; status: number; json: () => Promise<any> }) {
+  if (res.status === 401) { window.location.assign("/login"); throw new Error("Signed out."); }
+  const data = await res.json().catch(() => null);
+  if (res.status === 413) throw new Error(data?.error ?? "File is too large.");
+  return data;
+}
 
 export function ConvertClient({ ytDlp }: { ytDlp: boolean }) {
   const fileRef = useRef<HTMLInputElement | null>(null);
@@ -16,6 +26,7 @@ export function ConvertClient({ ytDlp }: { ytDlp: boolean }) {
   const [hasFile, setHasFile] = useState(false);
 
   const [busy, setBusy] = useState(false);
+  const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<Result | null>(null);
 
@@ -53,24 +64,27 @@ export function ConvertClient({ ytDlp }: { ytDlp: boolean }) {
     setDriveUrl(null);
     setDriveError(null);
     setBusy(true);
+    setProgress(0);
     try {
-      let r: Response;
+      let data: any;
       if (mode === "link") {
-        r = await fetch("/api/convert/url", {
+        const r = await fetch("/api/convert/url", {
           method: "POST",
           headers: { "content-type": "application/json" },
           body: JSON.stringify({ url: url.trim(), filename }),
         });
+        data = await readJsonOrThrow(r);
+        if (!r.ok || !data?.id) throw new Error(data?.error ?? "Conversion failed");
       } else {
         const f = fileRef.current?.files?.[0];
         if (!f) { setError("Choose a file first."); setBusy(false); return; }
         const fd = new FormData();
         fd.append("file", f);
         fd.append("filename", filename);
-        r = await fetch("/api/convert/file", { method: "POST", body: fd });
+        const r = await uploadWithProgress("/api/convert/file", fd, setProgress);
+        data = await readJsonOrThrow(r);
+        if (!r.ok || !data?.id) throw new Error(data?.error ?? "Conversion failed");
       }
-      const data = await r.json().catch(() => null);
-      if (!r.ok || !data?.id) throw new Error(data?.error ?? "Conversion failed");
       setResult({ id: data.id, filename: data.filename ?? filename });
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -193,7 +207,7 @@ export function ConvertClient({ ytDlp }: { ytDlp: boolean }) {
                 type="file"
                 accept="audio/*,video/*"
                 onChange={onPickFile}
-                className="field mt-1 file:mr-3 file:rounded-md file:border-0 file:bg-raised file:px-3 file:py-1 file:text-ink"
+                className="field mt-1 min-h-[44px] sm:min-h-0 file:mr-3 file:rounded-md file:border-0 file:bg-raised file:px-3 file:py-1 file:text-ink"
               />
             </label>
             <p className="mt-1 text-sm text-muted">
@@ -216,12 +230,28 @@ export function ConvertClient({ ytDlp }: { ytDlp: boolean }) {
           </label>
         </div>
 
-        <div className="mt-4 flex items-center gap-3">
-          <button type="button" className="btn btn-accent" onClick={convert} disabled={!canConvert}>
+        <div className="mt-4 flex flex-col sm:flex-row sm:items-center gap-3">
+          <button
+            type="button"
+            className="btn btn-accent min-h-[44px] sm:min-h-0 w-full sm:w-auto justify-center"
+            onClick={convert}
+            disabled={!canConvert}
+          >
             {busy ? <><Loader2 className="w-4 h-4 animate-spin" strokeWidth={1.75} /> Converting…</> : "Convert"}
           </button>
-          {busy && <span className="text-sm text-muted">Converting…</span>}
+          {busy && mode === "file" && (
+            <span className="text-sm text-muted">Uploading {Math.round(progress * 100)}%</span>
+          )}
         </div>
+
+        {busy && mode === "file" && (
+          <div className="mt-3 h-1.5 w-full rounded-full bg-line overflow-hidden">
+            <div
+              className="h-1.5 rounded-full bg-accent transition-[width]"
+              style={{ width: `${Math.round(progress * 100)}%` }}
+            />
+          </div>
+        )}
 
         {error && <p className="mt-3 text-sm text-danger">{error}</p>}
       </div>
@@ -231,15 +261,20 @@ export function ConvertClient({ ytDlp }: { ytDlp: boolean }) {
           <p className="eyebrow">Ready</p>
           <p className="mt-1 text-sm">{result.filename}</p>
 
-          <div className="mt-3 flex flex-wrap items-center gap-3">
+          <div className="mt-3 flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-3">
             <a
-              className="btn inline-flex items-center gap-2"
+              className="btn inline-flex items-center justify-center gap-2 min-h-[44px] sm:min-h-0 w-full sm:w-auto"
               href={`/api/convert/${result.id}?name=${encodeURIComponent(result.filename)}`}
               download
             >
               <Download className="w-4 h-4" strokeWidth={1.75} /> Download
             </a>
-            <button type="button" className="btn inline-flex items-center gap-2" onClick={saveToDrive} disabled={driveSaving}>
+            <button
+              type="button"
+              className="btn inline-flex items-center justify-center gap-2 min-h-[44px] sm:min-h-0 w-full sm:w-auto"
+              onClick={saveToDrive}
+              disabled={driveSaving}
+            >
               {driveSaving
                 ? <><Loader2 className="w-4 h-4 animate-spin" strokeWidth={1.75} /> Saving…</>
                 : <><UploadCloud className="w-4 h-4" strokeWidth={1.75} /> Save to Drive</>}
