@@ -1,9 +1,10 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { FRAME_LIST } from "@event-editor/core/frames";
 import { detectColumns } from "@event-editor/core/columns";
 import { StatusBadge } from "@/components/StatusBadge";
 import { headshotStatusView } from "@/lib/status";
+import { usePollWhileVisible } from "@/lib/use-visible-poll";
 
 interface Folder { id: string; name: string; }
 type MatchStatus = "matched" | "ambiguous" | "unmatched";
@@ -115,28 +116,27 @@ export function StudioBatchClient() {
   }, [selected, matched]);
 
   // Poll batch status while batchId is set; stop when every row is done or error
-  useEffect(() => {
+  const batchSettled =
+    batchHeadshots.length > 0 && batchHeadshots.every((h) => h.status === "done" || h.status === "error");
+  // Stable callback: usePollWhileVisible re-arms its interval whenever `fn`
+  // changes identity, so this must be memoized (see transcribe/TranscribeClient).
+  const pollTick = useCallback(() => {
     if (!batchId) return;
-    let stop = false;
-    const loop = async () => {
-      while (!stop) {
-        try {
-          const r = await fetch(`/api/studio/batch/${batchId}`);
-          if (r.ok) {
-            const d = await r.json();
-            const hs: BatchHeadshot[] = d.headshots ?? [];
-            if (!stop) setBatchHeadshots(hs);
-            if (hs.length > 0 && hs.every((h) => h.status === "done" || h.status === "error")) break;
-          }
-        } catch {
-          // continue on transient network error
-        }
-        await new Promise((res) => setTimeout(res, 1500));
+    (async () => {
+      try {
+        const r = await fetch(`/api/studio/batch/${batchId}`);
+        if (!r.ok) return;
+        const d = await r.json();
+        setBatchHeadshots(d.headshots ?? []);
+      } catch {
+        // continue on transient network error
       }
-    };
-    loop();
-    return () => { stop = true; };
+    })();
+    // pollKey forces a one-off refetch (e.g. after a row retry) without
+    // otherwise affecting the interval's cadence.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [batchId, pollKey]);
+  usePollWhileVisible(pollTick, 1500, !!batchId && !batchSettled);
 
   async function loadTabs() {
     const raw = spreadsheetInput.trim();
@@ -301,7 +301,7 @@ export function StudioBatchClient() {
         <p className="text-muted">
           Connect your Google account to read Drive folders and sheets.
         </p>
-        <a className="btn btn-accent mt-4 inline-flex" href="/api/google/auth">
+        <a className="btn btn-accent mt-4 min-h-[44px] sm:min-h-0 w-full sm:w-auto justify-center inline-flex items-center" href="/api/google/auth">
           Connect Google
         </a>
       </div>
@@ -313,16 +313,16 @@ export function StudioBatchClient() {
       {/* Step 1: Sheet source */}
       <div className="card">
         <p className="eyebrow">Step 1: sheet</p>
-        <div className="mt-3 flex flex-wrap gap-2">
+        <div className="mt-3 flex flex-col sm:flex-row gap-2">
           <input
-            className="min-w-0 flex-1 rounded-lg border border-line bg-surface px-3 py-2"
+            className="field min-w-0 flex-1 min-h-[44px] sm:min-h-0"
             placeholder="Google Sheet URL or spreadsheet ID"
             value={spreadsheetInput}
             onChange={(e) => setSpreadsheetInput(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter") loadTabs(); }}
           />
           <button
-            className="btn"
+            className="btn min-h-[44px] sm:min-h-0 w-full sm:w-auto justify-center"
             onClick={loadTabs}
             disabled={tabsLoading || !spreadsheetInput.trim()}
           >
@@ -348,7 +348,7 @@ export function StudioBatchClient() {
             <label className="block">
               <span className="eyebrow">Tab</span>
               <select
-                className="mt-1 block rounded-lg border border-line bg-surface px-3 py-2"
+                className="field mt-1 block w-full sm:w-auto min-h-[44px] sm:min-h-0"
                 value={tab}
                 onChange={(e) => loadValues(e.target.value)}
               >
@@ -362,12 +362,12 @@ export function StudioBatchClient() {
             {header.length > 0 && (
               <div>
                 <p className="eyebrow">Column mapping</p>
-                <div className="mt-2 flex flex-wrap gap-4">
+                <div className="mt-2 flex flex-col gap-4 sm:flex-row sm:flex-wrap">
                   {/* Name (required) */}
                   <label className="block">
                     <span className="text-xs text-muted">Name column</span>
                     <select
-                      className="mt-1 block rounded-lg border border-line bg-surface px-3 py-2"
+                      className="field mt-1 block w-full sm:w-auto min-h-[44px] sm:min-h-0"
                       value={mapping.name ?? ""}
                       onChange={(e) =>
                         setMapping((m) => ({
@@ -387,7 +387,7 @@ export function StudioBatchClient() {
                   <label className="block">
                     <span className="text-xs text-muted">Title column</span>
                     <select
-                      className="mt-1 block rounded-lg border border-line bg-surface px-3 py-2"
+                      className="field mt-1 block w-full sm:w-auto min-h-[44px] sm:min-h-0"
                       value={mapping.title ?? ""}
                       onChange={(e) =>
                         setMapping((m) => ({
@@ -407,7 +407,7 @@ export function StudioBatchClient() {
                   <label className="block">
                     <span className="text-xs text-muted">Photo column</span>
                     <select
-                      className="mt-1 block rounded-lg border border-line bg-surface px-3 py-2"
+                      className="field mt-1 block w-full sm:w-auto min-h-[44px] sm:min-h-0"
                       value={mapping.photo ?? ""}
                       onChange={(e) =>
                         setMapping((m) => ({
@@ -441,7 +441,7 @@ export function StudioBatchClient() {
               key={r}
               type="button"
               onClick={() => setRenderer(r)}
-              className={`rounded-md px-4 py-1.5 text-sm ${
+              className={`min-h-[44px] sm:min-h-0 rounded-md px-4 py-1.5 text-sm ${
                 renderer === r ? "bg-accent text-white" : "text-muted"
               }`}
             >
@@ -457,7 +457,7 @@ export function StudioBatchClient() {
                 key={f.id}
                 type="button"
                 onClick={() => setStyleId(f.id)}
-                className={`btn ${styleId === f.id ? "btn-accent" : ""}`}
+                className={`btn min-h-[44px] sm:min-h-0 ${styleId === f.id ? "btn-accent" : ""}`}
               >
                 {f.label}
               </button>
@@ -476,7 +476,7 @@ export function StudioBatchClient() {
           <label className="mt-4 block">
             <span className="eyebrow">Brand template</span>
             <select
-              className="mt-1 block rounded-lg border border-line bg-surface px-3 py-2"
+              className="field mt-1 block w-full sm:w-auto min-h-[44px] sm:min-h-0"
               value={styleId}
               onChange={(e) => setStyleId(e.target.value)}
             >
@@ -493,7 +493,7 @@ export function StudioBatchClient() {
       <div className="card">
         <p className="eyebrow">Step 3: photo folder</p>
         <select
-          className="mt-3 block rounded-lg border border-line bg-surface px-3 py-2"
+          className="field mt-3 block w-full sm:w-auto min-h-[44px] sm:min-h-0"
           value={folderId}
           onChange={(e) => setFolderId(e.target.value)}
         >
@@ -508,7 +508,7 @@ export function StudioBatchClient() {
       <div className="card">
         <p className="eyebrow">Step 4: match rows</p>
         <button
-          className="btn btn-accent mt-3"
+          className="btn btn-accent mt-3 min-h-[44px] sm:min-h-0 w-full sm:w-auto justify-center"
           onClick={matchRows}
           disabled={matchLoading || !canMatch}
         >
@@ -527,12 +527,13 @@ export function StudioBatchClient() {
               <thead>
                 <tr className="border-b border-line text-left">
                   <th className="pb-2 pr-4 font-medium">
-                    <label className="flex items-center gap-1.5">
+                    <label className="flex items-center gap-1.5 py-1">
                       <input
                         ref={selectAllRef}
                         type="checkbox"
                         checked={allSelected}
                         onChange={(e) => toggleAll(e.target.checked)}
+                        className="h-[18px] w-[18px]"
                       />
                       <span className="text-xs text-muted">All</span>
                     </label>
@@ -553,6 +554,7 @@ export function StudioBatchClient() {
                           checked={selected.has(i)}
                           disabled={!isMatchable}
                           onChange={() => toggleRow(i)}
+                          className="h-[18px] w-[18px]"
                         />
                       </td>
                       <td className="py-2.5 pr-4 font-medium">{row.name}</td>
@@ -577,9 +579,9 @@ export function StudioBatchClient() {
       {/* Step 5: Generate */}
       <div className="card">
         <p className="eyebrow">Step 5: generate</p>
-        <div className="mt-3 flex flex-wrap items-center gap-3">
+        <div className="mt-3 flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-3">
           <button
-            className="btn btn-accent"
+            className="btn btn-accent min-h-[44px] sm:min-h-0 w-full sm:w-auto justify-center"
             onClick={generate}
             disabled={!canGenerate}
           >
@@ -588,7 +590,7 @@ export function StudioBatchClient() {
               : `Generate ${selected.size} headshot${selected.size !== 1 ? "s" : ""}`}
           </button>
           {batchId && (
-            <button className="btn" onClick={startOver}>
+            <button className="btn min-h-[44px] sm:min-h-0 w-full sm:w-auto justify-center" onClick={startOver}>
               Start over
             </button>
           )}
@@ -606,13 +608,13 @@ export function StudioBatchClient() {
         <div className="card">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="eyebrow">Results</p>
-            <button className="btn" onClick={startOver}>
+            <button className="btn min-h-[44px] sm:min-h-0" onClick={startOver}>
               Start over
             </button>
           </div>
           {batchHeadshots.some((r) => r.status === "done") && (
             <a
-              className="btn btn-accent mt-4 inline-flex"
+              className="btn btn-accent mt-4 min-h-[44px] sm:min-h-0 w-full sm:w-auto justify-center inline-flex items-center"
               href={`/api/studio/batch/${batchId}/zip`}
               download={`batch-${batchId}.zip`}
             >
@@ -643,7 +645,7 @@ export function StudioBatchClient() {
                               {hs.errorMessage ?? "Something went wrong."}
                             </p>
                             <button
-                              className="btn"
+                              className="btn min-h-[44px] sm:min-h-0 w-full justify-center"
                               onClick={() => retryRow(hs.id)}
                             >
                               Retry
