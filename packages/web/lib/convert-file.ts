@@ -29,7 +29,7 @@ export async function heicToRaster(input: Buffer, output: "png" | "jpg"): Promis
 }
 
 // png/jpeg bytes → one-page PDF sized exactly to the image.
-export async function imageToPdf(input: Buffer, srcName: string): Promise<Buffer> {
+export async function imageToPdf(input: Buffer): Promise<Buffer> {
   // Normalize to PNG so embedPng always works (input may be jpg/webp/etc).
   const png = await sharp(input, { failOn: "none" }).png().toBuffer();
   const doc = await PDFDocument.create();
@@ -70,7 +70,7 @@ export async function pdfToImages(
       page.cleanup();
     }
   } finally {
-    await doc.cleanup();
+    await doc.destroy();
   }
   if (pages.length === 0) throw new Error("The PDF has no pages.");
   if (pages.length === 1) return { data: pages[0].data, ext, zip: false };
@@ -104,14 +104,18 @@ export async function convertUploaded(
   if (category === "image" || category === "heic") {
     if (output === "pdf") {
       const png = category === "heic" ? await heicToRaster(input, "png") : input;
-      const data = await imageToPdf(png, inputName);
+      const data = await imageToPdf(png);
       await writeFile(resolve(dir, "out.pdf"), data);
       return { ext: "pdf", zip: false };
     }
+    if (category === "heic") {
+      if (output !== "png" && output !== "jpg") throw new Error(`Cannot convert this file to ${output}.`);
+      const data = await heicToRaster(input, output);
+      await writeFile(resolve(dir, `out.${extFor(output)}`), data);
+      return { ext: extFor(output), zip: false };
+    }
     if (output === "png" || output === "jpg" || output === "webp") {
-      const data = category === "heic"
-        ? await heicToRaster(input, output === "webp" ? "png" : output) // heic has no webp target; guarded by catalog
-        : await imageToRaster(input, output);
+      const data = await imageToRaster(input, output);
       await writeFile(resolve(dir, `out.${extFor(output)}`), data);
       return { ext: extFor(output), zip: false };
     }

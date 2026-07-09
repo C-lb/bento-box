@@ -22,7 +22,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   const clean = sanitizeConvertId(id);
   const url = new URL(request.url);
   const rawExt = url.searchParams.get("ext");
-  const ext = (rawExt && CONTENT_TYPES[rawExt]) ? rawExt : "mp3";
+  const ext = (rawExt && Object.hasOwn(CONTENT_TYPES, rawExt)) ? rawExt : "mp3";
   const name = swapExt(url.searchParams.get("name") || "audio", ext);
   try {
     const bytes = await readFile(resolve(convertDir(clean), `out.${ext}`));

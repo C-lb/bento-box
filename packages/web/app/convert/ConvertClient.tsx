@@ -163,7 +163,7 @@ export function ConvertClient({ ytDlp }: { ytDlp: boolean }) {
       const r = await fetch("/api/convert/drive-save", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ id: result.id, filename: result.filename, folderId }),
+        body: JSON.stringify({ id: result.id, filename: result.filename, folderId, ext: result.ext ?? "mp3" }),
       });
       const data = await r.json().catch(() => null);
       if (!r.ok || !data?.url) throw new Error(data?.error ?? "Drive save failed");

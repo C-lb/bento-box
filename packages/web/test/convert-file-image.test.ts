@@ -22,7 +22,7 @@ describe("imageToRaster", () => {
 
 describe("imageToPdf", () => {
   it("produces a valid single-page PDF", async () => {
-    const out = await imageToPdf(await tinyPng(), "x.png");
+    const out = await imageToPdf(await tinyPng());
     const doc = await PDFDocument.load(out);
     expect(doc.getPageCount()).toBe(1);
   });
