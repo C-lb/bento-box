@@ -1,3 +1,5 @@
+"use client";
+import { useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 
 // House palette for these thumbnails: neutral grey tiles, one accent touch each,
@@ -226,28 +228,80 @@ export function SpliceIllus() {
   );
 }
 
+// QR module grid: three finder squares and one accent module.
+const QR_MODS = [
+  1,1,1,0,1,0,1,1,1,
+  1,0,1,0,0,0,1,0,1,
+  1,1,1,0,1,0,1,1,1,
+  0,0,0,0,0,1,0,0,0,
+  1,0,1,1,0,0,1,1,0,
+  0,0,0,1,1,0,0,0,1,
+  1,1,1,0,1,0,1,0,1,
+  1,0,1,0,0,1,0,0,0,
+  1,1,1,0,1,1,0,1,1,
+];
+// Empty cells that may fill in while hovered. The zones beside the two top
+// finder squares stay empty (a real QR keeps that quiet space too).
+const QR_FILLABLE = QR_MODS
+  .map((m, i) => ({ m, i }))
+  .filter(({ m, i }) => {
+    if (m) return false;
+    const row = Math.floor(i / 9);
+    const col = i % 9;
+    return !(row <= 3 && (col <= 3 || col >= 5));
+  })
+  .map(({ i }) => i);
+
 export function QrIllus() {
-  // A QR-like module grid filling the box, with three finder squares and one accent module.
-  const mods = [
-    1,1,1,0,1,0,1,1,1,
-    1,0,1,0,0,0,1,0,1,
-    1,1,1,0,1,0,1,1,1,
-    0,0,0,0,0,1,0,0,0,
-    1,0,1,1,0,0,1,1,0,
-    0,0,0,1,1,0,0,0,1,
-    1,1,1,0,1,0,1,0,1,
-    1,0,1,0,0,1,0,0,0,
-    1,1,1,0,1,1,0,1,1,
-  ];
-  // A few modules gently pulse in a loop while hovered, suggesting the code is "live".
-  const pulseMods = new Set([2, 42, 63, 77]);
+  // On hover, new squares appear one by one at random empty cells for 3s, then
+  // stop. Leaving the card resets to the base pattern. Static under
+  // prefers-reduced-motion.
+  const rootRef = useRef<HTMLDivElement | null>(null);
+  const [filled, setFilled] = useState<ReadonlySet<number>>(new Set());
+
+  useEffect(() => {
+    const grp = rootRef.current?.closest(".group");
+    if (!grp) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    let interval: number | undefined;
+    let stopTimer: number | undefined;
+    let remaining: number[] = [];
+    const start = () => {
+      remaining = [...QR_FILLABLE];
+      interval = window.setInterval(() => {
+        if (remaining.length === 0) return;
+        const k = Math.floor(Math.random() * remaining.length);
+        const idx = remaining.splice(k, 1)[0];
+        setFilled((prev) => new Set(prev).add(idx));
+      }, 180);
+      stopTimer = window.setTimeout(() => window.clearInterval(interval), 3000);
+    };
+    const stop = () => {
+      window.clearInterval(interval);
+      window.clearTimeout(stopTimer);
+      setFilled(new Set());
+    };
+    grp.addEventListener("mouseenter", start);
+    grp.addEventListener("mouseleave", stop);
+    return () => {
+      grp.removeEventListener("mouseenter", start);
+      grp.removeEventListener("mouseleave", stop);
+      window.clearInterval(interval);
+      window.clearTimeout(stopTimer);
+    };
+  }, []);
+
   return (
-    <div className="grid h-full place-items-center">
+    <div ref={rootRef} className="grid h-full place-items-center">
       <div className="grid aspect-square h-full grid-cols-9 grid-rows-9 gap-[3px]">
-        {mods.map((m, i) => (
+        {QR_MODS.map((m, i) => (
           <span
             key={i}
-            className={`rounded-[2px] ${m ? (i === 40 ? "bg-accent" : "bg-[#33383f]") : "bg-transparent"} ${m && i !== 40 ? "transition-colors duration-300 motion-safe:group-hover:bg-[#20242a]" : ""} ${m && pulseMods.has(i) ? "qr-pulse-mod" : ""}`}
+            className={`rounded-[2px] ${
+              m
+                ? i === 40 ? "bg-accent" : "bg-[#33383f]"
+                : `bg-[#33383f] transition-opacity duration-300 ${filled.has(i) ? "opacity-100" : "opacity-0"}`
+            }`}
           />
         ))}
       </div>

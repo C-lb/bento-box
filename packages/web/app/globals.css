@@ -83,24 +83,11 @@ body {
 .dots-trigger:hover .dots-wave circle:nth-child(2) { animation-delay: 0.09s; }
 .dots-trigger:hover .dots-wave circle:nth-child(3) { animation-delay: 0.18s; }
 
-/* QR thumbnail: a few modules pulse in a loop while the card is hovered,
-   suggesting the code is "live". Paused at rest, running only on hover. */
-@keyframes qr-pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.15; }
-}
-.qr-pulse-mod {
-  animation: qr-pulse 1.3s ease-in-out infinite;
-  animation-play-state: paused;
-}
-.group:hover .qr-pulse-mod { animation-play-state: running; }
-
 @media (prefers-reduced-motion: reduce) {
   .fav-pop { animation: none; }
   .fav-spark > i { animation: none; opacity: 0; }
   .spin-hover:hover { animation: none; }
   .dots-trigger:hover .dots-wave circle { animation: none; }
-  .qr-pulse-mod { animation: none; }
 }
 
 /* Mobile: bigger rem-based type and iOS safe areas. Tailwind's rem sizes
