@@ -3,9 +3,20 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { Settings } from "lucide-react";
+import { ArrowLeft, ArrowRight, RotateCw, Settings } from "lucide-react";
 import { useToolShell } from "@/components/tool-shell-context";
 import { ALL, FAV } from "@/components/tool-store";
+
+// window.navigation isn't in lib.dom yet; declare the slice we use.
+interface NavigationApi extends EventTarget {
+  canGoBack: boolean;
+  canGoForward: boolean;
+}
+declare global {
+  interface Window {
+    navigation?: NavigationApi;
+  }
+}
 
 export function Nav() {
   const router = useRouter();
@@ -24,9 +35,23 @@ export function Nav() {
   const thumbRef = useRef<HTMLSpanElement | null>(null);
   const enabled = useRef(false);
   const [motionOK, setMotionOK] = useState(false);
+  const [canBack, setCanBack] = useState(true);
+  const [canForward, setCanForward] = useState(true);
 
   useEffect(() => {
     setMotionOK(!window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+  }, []);
+
+  useEffect(() => {
+    const nav = window.navigation;
+    if (!nav) return;
+    const sync = () => {
+      setCanBack(nav.canGoBack);
+      setCanForward(nav.canGoForward);
+    };
+    sync();
+    nav.addEventListener("currententrychange", sync);
+    return () => nav.removeEventListener("currententrychange", sync);
   }, []);
 
   useLayoutEffect(() => {
@@ -73,6 +98,43 @@ export function Nav() {
           </svg>
           <span className="hidden sm:inline">Bento</span>
         </Link>
+
+        <div className="flex shrink-0 items-center gap-1">
+          <button
+            type="button"
+            aria-label="Go back"
+            aria-disabled={!canBack}
+            onClick={() => {
+              if (canBack) history.back();
+            }}
+            className={`flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg px-2 py-2 text-muted hover:text-ink ${
+              canBack ? "" : "cursor-default opacity-40"
+            }`}
+          >
+            <ArrowLeft size={18} strokeWidth={1.75} aria-hidden />
+          </button>
+          <button
+            type="button"
+            aria-label="Go forward"
+            aria-disabled={!canForward}
+            onClick={() => {
+              if (canForward) history.forward();
+            }}
+            className={`flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg px-2 py-2 text-muted hover:text-ink ${
+              canForward ? "" : "cursor-default opacity-40"
+            }`}
+          >
+            <ArrowRight size={18} strokeWidth={1.75} aria-hidden />
+          </button>
+          <button
+            type="button"
+            aria-label="Refresh"
+            onClick={() => window.location.reload()}
+            className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg px-2 py-2 text-muted hover:text-ink"
+          >
+            <RotateCw size={18} strokeWidth={1.75} aria-hidden />
+          </button>
+        </div>
 
         <nav className="relative flex flex-1 items-center gap-1 overflow-x-auto overscroll-x-contain">
           <span
