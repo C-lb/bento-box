@@ -83,6 +83,8 @@ export interface Dep {
   hint?: string;         // e.g. a brew command
 }
 
+export type DepId = Dep["id"];
+
 export async function dependencyStatuses(): Promise<Dep[]> {
   const ytVersion = await ytDlpVersion();
   return [
