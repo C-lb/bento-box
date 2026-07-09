@@ -3,6 +3,10 @@ import { MergeToolClient, type MergeToolConfig } from "@/components/MergeToolCli
 import { placecardSpec, PLACECARD_LAYOUTS } from "@event-editor/core/placecard";
 
 const config: MergeToolConfig = {
+  toolId: "place-card",
+  sizePresets: [
+    { id: "placecard-standard", label: "Standard", width: 288, height: 180 },
+  ],
   layouts: PLACECARD_LAYOUTS,
   copyFields: [{ key: "tableField", label: "Table column", default: "Table" }],
   recipientLabel: "Name column",

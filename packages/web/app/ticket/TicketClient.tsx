@@ -3,6 +3,10 @@ import { MergeToolClient, type MergeToolConfig } from "@/components/MergeToolCli
 import { ticketSpec, TICKET_LAYOUTS } from "@event-editor/core/ticket";
 
 const config: MergeToolConfig = {
+  toolId: "ticket",
+  sizePresets: [
+    { id: "ticket-standard", label: "Standard", width: 396, height: 144 },
+  ],
   layouts: TICKET_LAYOUTS,
   copyFields: [
     { key: "eventTitle", label: "Event title", default: "" },

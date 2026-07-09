@@ -7,10 +7,25 @@ import {
   parseDelimited, autoMatchColumns, deriveFields, type Rows,
 } from "@event-editor/core/merge";
 import { certificateSpec, CERTIFICATE_LAYOUTS, type CertificateLayout } from "@event-editor/core/certificate";
+import { applyDesign, type DesignOverrides } from "@event-editor/core/design";
 import { parseWorkbook } from "@/lib/merge-xlsx";
-import { renderCombined, renderZip, loadBundledFonts, type FontBytes } from "@/lib/merge-render";
+import { renderCombined, renderZip, type FontBytes } from "@/lib/merge-render";
+import { MergePreview } from "@/components/MergePreview";
+import { DesignPanel, type SizePreset } from "@/components/DesignPanel";
+import { loadDesign, saveDesign } from "@/components/design-store";
+import { addUploadedFont, listUploadedFonts } from "@/lib/designer-fonts";
+import { designSlots, specFontIds, withDesignFonts } from "@/lib/design-tools";
 
 type Source = "paste" | "upload" | "sheet";
+
+const TOOL_ID = "certificate";
+
+const SIZE_PRESETS: SizePreset[] = [
+  { id: "a4-landscape", label: "A4 landscape", width: 841.89, height: 595.28 },
+  { id: "a4-portrait", label: "A4 portrait", width: 595.28, height: 841.89 },
+  { id: "a5-landscape", label: "A5 landscape", width: 595.28, height: 419.53 },
+  { id: "us-letter-landscape", label: "US Letter landscape", width: 792, height: 612 },
+];
 
 export function CertificateClient() {
   const [source, setSource] = useState<Source>("paste");
@@ -29,17 +44,37 @@ export function CertificateClient() {
   const [signatureName, setSignatureName] = useState("SPARK");
   const [recipientField, setRecipientField] = useState("Name");
 
+  const [overrides, setOverrides] = useState<DesignOverrides>({ v: 1 });
+  const [uploadedFonts, setUploadedFonts] = useState<{ id: string; label: string }[]>([]);
+  const [previewFonts, setPreviewFonts] = useState<FontBytes | undefined>(undefined);
+
+  // hydrate persisted design on mount (SSR-safe: starts as {v:1})
+  useEffect(() => {
+    const loaded = loadDesign(TOOL_ID);
+    if (loaded) setOverrides(loaded);
+  }, []);
+
+  // persist on every panel change (not via an effect, which would clobber the
+  // stored design with the {v:1} default before hydration lands)
+  function changeOverrides(next: DesignOverrides) {
+    setOverrides(next);
+    saveDesign(TOOL_ID, next);
+  }
+
   // keep pasted rows live
   useEffect(() => {
     if (source === "paste") setRows(parseDelimited(pasteText));
   }, [source, pasteText]);
 
-  const spec = useMemo(() => certificateSpec({
+  const layoutSpec = useMemo(() => certificateSpec({
     layout, title, bodyLine, recipientField, detailLine, dateText,
     signatureName: signatureName || undefined,
   }), [layout, title, bodyLine, recipientField, detailLine, dateText, signatureName]);
 
-  const fields = useMemo(() => deriveFields(spec), [spec]);
+  const finalSpec = useMemo(() => applyDesign(layoutSpec, overrides), [layoutSpec, overrides]);
+  const slots = useMemo(() => designSlots(layoutSpec), [layoutSpec]);
+
+  const fields = useMemo(() => deriveFields(layoutSpec), [layoutSpec]);
   const mapping = useMemo(() => autoMatchColumns(fields, rows.headers), [fields, rows.headers]);
   const recipientColumn = mapping[recipientField] ?? recipientField;
 
@@ -49,16 +84,30 @@ export function CertificateClient() {
     [rows.rows, recipientField, recipientColumn],
   );
 
+  const fontKey = useMemo(() => specFontIds(finalSpec).join("|"), [finalSpec]);
+
+  // resolve preview fonts async, keyed on the set of fontIds actually in use
+  useEffect(() => {
+    let live = true;
+    withDesignFonts(finalSpec).then((f) => { if (live) setPreviewFonts(f); }).catch(() => {});
+    return () => { live = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fontKey]);
+
+  function handleUploadFont(name: string, bytes: Uint8Array) {
+    addUploadedFont(name, bytes);
+    setUploadedFonts(listUploadedFonts());
+  }
+
   async function download(kind: "combined" | "zip") {
     setBusy(true); setError(null);
     try {
-      let fonts: FontBytes | undefined;
-      try { fonts = await loadBundledFonts(); } catch { fonts = undefined; }
+      const fonts = await withDesignFonts(finalSpec);
       if (kind === "combined") {
-        const bytes = await renderCombined(spec, mergedRows, fonts);
+        const bytes = await renderCombined(finalSpec, mergedRows, fonts);
         triggerDownload(new Blob([bytes as BlobPart], { type: "application/pdf" }), "certificates.pdf");
       } else {
-        const blob = await renderZip(spec, mergedRows, recipientField, fonts);
+        const blob = await renderZip(finalSpec, mergedRows, recipientField, fonts);
         triggerDownload(blob, "certificates.zip");
       }
     } catch (e) {
@@ -137,22 +186,39 @@ export function CertificateClient() {
       {/* 2. layout + copy */}
       <div className="card space-y-3">
         <p className="text-sm font-medium">Design</p>
-        <Segmented
-          options={CERTIFICATE_LAYOUTS.map((l) => ({ value: l.id, label: l.label }))}
-          value={layout}
-          onChange={(v) => setLayout(v as CertificateLayout)}
-        />
-        <LabeledInput label="Title" value={title} onChange={setTitle} />
-        <LabeledInput label="Body line" value={bodyLine} onChange={setBodyLine} />
-        <LabeledInput label="Detail line" value={detailLine} onChange={setDetailLine} />
-        <LabeledInput label="Date" value={dateText} onChange={setDateText} />
-        <LabeledInput label="Signature" value={signatureName} onChange={setSignatureName} />
-        <LabeledInput label="Recipient column" value={recipientField} onChange={setRecipientField} />
-        {rows.headers.length > 0 && !rows.headers.includes(recipientColumn) && (
-          <p className="text-sm text-amber-600">
-            No "{recipientField}" column found. Available: {rows.headers.join(", ")}.
-          </p>
-        )}
+        <div className="lg:grid lg:grid-cols-2 lg:gap-6">
+          <div className="order-first mb-3 lg:order-last lg:mb-0">
+            <MergePreview spec={finalSpec} row={mergedRows[0] ?? {}} fonts={previewFonts} className="lg:sticky lg:top-4" />
+          </div>
+          <div className="space-y-3">
+            <Segmented
+              options={CERTIFICATE_LAYOUTS.map((l) => ({ value: l.id, label: l.label }))}
+              value={layout}
+              onChange={(v) => setLayout(v as CertificateLayout)}
+            />
+            <LabeledInput label="Title" value={title} onChange={setTitle} />
+            <LabeledInput label="Body line" value={bodyLine} onChange={setBodyLine} />
+            <LabeledInput label="Detail line" value={detailLine} onChange={setDetailLine} />
+            <LabeledInput label="Date" value={dateText} onChange={setDateText} />
+            <LabeledInput label="Signature" value={signatureName} onChange={setSignatureName} />
+            <LabeledInput label="Recipient column" value={recipientField} onChange={setRecipientField} />
+            {rows.headers.length > 0 && !rows.headers.includes(recipientColumn) && (
+              <p className="text-sm text-amber-600">
+                No "{recipientField}" column found. Available: {rows.headers.join(", ")}.
+              </p>
+            )}
+            <DesignPanel
+              key={TOOL_ID}
+              toolId={TOOL_ID}
+              presets={SIZE_PRESETS}
+              slots={slots}
+              value={overrides}
+              onChange={changeOverrides}
+              onUploadFont={handleUploadFont}
+              uploadedFonts={uploadedFonts}
+            />
+          </div>
+        </div>
       </div>
 
       {error && <p className="text-sm text-danger">{error}</p>}

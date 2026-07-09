@@ -3,6 +3,11 @@ import { MergeToolClient, type MergeToolConfig } from "@/components/MergeToolCli
 import { badgeSpec, BADGE_LAYOUTS } from "@event-editor/core/badge";
 
 const config: MergeToolConfig = {
+  toolId: "badge",
+  sizePresets: [
+    { id: "badge-4x3", label: "4 x 3 in", width: 288, height: 216 },
+    { id: "a6-landscape", label: "A6 landscape", width: 419.53, height: 297.64 },
+  ],
   layouts: BADGE_LAYOUTS,
   copyFields: [
     { key: "eventTitle", label: "Event title", default: "" },
