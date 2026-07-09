@@ -237,6 +237,27 @@ export function QrIllus() {
   );
 }
 
+export function ShortenIllus() {
+  // A long grey link bar compresses into a short accent pill, with a small QR tile beside it.
+  return (
+    <div className="flex h-full items-center gap-3">
+      <div className={`flex h-9 flex-1 items-center gap-2 rounded-xl ${TILE} px-3 transition-all duration-300 motion-safe:group-hover:flex-[0.35] motion-safe:group-hover:opacity-40`}>
+        <span className={`h-1.5 flex-1 rounded-full ${TILE2}`} />
+      </div>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-muted">
+        <line x1="5" y1="12" x2="19" y2="12" />
+        <polyline points="13 6 19 12 13 18" />
+      </svg>
+      <span className="grid h-9 shrink-0 place-items-center rounded-full bg-accent px-3 text-[11px] font-semibold text-white shadow-soft transition-transform duration-300 motion-safe:group-hover:scale-105">
+        is.gd/x8
+      </span>
+      <span className="grid h-9 w-9 shrink-0 grid-cols-3 grid-rows-3 gap-[2px] rounded-md bg-[#33383f] p-1.5">
+        {Array.from({ length: 9 }).map((_, i) => <span key={i} className={[0, 2, 4, 6, 8].includes(i) ? "rounded-[1px] bg-white/85" : ""} />)}
+      </span>
+    </div>
+  );
+}
+
 export function CutoutIllus() {
   // A subject sits on a transparency checkerboard; an accent ring traces the cutout on hover.
   return (
@@ -354,6 +375,7 @@ const ILLUSTRATIONS: Record<string, ReactNode> = {
   video: <VideoIllus />,
   splice: <SpliceIllus />,
   qr: <QrIllus />,
+  shorten: <ShortenIllus />,
   cutout: <CutoutIllus />,
   certificate: <CertificateIllus />,
   badge: <BadgeIllus />,

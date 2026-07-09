@@ -261,7 +261,8 @@ export function ConvertClient({ ytDlp }: { ytDlp: boolean }) {
                 value={filename}
                 onChange={(e) => { setFilename(e.target.value); setEdited(true); }}
               />
-              <span className="text-sm text-muted">.{mode === "file" && hasFile && !unsupported ? output : "mp3"}</span>
+              {mode === "link" && <span className="text-sm text-muted">.mp3</span>}
+              {mode === "file" && hasFile && !unsupported && <span className="text-sm text-muted">.{output}</span>}
             </div>
           </label>
         </div>
