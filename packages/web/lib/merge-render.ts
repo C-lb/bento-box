@@ -79,9 +79,7 @@ async function drawPage(
       if (!str) continue;
       const font = resolveFont(el, f);
       const spacing = el.letterSpacing ?? 0;
-      const w = spacing
-        ? font.widthOfTextAtSize(str, el.size) + (str.length - 1) * spacing
-        : font.widthOfTextAtSize(str, el.size);
+      const w = font.widthOfTextAtSize(str, el.size) + (str.length - 1) * spacing;
       const x = el.align === "center" ? el.x - w / 2 : el.align === "right" ? el.x - w : el.x;
 
       if (spacing) page.pushOperators(setCharacterSpacing(spacing));

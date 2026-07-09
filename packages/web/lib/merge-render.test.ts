@@ -1,4 +1,6 @@
 import { describe, it, expect } from "vitest";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { PDFDocument, StandardFonts, PDFArray, PDFRawStream, decodePDFRawStream } from "pdf-lib";
 import JSZip from "jszip";
 import { renderCombined, renderZip, renderSheet } from "./merge-render";
@@ -182,8 +184,6 @@ describe("text stroke", () => {
 
 describe("font pool", () => {
   it("resolves fontId to embedded pool bytes, and falls back to the role font when the id has no bytes", async () => {
-    const helveticaBytes = await (await PDFDocument.create()).embedFont(StandardFonts.Helvetica);
-    void helveticaBytes;
     const specWithFont: DS2 = {
       page: { width: 400, height: 200 },
       elements: [
@@ -193,6 +193,46 @@ describe("font pool", () => {
     // Unknown fontId with no matching bytes in the pool must not throw; it
     // falls back to the element's heading/body role.
     await expect(renderCombined(specWithFont, [{}])).resolves.toBeInstanceOf(Uint8Array);
+  });
+
+  it("embeds and uses the pooled font when fontId bytes are supplied", async () => {
+    // A real TTF shipped by a dependency (read at runtime, not committed).
+    const ttfPath = join(
+      process.cwd(), "..", "..", "node_modules", "pdfjs-dist", "standard_fonts", "LiberationSans-Regular.ttf",
+    );
+    const custom = new Uint8Array(readFileSync(ttfPath));
+    const specWithFont: DS2 = {
+      page: { width: 400, height: 200 },
+      elements: [
+        { kind: "text", template: "Hello", x: 200, y: 100, size: 20, font: "heading", align: "center", color: "#111111", fontId: "custom" },
+      ],
+    };
+    const withPool = await renderCombined(specWithFont, [{}], { byId: { custom } });
+    const baseline = await renderCombined(specWithFont, [{}]); // no byId -> role font
+
+    // Embedding: fontkit embeds custom fonts with a subset-prefixed BaseFont
+    // name containing the family name. Font dictionaries live inside
+    // compressed object streams in a default save, so re-save without object
+    // streams to make the names scannable.
+    const flatten = async (b: Uint8Array) =>
+      Buffer.from(await (await PDFDocument.load(b)).save({ useObjectStreams: false })).toString("latin1");
+    expect(await flatten(withPool)).toContain("LiberationSans");
+    expect(await flatten(baseline)).not.toContain("LiberationSans");
+
+    // Usage: the centred x-position must reflect the pooled font's metrics,
+    // not the heading role font's (Liberation Sans Regular and Helvetica-Bold
+    // have different widths for "Hello" at 20pt).
+    const scratch = await PDFDocument.create();
+    scratch.registerFontkit((await import("@pdf-lib/fontkit")).default);
+    const liberation = await scratch.embedFont(custom);
+    const helvBold = await scratch.embedFont(StandardFonts.HelveticaBold);
+    const xLib = 200 - liberation.widthOfTextAtSize("Hello", 20) / 2;
+    const xBold = 200 - helvBold.widthOfTextAtSize("Hello", 20) / 2;
+    expect(xLib).not.toBeCloseTo(xBold, 1); // sanity: the fonts are distinguishable
+
+    const tm = /1 0 0 1 (-?[\d.]+) (-?[\d.]+) Tm/.exec(await pageContentText(withPool));
+    expect(tm).not.toBeNull();
+    expect(Number(tm![1])).toBeCloseTo(xLib, 1);
   });
 });
 
