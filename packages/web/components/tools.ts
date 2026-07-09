@@ -75,11 +75,11 @@ export const TOOLS: Tool[] = [
   {
     id: "convert",
     href: "/convert",
-    title: "Convert video to mp3",
-    body: "Turn a YouTube or video link, or an uploaded audio or video file, into an mp3 you can name and download.",
+    title: "Convert a file",
+    body: "Change a file's format. Images to png, jpg, webp, or pdf; pdf to images; audio and video to mp3, wav, or m4a. Or paste a link for audio.",
     Icon: AudioLines,
     defaultGroups: ["media"],
-    tags: ["audio", "mp3", "convert", "youtube", "video"],
+    tags: ["convert", "image", "png", "jpg", "webp", "pdf", "audio", "mp3", "video", "youtube", "heic"],
   },
   {
     id: "heic",

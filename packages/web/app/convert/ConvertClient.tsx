@@ -1,11 +1,12 @@
 "use client";
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { Download, Loader2, UploadCloud } from "lucide-react";
 import { Segmented } from "@/components/Segmented";
 import { defaultNameFromSource } from "@event-editor/core/convert";
+import { categoryForFile, outputsFor, type OutputFormat } from "@event-editor/core/convert-formats";
 import { uploadWithProgress } from "@/lib/upload";
 
-interface Result { id: string; filename: string }
+interface Result { id: string; filename: string; ext?: string }
 
 // Shared 413/401 handling for the tool's POST endpoints: 401 bounces to login,
 // 413 surfaces the server's own message instead of a generic failure.
@@ -24,6 +25,8 @@ export function ConvertClient({ ytDlp }: { ytDlp: boolean }) {
   const [filename, setFilename] = useState("");
   const [edited, setEdited] = useState(false);
   const [hasFile, setHasFile] = useState(false);
+  const [fileName, setFileName] = useState("");
+  const [output, setOutput] = useState<OutputFormat>("mp3");
 
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -50,13 +53,22 @@ export function ConvertClient({ ytDlp }: { ytDlp: boolean }) {
     } catch { /* prefill is best-effort; leave the field as is */ }
   }
 
+  const category = useMemo(() => (fileName ? categoryForFile(fileName) : null), [fileName]);
+  const outputOptions = useMemo(() => (category ? outputsFor(category) : []), [category]);
+  const unsupported = hasFile && !category;
+
   function onPickFile() {
     const f = fileRef.current?.files?.[0];
     setHasFile(!!f);
+    setFileName(f?.name ?? "");
     if (f && !edited) setFilename(defaultNameFromSource(f.name));
+    if (f) {
+      const cat = categoryForFile(f.name);
+      if (cat) setOutput(outputsFor(cat)[0]);
+    }
   }
 
-  const canConvert = !busy && (mode === "link" ? isUrl(url) : hasFile);
+  const canConvert = !busy && (mode === "link" ? isUrl(url) : hasFile && !unsupported);
 
   async function convert() {
     setError(null);
@@ -81,11 +93,12 @@ export function ConvertClient({ ytDlp }: { ytDlp: boolean }) {
         const fd = new FormData();
         fd.append("file", f);
         fd.append("filename", filename);
+        fd.set("output", output);
         const r = await uploadWithProgress("/api/convert/file", fd, setProgress);
         data = await readJsonOrThrow(r);
         if (!r.ok || !data?.id) throw new Error(data?.error ?? "Conversion failed");
       }
-      setResult({ id: data.id, filename: data.filename ?? filename });
+      setResult({ id: data.id, filename: data.filename ?? filename, ext: data.ext });
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -168,7 +181,15 @@ export function ConvertClient({ ytDlp }: { ytDlp: boolean }) {
         <Segmented
           options={[{ value: "link", label: "From link" }, { value: "file", label: "Upload file" }]}
           value={mode}
-          onChange={(v) => { setMode(v as "link" | "file"); setError(null); setResult(null); }}
+          onChange={(v) => {
+            setMode(v as "link" | "file");
+            setError(null);
+            setResult(null);
+            setHasFile(false);
+            setFileName("");
+            setOutput("mp3");
+            if (fileRef.current) fileRef.current.value = "";
+          }}
         />
 
         {mode === "link" && (
@@ -205,14 +226,29 @@ export function ConvertClient({ ytDlp }: { ytDlp: boolean }) {
               <input
                 ref={fileRef}
                 type="file"
-                accept="audio/*,video/*"
+                accept="image/*,application/pdf,audio/*,video/*"
                 onChange={onPickFile}
                 className="field mt-1 min-h-[44px] sm:min-h-0 file:mr-3 file:rounded-md file:border-0 file:bg-raised file:px-3 file:py-1 file:text-ink"
               />
             </label>
             <p className="mt-1 text-sm text-muted">
-              Supports video (mp4, mov, mkv, webm, avi, m4v) and audio (mp3, wav, m4a, aac, flac, ogg).
+              Supports images (png, jpg, webp, heic), pdf, video (mp4, mov, mkv, webm, avi, m4v), and audio (mp3, wav, m4a, aac, flac, ogg).
             </p>
+            {hasFile && !unsupported && (
+              <div className="mt-4">
+                <label className="block text-sm font-medium">Output format</label>
+                <div className="mt-1">
+                  <Segmented
+                    options={outputOptions.map((o) => ({ value: o, label: o.toUpperCase() }))}
+                    value={output}
+                    onChange={(v) => setOutput(v as OutputFormat)}
+                  />
+                </div>
+              </div>
+            )}
+            {unsupported && (
+              <p className="mt-3 text-sm text-muted">This file type isn&apos;t supported yet.</p>
+            )}
           </div>
         )}
 
@@ -225,7 +261,7 @@ export function ConvertClient({ ytDlp }: { ytDlp: boolean }) {
                 value={filename}
                 onChange={(e) => { setFilename(e.target.value); setEdited(true); }}
               />
-              <span className="text-sm text-muted">.mp3</span>
+              <span className="text-sm text-muted">.{mode === "file" && hasFile && !unsupported ? output : "mp3"}</span>
             </div>
           </label>
         </div>
@@ -264,7 +300,7 @@ export function ConvertClient({ ytDlp }: { ytDlp: boolean }) {
           <div className="mt-3 flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-3">
             <a
               className="btn inline-flex items-center justify-center gap-2 min-h-[44px] sm:min-h-0 w-full sm:w-auto"
-              href={`/api/convert/${result.id}?name=${encodeURIComponent(result.filename)}`}
+              href={`/api/convert/${result.id}?ext=${result.ext ?? "mp3"}&name=${encodeURIComponent(result.filename)}`}
               download
             >
               <Download className="w-4 h-4" strokeWidth={1.75} /> Download
