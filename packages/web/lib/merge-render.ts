@@ -137,7 +137,8 @@ export async function renderCombined(
   return doc.save({ addDefaultPage: false });
 }
 
-async function renderOne(
+/** Render a single merged page (also used by {@link MergePreview} for the live WYSIWYG preview). */
+export async function renderOne(
   spec: DocumentSpec,
   row: Record<string, string>,
   fonts?: FontBytes,
