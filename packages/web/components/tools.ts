@@ -17,6 +17,8 @@ import {
   Ticket,
   type LucideIcon,
 } from "lucide-react";
+import type { ConnectionId } from "@event-editor/core/settings";
+import type { DepId } from "@/lib/deps";
 
 export type Tool = {
   id: string;
@@ -26,6 +28,7 @@ export type Tool = {
   Icon: LucideIcon;
   defaultGroups: string[]; // group ids from tool-store DEFAULT_GROUP_ORDER (or custom later)
   tags: string[]; // lowercase, author-defined
+  requires?: { keys?: ConnectionId[]; deps?: DepId[] };
 };
 
 export const TOOLS: Tool[] = [
@@ -37,6 +40,7 @@ export const TOOLS: Tool[] = [
     Icon: Images,
     defaultGroups: ["images", "events"],
     tags: ["rank", "drive", "headshot", "photo", "image"],
+    requires: { keys: ["google", "anthropic"] },
   },
   {
     id: "studio",
@@ -46,6 +50,7 @@ export const TOOLS: Tool[] = [
     Icon: UserRound,
     defaultGroups: ["images", "events"],
     tags: ["headshot", "brand", "portrait", "image"],
+    requires: { keys: ["google", "canva"] },
   },
   {
     id: "transcribe",
@@ -55,6 +60,7 @@ export const TOOLS: Tool[] = [
     Icon: Mic,
     defaultGroups: ["media", "events"],
     tags: ["transcribe", "audio", "speech", "doc", "subtitle"],
+    requires: { keys: ["groq", "anthropic", "google"] },
   },
   {
     id: "slice",
@@ -64,6 +70,7 @@ export const TOOLS: Tool[] = [
     Icon: Scissors,
     defaultGroups: ["documents"],
     tags: ["pdf", "deck", "slides", "split", "stamp"],
+    requires: { keys: ["anthropic"], deps: ["libreoffice"] },
   },
   {
     id: "convert",
