@@ -8,17 +8,19 @@ const DEBOUNCE_MS = 300;
 
 // Loaded and configured once (module scope) so every MergePreview instance
 // shares the same worker setup instead of re-resolving it per mount.
-let pdfjsPromise: ReturnType<typeof loadPdfjs> | null = null;
+let pdfjsPromise: Promise<typeof import("pdfjs-dist")> | null = null;
 
-async function loadPdfjs() {
-  const pdfjs = await import("pdfjs-dist");
-  if (!pdfjs.GlobalWorkerOptions.workerSrc) {
-    pdfjs.GlobalWorkerOptions.workerSrc = new URL(
-      "pdfjs-dist/build/pdf.worker.min.mjs",
-      import.meta.url,
-    ).toString();
+function loadPdfjs() {
+  if (!pdfjsPromise) {
+    pdfjsPromise = import("pdfjs-dist").then((pdfjs) => {
+      pdfjs.GlobalWorkerOptions.workerSrc = new URL(
+        "pdfjs-dist/build/pdf.worker.min.mjs",
+        import.meta.url,
+      ).toString();
+      return pdfjs;
+    });
   }
-  return pdfjs;
+  return pdfjsPromise;
 }
 
 interface MergePreviewProps {
