@@ -168,7 +168,13 @@ export async function renderZip(
   return zip.generateAsync({ type: "blob" });
 }
 
-export async function loadBundledFonts(): Promise<FontBytes> {
+// Cache the in-flight/settled promise so repeated calls (every preview
+// render, every download) don't re-fetch (and, on failure, re-404) the
+// bundled font files. Cleared on rejection so a transient failure doesn't
+// permanently poison later calls.
+let bundledFontsPromise: Promise<FontBytes> | undefined;
+
+async function fetchBundledFonts(): Promise<FontBytes> {
   const get = async (p: string) => {
     const res = await fetch(p);
     if (!res.ok) throw new Error(`font ${p}: ${res.status}`);
@@ -179,6 +185,16 @@ export async function loadBundledFonts(): Promise<FontBytes> {
     get("/fonts/body.ttf"),
   ]);
   return { heading, body };
+}
+
+export function loadBundledFonts(): Promise<FontBytes> {
+  if (!bundledFontsPromise) {
+    bundledFontsPromise = fetchBundledFonts().catch((err) => {
+      bundledFontsPromise = undefined;
+      throw err;
+    });
+  }
+  return bundledFontsPromise;
 }
 
 const SHEET_A4: PageSize = { width: 595.28, height: 841.89 };

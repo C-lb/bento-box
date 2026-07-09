@@ -32,11 +32,19 @@ export function loadDesign(toolId: string): DesignOverrides | undefined {
 /** Persists design overrides for a tool. */
 export function saveDesign(toolId: string, o: DesignOverrides): void {
   if (typeof window === "undefined") return;
-  window.localStorage.setItem(keyFor(toolId), JSON.stringify(o));
+  try {
+    window.localStorage.setItem(keyFor(toolId), JSON.stringify(o));
+  } catch {
+    // quota exceeded or storage disabled (e.g. Safari lockdown mode): drop silently
+  }
 }
 
 /** Removes any persisted design overrides for a tool. */
 export function clearDesign(toolId: string): void {
   if (typeof window === "undefined") return;
-  window.localStorage.removeItem(keyFor(toolId));
+  try {
+    window.localStorage.removeItem(keyFor(toolId));
+  } catch {
+    // storage disabled: nothing to clean up
+  }
 }

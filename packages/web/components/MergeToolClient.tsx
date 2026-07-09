@@ -10,7 +10,7 @@ import { autoMatchColumns, deriveFields, type Rows, type DocumentSpec } from "@e
 import { applyDesign, type DesignOverrides } from "@event-editor/core/design";
 import { renderCombined, renderZip, renderSheet, type FontBytes } from "@/lib/merge-render";
 import { triggerDownload } from "@/lib/merge-download";
-import { designSlots, specFontIds, withDesignFonts } from "@/lib/design-tools";
+import { designSlots, specFontIds, withDesignFonts, EMPTY_ROW } from "@/lib/design-tools";
 import { addUploadedFont, listUploadedFonts } from "@/lib/designer-fonts";
 
 export interface MergeField { key: string; label: string; default: string }
@@ -123,7 +123,7 @@ export function MergeToolClient(config: MergeToolConfig) {
         <p className="text-sm font-medium">Design</p>
         <div className="space-y-3 lg:grid lg:grid-cols-2 lg:gap-6 lg:space-y-0">
           <div className="lg:order-2">
-            <MergePreview spec={finalSpec} row={mergedRows[0] ?? {}} fonts={previewFonts} className="lg:sticky lg:top-4" />
+            <MergePreview spec={finalSpec} row={mergedRows[0] ?? EMPTY_ROW} fonts={previewFonts} className="lg:sticky lg:top-4" />
           </div>
           <div className="space-y-3 lg:order-1">
             <Segmented options={config.layouts.map((l) => ({ value: l.id, label: l.label }))} value={layout} onChange={setLayout} />

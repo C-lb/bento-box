@@ -9,6 +9,11 @@ import type { DocumentSpec } from "@event-editor/core/merge";
 import { loadBundledFonts, type FontBytes } from "@/lib/merge-render";
 import { loadFontById, getUploadedFont } from "@/lib/designer-fonts";
 
+/** Stable empty-row fallback for merge previews, so `mergedRows[0] ?? EMPTY_ROW`
+ * doesn't allocate a fresh object identity every render (which would re-fire
+ * effects keyed on the row reference). */
+export const EMPTY_ROW: Record<string, string> = {};
+
 const SLOT_LABELS: Record<string, string> = {
   title: "Title",
   body: "Body",

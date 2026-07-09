@@ -14,7 +14,7 @@ import { MergePreview } from "@/components/MergePreview";
 import { DesignPanel, type SizePreset } from "@/components/DesignPanel";
 import { loadDesign, saveDesign } from "@/components/design-store";
 import { addUploadedFont, listUploadedFonts } from "@/lib/designer-fonts";
-import { designSlots, specFontIds, withDesignFonts } from "@/lib/design-tools";
+import { designSlots, specFontIds, withDesignFonts, EMPTY_ROW } from "@/lib/design-tools";
 
 type Source = "paste" | "upload" | "sheet";
 
@@ -53,6 +53,10 @@ export function CertificateClient() {
     const loaded = loadDesign(TOOL_ID);
     if (loaded) setOverrides(loaded);
   }, []);
+
+  // hydrate session-uploaded fonts on mount so fonts uploaded on another tool
+  // (same session) appear in this tool's font pickers too
+  useEffect(() => { setUploadedFonts(listUploadedFonts()); }, []);
 
   // persist on every panel change (not via an effect, which would clobber the
   // stored design with the {v:1} default before hydration lands)
@@ -188,7 +192,7 @@ export function CertificateClient() {
         <p className="text-sm font-medium">Design</p>
         <div className="lg:grid lg:grid-cols-2 lg:gap-6">
           <div className="order-first mb-3 lg:order-last lg:mb-0">
-            <MergePreview spec={finalSpec} row={mergedRows[0] ?? {}} fonts={previewFonts} className="lg:sticky lg:top-4" />
+            <MergePreview spec={finalSpec} row={mergedRows[0] ?? EMPTY_ROW} fonts={previewFonts} className="lg:sticky lg:top-4" />
           </div>
           <div className="space-y-3">
             <Segmented

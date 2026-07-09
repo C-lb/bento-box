@@ -52,10 +52,18 @@ export function readShortenHistory(): ShortenHistoryState {
 
 export function writeShortenHistory(state: ShortenHistoryState): void {
   if (typeof window === "undefined") return;
-  window.localStorage.setItem(SHORTEN_HISTORY_KEY, JSON.stringify(state));
+  try {
+    window.localStorage.setItem(SHORTEN_HISTORY_KEY, JSON.stringify(state));
+  } catch {
+    // quota exceeded or storage disabled (e.g. Safari lockdown mode): drop silently
+  }
 }
 
 export function clearShortenHistory(): void {
   if (typeof window === "undefined") return;
-  window.localStorage.removeItem(SHORTEN_HISTORY_KEY);
+  try {
+    window.localStorage.removeItem(SHORTEN_HISTORY_KEY);
+  } catch {
+    // storage disabled: nothing to clean up
+  }
 }

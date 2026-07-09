@@ -73,6 +73,14 @@ export function DesignPanel({
     onChange({ ...value, dividers });
   }
 
+  function updateDividerClamped(index: number, patch: Partial<{ y: number; widthFrac: number; thickness: number }>) {
+    const clamped: typeof patch = { ...patch };
+    if (clamped.y !== undefined) clamped.y = Math.min(1, Math.max(0.01, clamped.y));
+    if (clamped.widthFrac !== undefined) clamped.widthFrac = Math.min(1, Math.max(0.01, clamped.widthFrac));
+    if (clamped.thickness !== undefined && clamped.thickness <= 0) return;
+    updateDivider(index, clamped);
+  }
+
   function addDivider() {
     const dividers = [...(value.dividers ?? []), { y: 0.3, widthFrac: 0.6, thickness: 1, color: "#1a1a1a" }];
     onChange({ ...value, dividers });
@@ -121,7 +129,7 @@ export function DesignPanel({
                   value={mmFromPt(effectiveWidthPt)}
                   onChange={(e) => {
                     const mm = Number(e.target.value);
-                    if (Number.isNaN(mm)) return;
+                    if (!Number.isFinite(mm) || mm <= 0) return;
                     setPageSize(ptFromMm(mm), effectiveHeightPt);
                   }}
                 />
@@ -133,7 +141,7 @@ export function DesignPanel({
                   value={mmFromPt(effectiveHeightPt)}
                   onChange={(e) => {
                     const mm = Number(e.target.value);
-                    if (Number.isNaN(mm)) return;
+                    if (!Number.isFinite(mm) || mm <= 0) return;
                     setPageSize(effectiveWidthPt, ptFromMm(mm));
                   }}
                 />
@@ -309,7 +317,7 @@ export function DesignPanel({
                   value={border.width}
                   onChange={(e) => {
                     const n = Number(e.target.value);
-                    if (!Number.isNaN(n)) setBorder({ width: n });
+                    if (Number.isFinite(n) && n > 0) setBorder({ width: n });
                   }}
                 />
               </label>
@@ -320,7 +328,7 @@ export function DesignPanel({
                   value={border.inset}
                   onChange={(e) => {
                     const n = Number(e.target.value);
-                    if (!Number.isNaN(n)) setBorder({ inset: n });
+                    if (Number.isFinite(n) && n >= 0) setBorder({ inset: n });
                   }}
                 />
               </label>
@@ -340,7 +348,7 @@ export function DesignPanel({
                   value={Math.round(d.y * 100)}
                   onChange={(e) => {
                     const n = Number(e.target.value);
-                    if (!Number.isNaN(n)) updateDivider(i, { y: n / 100 });
+                    if (Number.isFinite(n)) updateDividerClamped(i, { y: n / 100 });
                   }}
                 />
               </label>
@@ -351,7 +359,7 @@ export function DesignPanel({
                   value={Math.round(d.widthFrac * 100)}
                   onChange={(e) => {
                     const n = Number(e.target.value);
-                    if (!Number.isNaN(n)) updateDivider(i, { widthFrac: n / 100 });
+                    if (Number.isFinite(n)) updateDividerClamped(i, { widthFrac: n / 100 });
                   }}
                 />
               </label>
@@ -363,7 +371,7 @@ export function DesignPanel({
                   value={d.thickness}
                   onChange={(e) => {
                     const n = Number(e.target.value);
-                    if (!Number.isNaN(n)) updateDivider(i, { thickness: n });
+                    if (Number.isFinite(n)) updateDividerClamped(i, { thickness: n });
                   }}
                 />
               </label>
@@ -409,7 +417,10 @@ export function DesignPanel({
         <button
           type="button"
           className="btn min-h-[44px] sm:min-h-0"
-          onClick={() => onChange({ v: 1 })}
+          onClick={() => {
+            setCustomChosen(false);
+            onChange({ v: 1 });
+          }}
         >
           Reset design
         </button>
