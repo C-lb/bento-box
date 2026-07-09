@@ -20,10 +20,10 @@ export function placecardSpec(opts: PlaceCardOptions): DocumentSpec {
   const name = `{${opts.nameField || "Name"}}`;
   const els: TextElement[] = [];
   if (opts.layout === "withTable") {
-    els.push({ kind: "text", template: name, x: CX, y: 96, size: 30, font: "heading", align: "center", color: "#1a1a1a" });
-    els.push({ kind: "text", template: `Table {${opts.tableField || "Table"}}`, x: CX, y: 58, size: 14, font: "body", align: "center", color: "#555555" });
+    els.push({ kind: "text", template: name, x: CX, y: 96, size: 30, font: "heading", align: "center", color: "#1a1a1a", slot: "name" });
+    els.push({ kind: "text", template: `Table {${opts.tableField || "Table"}}`, x: CX, y: 58, size: 14, font: "body", align: "center", color: "#555555", slot: "table" });
   } else {
-    els.push({ kind: "text", template: name, x: CX, y: 78, size: 32, font: "heading", align: "center", color: "#1a1a1a" });
+    els.push({ kind: "text", template: name, x: CX, y: 78, size: 32, font: "heading", align: "center", color: "#1a1a1a", slot: "name" });
   }
   return { page: { ...CELL }, elements: els };
 }

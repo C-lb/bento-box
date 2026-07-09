@@ -9,6 +9,14 @@ export interface TextElement {
   font: "heading" | "body";
   align: Align;
   color: string;
+  /** Stable id set by the layout factory (e.g. "title", "recipient", "signature") so design overrides can target it. */
+  slot?: string;
+  /** Overrides the heading/body role with a specific curated or uploaded font. */
+  fontId?: string;
+  /** Tracking, in pt between glyphs. */
+  letterSpacing?: number;
+  /** Text outline. */
+  stroke?: { color: string; width: number };
 }
 export interface ImageElement {
   kind: "image";
@@ -21,7 +29,19 @@ export interface QrElement {
   x: number; y: number;
   size: number;
 }
-export type Element = TextElement | ImageElement | QrElement;
+export interface RectElement {
+  kind: "rect";
+  x: number; y: number; width: number; height: number;
+  strokeColor: string;
+  strokeWidth: number;
+}
+export interface LineElement {
+  kind: "line";
+  x1: number; y1: number; x2: number; y2: number;
+  color: string;
+  thickness: number;
+}
+export type Element = TextElement | ImageElement | QrElement | RectElement | LineElement;
 
 export interface DocumentSpec {
   page: PageSize;

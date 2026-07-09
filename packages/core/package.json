@@ -38,6 +38,7 @@
     "./qr": "./dist/qr.js",
     "./cutout": "./dist/cutout.js",
     "./merge": "./dist/merge.js",
+    "./design": "./dist/design.js",
     "./certificate": "./dist/certificate.js",
     "./nup": "./dist/nup.js",
     "./badge": "./dist/badge.js",

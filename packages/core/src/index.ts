@@ -15,6 +15,7 @@ export * from "./ranking-context.js";
 export * from "./slice-runs.js";
 export * from "./convert.js";
 export * from "./merge.js";
+export * from "./design.js";
 export * from "./certificate.js";
 export * from "./nup.js";
 export * from "./badge.js";
