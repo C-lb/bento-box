@@ -33,10 +33,20 @@ export function ToolGrid() {
     return <p className="py-16 text-center text-sm text-muted">{msg}</p>;
   }
 
+  // Pair each tool with its readiness, then sink the not-ready (unusable) tools
+  // to the bottom so ready tools lead. Stable: within each group the original
+  // order is preserved. While health is still loading, readiness is undefined
+  // for every tool, so nothing is reordered (fail-open ordering too).
+  const cards = tools.map((t) => ({ tool: t, readiness: health ? toolReadiness(t, health) : undefined }));
+  const ordered = [
+    ...cards.filter((c) => !c.readiness || c.readiness.ready),
+    ...cards.filter((c) => c.readiness && !c.readiness.ready),
+  ];
+
   return (
     <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-      {tools.map((t) => (
-        <ToolCard key={t.id} tool={t} readiness={health ? toolReadiness(t, health) : undefined} />
+      {ordered.map(({ tool, readiness }) => (
+        <ToolCard key={tool.id} tool={tool} readiness={readiness} />
       ))}
     </div>
   );
