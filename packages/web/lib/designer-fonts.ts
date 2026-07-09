@@ -15,17 +15,27 @@ export interface DesignerFont {
 
 /**
  * Curated bundle. Files live in `public/fonts/designer/`. Families shipped
- * as a single variable-font file (Inter, DM Sans, Playfair Display,
- * Cormorant Garamond, Oswald) have one "regular" entry and no bold — see
- * `public/fonts/designer/LICENSES.md` for details.
+ * upstream as a single variable-font file (Inter, DM Sans, Playfair
+ * Display, Cormorant Garamond, Oswald) have a "regular" entry plus a
+ * "-bold" entry pinned to wght=700 and re-exported as a static TTF — see
+ * `public/fonts/designer/LICENSES.md` for details. Great Vibes has no bold
+ * (the upstream family doesn't define one).
  */
 export const DESIGNER_FONTS: DesignerFont[] = [
   { id: "inter", label: "Inter", file: "inter-regular.ttf", category: "sans" },
+  { id: "inter-bold", label: "Inter Bold", file: "inter-bold.ttf", category: "sans" },
   { id: "dm-sans", label: "DM Sans", file: "dm-sans-regular.ttf", category: "sans" },
+  { id: "dm-sans-bold", label: "DM Sans Bold", file: "dm-sans-bold.ttf", category: "sans" },
   {
     id: "playfair-display",
     label: "Playfair Display",
     file: "playfair-display-regular.ttf",
+    category: "serif",
+  },
+  {
+    id: "playfair-display-bold",
+    label: "Playfair Display Bold",
+    file: "playfair-display-bold.ttf",
     category: "serif",
   },
   {
@@ -34,8 +44,15 @@ export const DESIGNER_FONTS: DesignerFont[] = [
     file: "cormorant-garamond-regular.ttf",
     category: "serif",
   },
+  {
+    id: "cormorant-garamond-bold",
+    label: "Cormorant Garamond Bold",
+    file: "cormorant-garamond-bold.ttf",
+    category: "serif",
+  },
   { id: "great-vibes", label: "Great Vibes", file: "great-vibes-regular.ttf", category: "script" },
   { id: "oswald", label: "Oswald", file: "oswald-regular.ttf", category: "display" },
+  { id: "oswald-bold", label: "Oswald Bold", file: "oswald-bold.ttf", category: "display" },
   { id: "space-mono", label: "Space Mono", file: "space-mono-regular.ttf", category: "mono" },
   { id: "space-mono-bold", label: "Space Mono Bold", file: "space-mono-bold.ttf", category: "mono" },
 ];
