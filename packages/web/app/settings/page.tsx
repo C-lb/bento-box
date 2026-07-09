@@ -10,6 +10,7 @@ import { RankingContexts } from "./RankingContexts";
 import { ConnectionPills } from "./ConnectionPills";
 import { dependencyStatuses } from "@/lib/deps";
 import { Dependencies } from "./Dependencies";
+import { HashHighlight } from "./HashHighlight";
 
 // Reads keys from process.env per request; must not be statically prerendered.
 export const dynamic = "force-dynamic";
@@ -42,12 +43,13 @@ async function SettingsBody({ searchParams }: { searchParams: Promise<{ google?:
   return (
     <div>
       <h1 className="text-2xl font-semibold">Settings</h1>
+      <HashHighlight />
       <ConnectionPills items={pills} />
 
-      <h2 className="mt-8 text-lg font-semibold">API keys</h2>
+      <h2 id="api-keys" className="mt-8 scroll-mt-6 text-lg font-semibold">API keys</h2>
       <KeyForm present={present} configPath={envFilePath()} />
 
-      <h2 className="mt-8 text-lg font-semibold">Dependencies</h2>
+      <h2 id="dependencies" className="mt-8 scroll-mt-6 text-lg font-semibold">Dependencies</h2>
       <Dependencies deps={deps} />
 
       <h2 className="mt-10 text-lg font-semibold">Connections</h2>
