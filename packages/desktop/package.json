@@ -1,6 +1,6 @@
 {
   "name": "@event-editor/desktop",
-  "version": "0.0.11",
+  "version": "0.0.12",
   "private": true,
   "description": "Bento desktop app",
   "author": "Spark",
