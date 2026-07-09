@@ -37,3 +37,14 @@ export function ytDlpExtractArgs(url: string, outStem: string, ffmpegLocation: s
 export function ffmpegMp3Args(inPath: string, outPath: string): string[] {
   return ["-y", "-i", inPath, "-vn", "-c:a", "libmp3lame", "-b:a", "192k", outPath];
 }
+
+// ffmpeg argv to extract/transcode an input's audio into the given format.
+// mp3 mirrors ffmpegMp3Args; wav is lossless PCM; m4a is AAC.
+export function audioArgs(
+  inPath: string, outPath: string, format: "mp3" | "wav" | "m4a",
+): string[] {
+  const base = ["-y", "-i", inPath, "-vn"];
+  if (format === "wav") return [...base, "-c:a", "pcm_s16le", outPath];
+  if (format === "m4a") return [...base, "-c:a", "aac", "-b:a", "192k", outPath];
+  return [...base, "-c:a", "libmp3lame", "-b:a", "192k", outPath];
+}
