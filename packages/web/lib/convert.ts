@@ -4,7 +4,7 @@ import { existsSync } from "node:fs";
 import { rm, readdir, stat } from "node:fs/promises";
 import { spawn } from "node:child_process";
 import ffmpegPath from "ffmpeg-static";
-import { ytDlpTitleArgs, ytDlpExtractArgs, ffmpegMp3Args } from "@event-editor/core/convert";
+import { ytDlpTitleArgs, ytDlpExtractArgs, ffmpegMp3Args, audioArgs } from "@event-editor/core/convert";
 
 const COMMON = ["/opt/homebrew/bin", "/usr/local/bin", "/usr/bin"];
 
@@ -106,4 +106,12 @@ export async function extractFromUrl(url: string, id: string): Promise<void> {
 export async function transcodeToMp3(inPath: string, id: string): Promise<void> {
   if (!ffmpegPath) throw new Error("bundled ffmpeg not found");
   await run(ffmpegPath, ffmpegMp3Args(inPath, mp3Path(id)));
+}
+
+export async function transcodeAudio(
+  inPath: string, id: string, format: "mp3" | "wav" | "m4a",
+): Promise<void> {
+  if (!ffmpegPath) throw new Error("bundled ffmpeg not found");
+  const outPath = resolve(convertDir(id), `out.${format}`);
+  await run(ffmpegPath, audioArgs(inPath, outPath, format));
 }

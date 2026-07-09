@@ -28,6 +28,7 @@
     "./slice-plan": "./dist/slice-plan.js",
     "./pptx": "./dist/pptx.js",
     "./convert": "./dist/convert.js",
+    "./convert-formats": "./dist/convert-formats.js",
     "./names": "./dist/names.js",
     "./heic": "./dist/heic.js",
     "./resize": "./dist/resize.js",

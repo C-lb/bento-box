@@ -1,8 +1,14 @@
 import sharp from "sharp";
 import { PDFDocument } from "pdf-lib";
 import { createCanvas } from "@napi-rs/canvas";
+import { readFile, writeFile } from "node:fs/promises";
+import { resolve } from "node:path";
 import { heicToImage } from "@/lib/heic";
 import { zipFiles } from "@/lib/pdf";
+import { convertDir, transcodeAudio } from "@/lib/convert";
+import {
+  categoryForFile, isAudioOutput, extFor, type OutputFormat,
+} from "@event-editor/core/convert-formats";
 
 const LOSSY_QUALITY = 82;
 
@@ -69,4 +75,47 @@ export async function pdfToImages(
   if (pages.length === 0) throw new Error("The PDF has no pages.");
   if (pages.length === 1) return { data: pages[0].data, ext, zip: false };
   return { data: await zipFiles(pages), ext: "zip", zip: true };
+}
+
+// Reads the uploaded file, routes by category to the right engine, and
+// writes out.<ext> in the job's convert dir.
+export async function convertUploaded(
+  inPath: string, inputName: string, id: string, output: OutputFormat,
+): Promise<{ ext: string; zip: boolean }> {
+  const category = categoryForFile(inputName);
+  if (category === null) throw new Error("This file type isn't supported yet.");
+
+  if (isAudioOutput(output)) {
+    if (category !== "audio") throw new Error(`Cannot convert this file to ${output}.`);
+    await transcodeAudio(inPath, id, output as "mp3" | "wav" | "m4a");
+    return { ext: output, zip: false };
+  }
+
+  const dir = convertDir(id);
+  const input = await readFile(inPath);
+
+  if (category === "pdf") {
+    if (output !== "png" && output !== "jpg") throw new Error(`Cannot convert a PDF to ${output}.`);
+    const { data, ext, zip } = await pdfToImages(input, output);
+    await writeFile(resolve(dir, `out.${ext}`), data);
+    return { ext, zip };
+  }
+
+  if (category === "image" || category === "heic") {
+    if (output === "pdf") {
+      const png = category === "heic" ? await heicToRaster(input, "png") : input;
+      const data = await imageToPdf(png, inputName);
+      await writeFile(resolve(dir, "out.pdf"), data);
+      return { ext: "pdf", zip: false };
+    }
+    if (output === "png" || output === "jpg" || output === "webp") {
+      const data = category === "heic"
+        ? await heicToRaster(input, output === "webp" ? "png" : output) // heic has no webp target; guarded by catalog
+        : await imageToRaster(input, output);
+      await writeFile(resolve(dir, `out.${extFor(output)}`), data);
+      return { ext: extFor(output), zip: false };
+    }
+  }
+
+  throw new Error(`Cannot convert this file to ${output}.`);
 }
