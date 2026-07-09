@@ -15,6 +15,7 @@ import {
   IdCard,
   Tent,
   Ticket,
+  Link,
   type LucideIcon,
 } from "lucide-react";
 import type { ConnectionId } from "@event-editor/core/settings";
@@ -134,6 +135,15 @@ export const TOOLS: Tool[] = [
     Icon: QrCode,
     defaultGroups: ["utilities"],
     tags: ["qr", "code", "link", "url"],
+  },
+  {
+    id: "shorten",
+    href: "/shorten",
+    title: "Shorten a link",
+    body: "Turn a long link into a short is.gd one, with an optional custom name.",
+    Icon: Link,
+    defaultGroups: ["utilities"],
+    tags: ["link", "url", "shorten", "short", "qr", "custom"],
   },
   {
     id: "cutout",
