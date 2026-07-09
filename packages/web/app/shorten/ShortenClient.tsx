@@ -73,7 +73,7 @@ export function ShortenClient() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           url: longUrl.trim(),
-          custom: custom || undefined,
+          custom: custom.trim() || undefined,
           service,
         }),
       });
@@ -122,7 +122,7 @@ export function ShortenClient() {
           <label className="block text-sm font-medium">
             Custom name (optional)
             <div className="mt-1 flex items-center gap-2">
-              <span className="text-sm text-muted">is.gd/</span>
+              <span className="text-sm text-muted">{service}/</span>
               <input
                 className="field min-h-[44px] sm:min-h-0"
                 placeholder="my-link"
@@ -199,7 +199,11 @@ export function ShortenClient() {
         <div className="card">
           <div className="flex items-center justify-between">
             <p className="text-sm font-medium">History</p>
-            <button type="button" className="btn" onClick={handleClearHistory}>
+            <button
+              type="button"
+              className="btn min-h-[44px] sm:min-h-0"
+              onClick={handleClearHistory}
+            >
               Clear history
             </button>
           </div>
