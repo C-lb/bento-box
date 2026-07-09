@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { Loader2 } from "lucide-react";
-import type { DocumentSpec } from "@event-editor/core/merge";
+import { deriveFields, type DocumentSpec } from "@event-editor/core/merge";
 import { renderOne, type FontBytes } from "@/lib/merge-render";
 
 const DEBOUNCE_MS = 300;
@@ -28,6 +28,16 @@ interface MergePreviewProps {
   row: Record<string, string>;
   fonts?: FontBytes;
   className?: string;
+}
+
+/**
+ * When no list is loaded (`row` missing or every value blank), preview with a
+ * placeholder row built from the spec's own fields, each mapped to its own
+ * name, so `{Name}` renders as "Name" instead of vanishing.
+ */
+function effectiveRow(spec: DocumentSpec, row: Record<string, string> | undefined): Record<string, string> {
+  if (row && Object.values(row).some((v) => v != null && String(v).trim() !== "")) return row;
+  return Object.fromEntries(deriveFields(spec).map((f) => [f, f]));
 }
 
 /**
@@ -94,7 +104,10 @@ export function MergePreview({ spec, row, fonts, className }: MergePreviewProps)
       setBusy(true);
       setError(null);
       try {
-        const [pdfjs, bytes] = await Promise.all([loadPdfjs(), renderOne(spec, row, fonts)]);
+        const [pdfjs, bytes] = await Promise.all([
+          loadPdfjs(),
+          renderOne(spec, effectiveRow(spec, row), fonts),
+        ]);
         if (myToken !== genTokenRef.current) return;
 
         const doc = await pdfjs.getDocument({ data: bytes }).promise;
@@ -123,7 +136,10 @@ export function MergePreview({ spec, row, fonts, className }: MergePreviewProps)
     const container = containerRef.current;
     if (!container || typeof ResizeObserver === "undefined") return;
     const observer = new ResizeObserver(() => {
-      void rasterizeCurrentDoc(genTokenRef.current);
+      // A resize racing a document supersede/destroy can reject; that's not
+      // an error worth surfacing (the newer pass repaints anyway), and it must
+      // never become an unhandled rejection.
+      rasterizeCurrentDoc(genTokenRef.current).catch(() => {});
     });
     observer.observe(container);
     return () => observer.disconnect();
