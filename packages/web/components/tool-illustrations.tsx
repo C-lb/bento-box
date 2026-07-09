@@ -240,15 +240,19 @@ const QR_MODS = [
   1,0,1,0,0,1,0,0,0,
   1,1,1,0,1,1,0,1,1,
 ];
-// Empty cells that may fill in while hovered. The zones beside the two top
-// finder squares stay empty (a real QR keeps that quiet space too).
+// Empty cells that may fill in while hovered. The 3x3 zones of all three
+// finder squares (top-left, top-right, bottom-left) stay untouched.
 const QR_FILLABLE = QR_MODS
   .map((m, i) => ({ m, i }))
   .filter(({ m, i }) => {
     if (m) return false;
     const row = Math.floor(i / 9);
     const col = i % 9;
-    return !(row <= 3 && (col <= 3 || col >= 5));
+    const inFinder =
+      (row <= 2 && col <= 2) ||
+      (row <= 2 && col >= 6) ||
+      (row >= 6 && col <= 2);
+    return !inFinder;
   })
   .map(({ i }) => i);
 
