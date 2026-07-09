@@ -8,17 +8,22 @@ const TILE = "bg-[#e4e7ec]";
 const TILE2 = "bg-[#d7dbe1]";
 
 export function SorterIllus() {
-  // Ranked photo grid: the #1 tile scales up, siblings dim, reads best-first.
+  // Ranked photo grid: at rest, plain tiles. On hover, numbered bubbles 1-6
+  // pop onto each tile in a left-to-right, top-to-bottom stagger, reading as
+  // "ranked best to last" without singling one tile out.
+  const tiles = [TILE, TILE2, TILE, TILE, TILE2, TILE];
   return (
-    <div className="grid h-full grid-cols-3 grid-rows-2 gap-2 motion-safe:[.group:hover_&>div:not(:first-child)]:opacity-50">
-      <div className={`relative rounded-lg ${TILE} transition-transform duration-300 motion-safe:group-hover:scale-105`}>
-        <span className="absolute left-1.5 top-1.5 grid h-5 w-5 place-items-center rounded-full bg-accent text-[11px] font-semibold text-white shadow-soft">1</span>
-      </div>
-      <div className={`rounded-lg ${TILE2} transition-opacity duration-300`} />
-      <div className={`rounded-lg ${TILE} transition-opacity duration-300`} />
-      <div className={`rounded-lg ${TILE} transition-opacity duration-300`} />
-      <div className={`rounded-lg ${TILE2} transition-opacity duration-300`} />
-      <div className={`rounded-lg ${TILE} transition-opacity duration-300`} />
+    <div className="grid h-full grid-cols-3 grid-rows-2 gap-2">
+      {tiles.map((tile, i) => (
+        <div key={i} className={`relative rounded-lg ${tile}`}>
+          <span
+            className="absolute left-1.5 top-1.5 grid h-5 w-5 scale-75 place-items-center rounded-full bg-accent text-[11px] font-semibold text-white opacity-0 shadow-soft transition-all duration-300 motion-safe:group-hover:scale-100 motion-safe:group-hover:opacity-100"
+            style={{ transitionDelay: `${i * 70}ms` }}
+          >
+            {i + 1}
+          </span>
+        </div>
+      ))}
     </div>
   );
 }
@@ -150,18 +155,23 @@ export function PdfIllus() {
 
 export function HeicIllus() {
   // Photo tile converts to jpg: source tile, arrow, a jpg-labelled tile. Both fill height.
+  // Photo glyphs are centred and sized to fill each tile.
   return (
     <div className="flex h-full items-stretch gap-3">
       <div className={`relative flex-1 overflow-hidden rounded-xl ${TILE}`}>
         <span className="absolute left-2 top-2 rounded-md bg-surface/80 px-1.5 py-0.5 text-[9px] font-semibold text-muted">heic</span>
-        <svg viewBox="0 0 24 24" className="absolute bottom-2 right-2 h-6 w-6 text-[#c3c8d0]" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="9" r="2" /><path d="m21 15-4-4L5 21" /></svg>
+        <div className="absolute inset-0 grid place-items-center">
+          <svg viewBox="0 0 24 24" className="h-12 w-12 text-[#c3c8d0]" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="9" r="2" /><path d="m21 15-4-4L5 21" /></svg>
+        </div>
       </div>
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 self-center text-muted">
         <line x1="5" y1="12" x2="19" y2="12" /><polyline points="13 6 19 12 13 18" />
       </svg>
       <div className="relative flex-1 overflow-hidden rounded-xl border border-[#e4e7ec] bg-surface transition-transform duration-300 motion-safe:group-hover:-translate-y-1">
         <span className="absolute left-2 top-2 rounded-md bg-accent px-1.5 py-0.5 text-[9px] font-semibold text-white shadow-soft">jpg</span>
-        <svg viewBox="0 0 24 24" className="absolute bottom-2 right-2 h-6 w-6 text-[#c3c8d0]" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="9" r="2" /><path d="m21 15-4-4L5 21" /></svg>
+        <div className="absolute inset-0 grid place-items-center">
+          <svg viewBox="0 0 24 24" className="h-12 w-12 text-[#c3c8d0]" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="9" r="2" /><path d="m21 15-4-4L5 21" /></svg>
+        </div>
       </div>
     </div>
   );
@@ -169,9 +179,12 @@ export function HeicIllus() {
 
 export function ResizeIllus() {
   // A photo tile shrinks: an inner dashed frame with corner handles pulls inward on hover.
+  // The photo glyph is centred and sized to fill the frame.
   return (
     <div className={`relative h-full overflow-hidden rounded-xl ${TILE}`}>
-      <svg viewBox="0 0 24 24" className="absolute left-3 top-3 h-7 w-7 text-[#c3c8d0]" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="9" r="2" /><path d="m21 15-4-4L5 21" /></svg>
+      <div className="absolute inset-0 grid place-items-center">
+        <svg viewBox="0 0 24 24" className="h-20 w-20 text-[#c3c8d0]" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="9" r="2" /><path d="m21 15-4-4L5 21" /></svg>
+      </div>
       <div className="absolute inset-5 rounded-lg border-2 border-dashed border-[#b9bfc9] transition-all duration-300 motion-safe:group-hover:inset-8 motion-safe:group-hover:border-accent" />
       <span className="absolute right-2 top-2 h-2.5 w-2.5 rounded-sm bg-accent shadow-soft" />
       <span className="absolute bottom-2 left-2 h-2.5 w-2.5 rounded-sm bg-accent shadow-soft" />
@@ -226,11 +239,16 @@ export function QrIllus() {
     1,0,1,0,0,1,0,0,0,
     1,1,1,0,1,1,0,1,1,
   ];
+  // A few modules gently pulse in a loop while hovered, suggesting the code is "live".
+  const pulseMods = new Set([2, 42, 63, 77]);
   return (
     <div className="grid h-full place-items-center">
       <div className="grid aspect-square h-full grid-cols-9 grid-rows-9 gap-[3px]">
         {mods.map((m, i) => (
-          <span key={i} className={`rounded-[2px] ${m ? (i === 40 ? "bg-accent" : "bg-[#33383f]") : "bg-transparent"} ${m && i !== 40 ? "transition-colors duration-300 motion-safe:group-hover:bg-[#20242a]" : ""}`} />
+          <span
+            key={i}
+            className={`rounded-[2px] ${m ? (i === 40 ? "bg-accent" : "bg-[#33383f]") : "bg-transparent"} ${m && i !== 40 ? "transition-colors duration-300 motion-safe:group-hover:bg-[#20242a]" : ""} ${m && pulseMods.has(i) ? "qr-pulse-mod" : ""}`}
+          />
         ))}
       </div>
     </div>
@@ -256,11 +274,13 @@ export function ShortenIllus() {
 }
 
 export function CutoutIllus() {
-  // A subject sits on a transparency checkerboard; an accent ring traces the cutout on hover.
+  // A plain, opaque tile at rest; on hover a transparency checkerboard fades
+  // in behind the subject, reading as "background becoming transparent".
+  // Person glyph matches Studio's size/scale for a consistent bust icon.
   return (
     <div className="relative h-full overflow-hidden rounded-xl bg-surface">
       <div
-        className="absolute inset-0 opacity-60"
+        className="absolute inset-0 opacity-0 transition-opacity duration-300 motion-safe:group-hover:opacity-60"
         style={{
           backgroundImage: "linear-gradient(45deg,#e4e7ec 25%,transparent 25%,transparent 75%,#e4e7ec 75%),linear-gradient(45deg,#e4e7ec 25%,transparent 25%,transparent 75%,#e4e7ec 75%)",
           backgroundSize: "18px 18px",
@@ -268,9 +288,15 @@ export function CutoutIllus() {
         }}
       />
       <div className="absolute inset-0 grid place-items-center">
-        <svg viewBox="0 0 24 24" className="h-20 w-20 text-[#c3c8d0] drop-shadow-sm transition-colors duration-300 motion-safe:group-hover:text-accent" fill="currentColor">
-          <circle cx="12" cy="8" r="4" />
-          <path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8z" />
+        <svg
+          viewBox="0 0 100 100"
+          preserveAspectRatio="xMidYMid meet"
+          className="h-full w-full text-[#c3c8d0] drop-shadow-sm transition-colors duration-300 motion-safe:group-hover:text-accent"
+          fill="currentColor"
+          aria-hidden
+        >
+          <circle cx="50" cy="35" r="18" />
+          <path d="M50 57c-17 0-30 12-32 29a2 2 0 0 0 2 3h60a2 2 0 0 0 2-3c-2-17-15-29-32-29Z" />
         </svg>
       </div>
     </div>
@@ -313,8 +339,11 @@ export function BadgeIllus() {
           <span className="h-3.5 w-full rounded-full bg-[#33383f]" />
           <span className={`h-2 w-3/4 rounded-full ${TILE}`} />
         </div>
-        <span className="grid h-12 w-12 shrink-0 grid-cols-3 grid-rows-3 gap-[2px] rounded-md bg-accent p-1.5">
-          {Array.from({ length: 9 }).map((_, i) => <span key={i} className={[0, 2, 4, 6, 8].includes(i) ? "rounded-[1px] bg-white/85" : ""} />)}
+        <span className="grid h-12 w-12 shrink-0 place-items-center rounded-md bg-accent p-1.5">
+          <svg viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet" className="h-full w-full text-white/85" fill="currentColor" aria-hidden>
+            <circle cx="50" cy="35" r="18" />
+            <path d="M50 57c-17 0-30 12-32 29a2 2 0 0 0 2 3h60a2 2 0 0 0 2-3c-2-17-15-29-32-29Z" />
+          </svg>
         </span>
       </div>
     </div>
