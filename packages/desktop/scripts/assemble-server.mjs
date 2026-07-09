@@ -1,6 +1,6 @@
 // packages/desktop/scripts/assemble-server.mjs
 // Assembles a self-contained, runnable Next server tree into build/server.
-import { cpSync, rmSync, mkdirSync, existsSync, readFileSync, writeFileSync } from "node:fs";
+import { cpSync, rmSync, mkdirSync, existsSync, readFileSync, writeFileSync, readdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -85,6 +85,24 @@ if (!existsSync(imgDir)) {
 }
 cpSync(imgDir, resolve(out, "node_modules/@img"), { recursive: true });
 
+// 5c. @napi-rs/canvas is prebuilt N-API (ABI-stable, like sharp) but also ships
+// its native binary via a platform-specific package (@napi-rs/canvas-<platform>)
+// resolved at runtime, so it needs the same explicit-copy treatment as sharp/@img.
+// The PDF->image converter (Task 5) uses this for rasterizing pdfjs-dist pages.
+function napiCanvasPlatformPkgs() {
+  const scope = resolve(repo, "node_modules/@napi-rs");
+  if (!existsSync(scope)) return [];
+  return readdirSync(scope)
+    .filter((n) => n.startsWith("canvas-"))
+    .map((n) => `@napi-rs/${n}`);
+}
+for (const pkg of ["@napi-rs/canvas", ...napiCanvasPlatformPkgs()]) {
+  const from = resolve(repo, "node_modules", pkg);
+  if (existsSync(from)) {
+    cpSync(from, resolve(out, "node_modules", pkg), { recursive: true });
+  }
+}
+
 // 6. The forked migrate.js is core's separately-shipped dist, so it needs core's
 // runtime deps as real modules. The Next server bundles drizzle-orm into its
 // chunks, so output-file-tracing never emits it; without this copy migrate.js
@@ -118,7 +136,7 @@ if (!serverSrc.includes(anchor)) {
   console.error("could not find the __dirname anchor in server.js to inject the external-resolution shim - Next standalone format changed");
   process.exit(1);
 }
-const externals = JSON.stringify(["better-sqlite3", "sharp", "@anthropic-ai/sdk", "ffmpeg-static", "ffprobe-static"]);
+const externals = JSON.stringify(["better-sqlite3", "sharp", "@anthropic-ai/sdk", "ffmpeg-static", "ffprobe-static", "@napi-rs/canvas"]);
 const shim = `
 // --- event-editor: force externalized native packages to the bundle's own copies ---
 const __EE_EXTERNALS__ = ${externals};

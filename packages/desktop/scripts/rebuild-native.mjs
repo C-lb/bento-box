@@ -20,7 +20,7 @@ const buildPath = resolve(here, "../build/server"); // rebuild the assembled ser
 // only needs its platform .node shipped (handled in assemble-server.mjs), not a
 // rebuild - @electron/rebuild can't build it from source anyway. Verify both load.
 const REBUILD = ["better-sqlite3"];
-const VERIFY = ["better-sqlite3", "sharp"];
+const VERIFY = ["better-sqlite3", "sharp", "@napi-rs/canvas"];
 
 // @electron/rebuild requires a package.json at buildPath; the Next standalone
 // output ships none. It also walks the dependency tree to find addons, so the
