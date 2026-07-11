@@ -39,6 +39,7 @@
     "./cutout": "./dist/cutout.js",
     "./merge": "./dist/merge.js",
     "./design": "./dist/design.js",
+    "./custom-design": "./dist/custom-design.js",
     "./certificate": "./dist/certificate.js",
     "./nup": "./dist/nup.js",
     "./badge": "./dist/badge.js",

@@ -45,7 +45,9 @@ export type Element = TextElement | ImageElement | QrElement | RectElement | Lin
 
 export interface DocumentSpec {
   page: PageSize;
-  background?: string;
+  /** Full-page background drawn before elements. PNG/JPG src is a data URL;
+   * PDF src is plain base64 of a single-page document. */
+  background?: { kind: "png" | "jpg" | "pdf"; src: string };
   elements: Element[];
 }
 
