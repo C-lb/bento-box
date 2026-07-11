@@ -41,7 +41,7 @@ function elementLabel(el: CustomElement): string {
 export function CustomDesignEditor(p: CustomDesignEditorProps) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const stageRef = useRef<HTMLDivElement>(null);
-  const dragRef = useRef<(DragState & { id: string }) | null>(null);
+  const dragRef = useRef<(DragState & { id: string; pointerId: number }) | null>(null);
   const bgInputRef = useRef<HTMLInputElement>(null);
   const logoInputRef = useRef<HTMLInputElement>(null);
 
@@ -113,12 +113,12 @@ export function CustomDesignEditor(p: CustomDesignEditorProps) {
     e.stopPropagation();
     (e.target as HTMLElement).setPointerCapture(e.pointerId);
     setSelectedId(el.id);
-    dragRef.current = { id: el.id, mode, startX: e.clientX, startY: e.clientY, orig: { x: el.x, y: el.y, w: el.w, h: el.h } };
+    dragRef.current = { id: el.id, pointerId: e.pointerId, mode, startX: e.clientX, startY: e.clientY, orig: { x: el.x, y: el.y, w: el.w, h: el.h } };
   }
 
   function onPointerMove(e: React.PointerEvent) {
     const d = dragRef.current;
-    if (!d) return;
+    if (!d || e.pointerId !== d.pointerId) return;
     const s = scale();
     const box = applyDrag(d, (e.clientX - d.startX) / s, (e.clientY - d.startY) / s, page);
     update(p.design.elements.map((el) => (el.id === d.id ? { ...el, ...box } : el)));
@@ -172,6 +172,7 @@ export function CustomDesignEditor(p: CustomDesignEditorProps) {
         className="relative select-none touch-none"
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
+        onPointerCancel={onPointerUp}
         onPointerDown={() => setSelectedId(null)}
       >
         <MergePreview spec={p.spec} row={p.sampleRow} fonts={p.previewFonts} />
