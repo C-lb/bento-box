@@ -10,6 +10,7 @@ app.setName("Bento");
 const { readFileSync, mkdirSync, existsSync, writeFileSync } = require("node:fs");
 const path = require("node:path");
 const net = require("node:net");
+const { resolveDirs } = require("./lib/dirs.js");
 
 const HOST = "127.0.0.1";
 const PORT = 4571;
@@ -49,7 +50,7 @@ function loadDotEnv(file) {
 
 function serverEnv() {
   const userData = app.getPath("userData");
-  const dataDir = path.join(userData, "data");
+  const { dataDir, binDir } = resolveDirs(process.env, userData);
   mkdirSync(dataDir, { recursive: true });
   const envFile = path.join(userData, ".env");
   const keys = loadDotEnv(envFile);
@@ -64,7 +65,7 @@ function serverEnv() {
     EE_HEADSHOT_DIR: path.join(dataDir, "headshots"),
     EE_THUMBS_DIR: path.join(dataDir, "thumbs"),
     EE_DATA_DIR: dataDir,
-    EE_BIN_DIR: path.join(dataDir, "bin"),
+    EE_BIN_DIR: binDir,
     EE_FONT_PATH: fontPath,
     EE_PUBLIC_URL: BASE,
     PORT: String(PORT),

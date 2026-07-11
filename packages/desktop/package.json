@@ -6,6 +6,7 @@
   "author": "Spark",
   "main": "main.js",
   "scripts": {
+    "test": "node --test test/*.mjs",
     "dev": "EE_DESKTOP_DEV_URL=http://localhost:3000 electron .",
     "assemble": "node scripts/assemble-server.mjs",
     "dist": "npm run -w @event-editor/core build && npm run -w @event-editor/web build && npm run assemble && node scripts/rebuild-native.mjs && electron-builder"
