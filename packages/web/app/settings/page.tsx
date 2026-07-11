@@ -3,6 +3,7 @@ import { getToken } from "@event-editor/core/tokens";
 import { getDb } from "@/lib/db";
 import { DRIVE_FILE_SCOPE, SHEETS_SCOPE } from "@/lib/google/oauth";
 import { KeyForm } from "./KeyForm";
+import { UnlockCode } from "./UnlockCode";
 import { envFilePath } from "./env-path";
 import { StyleExamples } from "./StyleExamples";
 import { GroupManager } from "@/components/GroupManager";
@@ -48,6 +49,7 @@ async function SettingsBody({ searchParams }: { searchParams: Promise<{ google?:
 
       <h2 id="api-keys" className="mt-8 scroll-mt-6 text-lg font-semibold">API keys</h2>
       <KeyForm present={present} configPath={envFilePath()} />
+      <UnlockCode />
 
       <h2 id="dependencies" className="mt-8 scroll-mt-6 text-lg font-semibold">Dependencies</h2>
       <Dependencies deps={deps} />

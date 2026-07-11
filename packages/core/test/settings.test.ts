@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { readFileSync, writeFileSync, existsSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { getConnections, upsertEnvKeys, ENV_KEYS } from "../src/settings.js";
+import { getConnections, upsertEnvKeys, readEnvValues, ENV_KEYS } from "../src/settings.js";
 
 function tmpEnv() {
   return join(tmpdir(), `ee-env-${Math.random().toString(36).slice(2)}.env`);
@@ -118,6 +118,41 @@ describe("upsertEnvKeys", () => {
     try {
       upsertEnvKeys(f, { ANTHROPIC_API_KEY: "  sk-trim  " });
       expect(readFileSync(f, "utf8")).toMatch(/^ANTHROPIC_API_KEY=sk-trim$/m);
+    } finally {
+      rmSync(f, { force: true });
+    }
+  });
+});
+
+describe("readEnvValues", () => {
+  it("returns {} for a missing file", () => {
+    expect(readEnvValues(tmpEnv(), ["GROQ_API_KEY"])).toEqual({});
+  });
+
+  it("reads only requested keys, skipping comments and malformed lines", () => {
+    const f = tmpEnv();
+    writeFileSync(
+      f,
+      "# comment\nGROQ_API_KEY=gsk_123\nnot a pair\nANTHROPIC_API_KEY=sk-ant-9\nOTHER=x\n"
+    );
+    try {
+      expect(readEnvValues(f, ["GROQ_API_KEY", "ANTHROPIC_API_KEY"])).toEqual({
+        GROQ_API_KEY: "gsk_123",
+        ANTHROPIC_API_KEY: "sk-ant-9",
+      });
+    } finally {
+      rmSync(f, { force: true });
+    }
+  });
+
+  it("strips surrounding quotes and skips blank values", () => {
+    const f = tmpEnv();
+    writeFileSync(f, 'GROQ_API_KEY="gsk_q"\nANTHROPIC_API_KEY=\nEE_UNLOCK_CODE=\'shh\'\n');
+    try {
+      expect(readEnvValues(f, ["GROQ_API_KEY", "ANTHROPIC_API_KEY", "EE_UNLOCK_CODE"])).toEqual({
+        GROQ_API_KEY: "gsk_q",
+        EE_UNLOCK_CODE: "shh",
+      });
     } finally {
       rmSync(f, { force: true });
     }

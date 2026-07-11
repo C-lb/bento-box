@@ -36,6 +36,31 @@ export const ENV_KEYS = [
 
 export type EnvKey = (typeof ENV_KEYS)[number];
 
+// Read the given keys out of a dotenv-style file. Missing file, comments,
+// malformed lines, and blank values are all skipped; surrounding quotes are
+// stripped. Used by the settings unlock code to pull preset keys from a
+// bundled/repo .env without loading it into process.env.
+export function readEnvValues(file: string, keys: readonly string[]): Record<string, string> {
+  const { readFileSync, existsSync } = require("node:fs") as typeof import("node:fs");
+  if (!existsSync(file)) return {};
+  const wanted = new Set(keys);
+  const out: Record<string, string> = {};
+  for (const line of readFileSync(file, "utf8").split("\n")) {
+    const t = line.trim();
+    if (!t || t.startsWith("#")) continue;
+    const eq = t.indexOf("=");
+    if (eq === -1) continue;
+    const k = t.slice(0, eq).trim();
+    if (!wanted.has(k)) continue;
+    let v = t.slice(eq + 1).trim();
+    if (v.length >= 2 && ((v.startsWith('"') && v.endsWith('"')) || (v.startsWith("'") && v.endsWith("'")))) {
+      v = v.slice(1, -1);
+    }
+    if (v !== "") out[k] = v;
+  }
+  return out;
+}
+
 // Merge the given key/value updates into a dotenv-style file, in place:
 // existing keys are rewritten where they sit (comments and unrelated lines
 // preserved), new keys are appended. Blank/whitespace/undefined values are
