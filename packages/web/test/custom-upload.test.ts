@@ -10,6 +10,16 @@ describe("assetSrc", () => {
   it("pdf becomes plain base64", () => {
     expect(assetSrc("pdf", bytes)).toBe("AQID");
   });
+  it("round-trips payloads across the base64 chunk boundary", () => {
+    const CHUNK = 0x8000;
+    const largeBytes = new Uint8Array(CHUNK + 5);
+    for (let i = 0; i < largeBytes.length; i++) {
+      largeBytes[i] = i % 256;
+    }
+    const result = assetSrc("pdf", largeBytes);
+    const decoded = new Uint8Array(Buffer.from(result, "base64"));
+    expect(decoded).toEqual(largeBytes);
+  });
 });
 
 describe("upload cap", () => {
