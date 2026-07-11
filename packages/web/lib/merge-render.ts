@@ -174,6 +174,15 @@ export async function renderZip(
 // permanently poison later calls.
 let bundledFontsPromise: Promise<FontBytes> | undefined;
 
+/** Bundled fallback fonts for the heading/body roles. These MUST point at
+ * files that exist under public/ — the old /fonts/heading.ttf and
+ * /fonts/body.ttf were removed with the Spec C designer font set and 404'd
+ * on every preview render. */
+export const BUNDLED_FONT_PATHS = {
+  heading: "/fonts/designer/playfair-display-bold.ttf",
+  body: "/fonts/designer/dm-sans-regular.ttf",
+} as const;
+
 async function fetchBundledFonts(): Promise<FontBytes> {
   const get = async (p: string) => {
     const res = await fetch(p);
@@ -181,8 +190,8 @@ async function fetchBundledFonts(): Promise<FontBytes> {
     return new Uint8Array(await res.arrayBuffer());
   };
   const [heading, body] = await Promise.all([
-    get("/fonts/heading.ttf"),
-    get("/fonts/body.ttf"),
+    get(BUNDLED_FONT_PATHS.heading),
+    get(BUNDLED_FONT_PATHS.body),
   ]);
   return { heading, body };
 }
