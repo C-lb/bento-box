@@ -64,6 +64,36 @@ function resolveFont(el: { font: "heading" | "body"; fontId?: string }, f: FontP
   return el.font === "heading" ? f.heading : f.body;
 }
 
+type EmbeddedBackground =
+  | { kind: "image"; img: import("pdf-lib").PDFImage }
+  | { kind: "pdf"; pg: import("pdf-lib").PDFEmbeddedPage };
+
+/** Embeds the spec's background once per output document (reused across pages). */
+async function embedBackground(doc: PDFDocument, spec: DocumentSpec): Promise<EmbeddedBackground | undefined> {
+  const bg = spec.background;
+  if (!bg) return undefined;
+  if (bg.kind === "pdf") {
+    const [pg] = await doc.embedPdf(bg.src);
+    return { kind: "pdf", pg };
+  }
+  const img = bg.kind === "png" ? await doc.embedPng(bg.src) : await doc.embedJpg(bg.src);
+  return { kind: "image", img };
+}
+
+function drawBackground(
+  page: import("pdf-lib").PDFPage,
+  bg: EmbeddedBackground,
+  cell: PageSize,
+  ox = 0,
+  oy = 0,
+) {
+  if (bg.kind === "pdf") {
+    page.drawPage(bg.pg, { x: ox, y: oy, width: cell.width, height: cell.height });
+  } else {
+    page.drawImage(bg.img, { x: ox, y: oy, width: cell.width, height: cell.height });
+  }
+}
+
 async function drawPage(
   page: import("pdf-lib").PDFPage,
   spec: DocumentSpec,
@@ -130,8 +160,10 @@ export async function renderCombined(
 ): Promise<Uint8Array> {
   const doc = await PDFDocument.create();
   const f = await embedFonts(doc, spec, fonts);
+  const bg = await embedBackground(doc, spec);
   for (const row of rows) {
     const page = doc.addPage([spec.page.width, spec.page.height]);
+    if (bg) drawBackground(page, bg, spec.page);
     await drawPage(page, spec, row, f);
   }
   return doc.save({ addDefaultPage: false });
@@ -145,7 +177,9 @@ export async function renderOne(
 ): Promise<Uint8Array> {
   const doc = await PDFDocument.create();
   const f = await embedFonts(doc, spec, fonts);
+  const bg = await embedBackground(doc, spec);
   const page = doc.addPage([spec.page.width, spec.page.height]);
+  if (bg) drawBackground(page, bg, spec.page);
   await drawPage(page, spec, row, f);
   return doc.save();
 }
@@ -246,11 +280,13 @@ export async function renderSheet(
 
   const doc = await PDFDocument.create();
   const f = await embedFonts(doc, cellSpec, fonts);
+  const bg = await embedBackground(doc, cellSpec);
   for (let i = 0; i < rows.length; i += perPage) {
     const page = doc.addPage([sheet.width, sheet.height]);
     const slice = rows.slice(i, i + perPage);
     for (let j = 0; j < slice.length; j++) {
       const { x, y } = placements[j];
+      if (bg) drawBackground(page, bg, cellSpec.page, x, y);
       if (cropMarks) drawCropMarks(page, x, y, cellSpec.page);
       await drawPage(page, cellSpec, slice[j], f, x, y);
     }
