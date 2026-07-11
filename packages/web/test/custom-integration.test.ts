@@ -28,3 +28,30 @@ describe("custom design feeds the existing merge pipeline", () => {
     expect(mapping["Org"]).toBe("Org");
   });
 });
+
+describe("certificate's Custom mode field vocabulary flows through", () => {
+  const certificateDesign: CustomDesign = {
+    v: 1,
+    page: { width: 841.89, height: 595.28 },
+    background: null,
+    elements: [
+      { id: "1", type: "field", field: "Name", x: 40, y: 40, w: 200, h: 32, size: 24, color: "#111111", align: "center" },
+      { id: "2", type: "field", field: "title", x: 40, y: 90, w: 200, h: 32, size: 18, color: "#111111", align: "center" },
+      { id: "3", type: "text", text: "Static caption", x: 40, y: 140, w: 200, h: 20, size: 12, color: "#111111", align: "left" },
+    ],
+  };
+
+  it("recipient and copy-field elements surface as mappable fields on the certificate", () => {
+    const spec = customDesignToSpec(certificateDesign, {});
+    const fields = deriveFields(spec);
+    expect(fields).toContain("Name");
+    expect(fields).toContain("title");
+    expect(fields).not.toContain("Static caption");
+  });
+
+  it("auto-matching binds the certificate's recipient field to a sheet column", () => {
+    const spec = customDesignToSpec(certificateDesign, {});
+    const mapping = autoMatchColumns(deriveFields(spec), ["Full Name", "title", "Email"]);
+    expect(mapping["Name"]).toBe("Full Name");
+  });
+});

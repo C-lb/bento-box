@@ -13,12 +13,44 @@ import { renderCombined, renderZip, type FontBytes } from "@/lib/merge-render";
 import { MergePreview } from "@/components/MergePreview";
 import { DesignPanel, type SizePreset } from "@/components/DesignPanel";
 import { loadDesign, saveDesign } from "@/components/design-store";
+import { CUSTOM_LAYOUT_ID } from "@/components/MergeToolClient";
+import { CustomDesignEditor } from "@/components/CustomDesignEditor";
+import { loadCustomDesign, saveCustomDesign } from "@/components/custom-design-store";
+import { getAsset } from "@/lib/design-assets";
+import { assetSrc } from "@/lib/custom-upload";
+import { customDesignToSpec, type CustomDesign } from "@event-editor/core/custom-design";
 import { addUploadedFont, listUploadedFonts } from "@/lib/designer-fonts";
 import { designSlots, specFontIds, withDesignFonts, EMPTY_ROW } from "@/lib/design-tools";
 
 type Source = "paste" | "upload" | "sheet";
 
 const TOOL_ID = "certificate";
+
+// The certificate's copy fields aren't spreadsheet-merge tokens in the
+// built-in layouts (they're typed straight into the spec), but in Custom
+// mode they become droppable `{key}` field elements just like the shared
+// MergeToolClient's copyFields. Recipient uses the same default as the
+// built-in "Name" column.
+const CERTIFICATE_CUSTOM_FIELDS = [
+  { key: "title", label: "Title" },
+  { key: "bodyLine", label: "Body line" },
+  { key: "detailLine", label: "Detail line" },
+  { key: "dateText", label: "Date" },
+  { key: "signatureName", label: "Signature" },
+];
+
+// Matches the recipientField useState default below; the recipient field
+// element dropped on the Custom canvas always uses this fixed token, exactly
+// like MergeToolClient's `config.recipientDefault` (the recipient input just
+// picks which sheet column that fixed token maps to).
+const CERTIFICATE_RECIPIENT_DEFAULT = "Name";
+
+const EMPTY_CUSTOM: CustomDesign = {
+  v: 1,
+  page: { width: 841.89, height: 595.28 }, // A4 landscape default until a background sets the size
+  background: null,
+  elements: [],
+};
 
 const SIZE_PRESETS: SizePreset[] = [
   { id: "a4-landscape", label: "A4 landscape", width: 841.89, height: 595.28 },
@@ -36,7 +68,7 @@ export function CertificateClient() {
   const [busy, setBusy] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const [layout, setLayout] = useState<CertificateLayout>("classic");
+  const [layout, setLayout] = useState<CertificateLayout | typeof CUSTOM_LAYOUT_ID>("classic");
   const [title, setTitle] = useState("Certificate of completion");
   const [bodyLine, setBodyLine] = useState("This certifies that");
   const [detailLine, setDetailLine] = useState("has completed the workshop");
@@ -65,27 +97,69 @@ export function CertificateClient() {
     saveDesign(TOOL_ID, next);
   }
 
+  // Custom (F3) design: initialise empty (SSR-safe), hydrate the design JSON
+  // plus every referenced asset from IndexedDB after mount, persist on change.
+  const [customDesign, setCustomDesign] = useState<CustomDesign>(EMPTY_CUSTOM);
+  const [customAssets, setCustomAssets] = useState<Record<string, string>>({});
+  useEffect(() => {
+    const saved = loadCustomDesign(TOOL_ID);
+    if (!saved) return;
+    setCustomDesign(saved);
+    // hydrate every referenced asset from IndexedDB into src strings
+    const ids = new Set<string>();
+    if (saved.background) ids.add(saved.background.assetId);
+    for (const el of saved.elements) if (el.type === "image") ids.add(el.assetId);
+    void Promise.all(Array.from(ids).map(async (id) => {
+      const a = await getAsset(id);
+      if (!a) return null;
+      const kind = a.mime === "application/pdf" ? "pdf" as const : a.mime === "image/jpeg" ? "jpg" as const : "png" as const;
+      return [id, assetSrc(kind, a.bytes)] as const;
+    })).then((pairs) => {
+      setCustomAssets(Object.fromEntries(pairs.filter((p): p is readonly [string, string] => !!p)));
+    });
+  }, []);
+
+  function changeCustomDesign(next: CustomDesign) {
+    setCustomDesign(next);
+    saveCustomDesign(TOOL_ID, next);
+  }
+
   // keep pasted rows live
   useEffect(() => {
     if (source === "paste") setRows(parseDelimited(pasteText));
   }, [source, pasteText]);
 
+  const isCustom = layout === CUSTOM_LAYOUT_ID;
   const layoutSpec = useMemo(() => certificateSpec({
-    layout, title, bodyLine, recipientField, detailLine, dateText,
+    layout: isCustom ? "classic" : layout, title, bodyLine, recipientField, detailLine, dateText,
     signatureName: signatureName || undefined,
-  }), [layout, title, bodyLine, recipientField, detailLine, dateText, signatureName]);
+  }), [isCustom, layout, title, bodyLine, recipientField, detailLine, dateText, signatureName]);
 
-  const finalSpec = useMemo(() => applyDesign(layoutSpec, overrides), [layoutSpec, overrides]);
+  const spec = useMemo(
+    () => (isCustom ? customDesignToSpec(customDesign, customAssets) : layoutSpec),
+    [isCustom, customDesign, customAssets, layoutSpec],
+  );
+  // Designer overrides apply to built-in layouts only; a custom design IS the design.
+  const finalSpec = useMemo(() => (isCustom ? spec : applyDesign(spec, overrides)), [isCustom, spec, overrides]);
   const slots = useMemo(() => designSlots(layoutSpec), [layoutSpec]);
 
-  const fields = useMemo(() => deriveFields(layoutSpec), [layoutSpec]);
+  const fields = useMemo(() => deriveFields(spec), [spec]);
   const mapping = useMemo(() => autoMatchColumns(fields, rows.headers), [fields, rows.headers]);
   const recipientColumn = mapping[recipientField] ?? recipientField;
 
-  // remap headers so the spec's {recipientField} token resolves against the picked column
+  // remap every derived field's token against its matched column (for the
+  // built-in layouts only "recipientField" is ever a token, so this is
+  // behaviour-identical to the old recipient-only remap there)
   const mergedRows = useMemo(
-    () => rows.rows.map((r) => ({ ...r, [recipientField]: r[recipientColumn] ?? r[recipientField] ?? "" })),
-    [rows.rows, recipientField, recipientColumn],
+    () => rows.rows.map((r) => {
+      const out = { ...r };
+      for (const fld of fields) {
+        const col = mapping[fld] ?? fld;
+        out[fld] = r[col] ?? r[fld] ?? "";
+      }
+      return out;
+    }),
+    [rows.rows, fields, mapping],
   );
 
   const fontKey = useMemo(() => specFontIds(finalSpec).join("|"), [finalSpec]);
@@ -190,16 +264,35 @@ export function CertificateClient() {
       {/* 2. layout + copy */}
       <div className="card space-y-3">
         <p className="text-sm font-medium">Design</p>
-        <div className="lg:grid lg:grid-cols-2 lg:gap-6">
+        <Segmented
+          options={[...CERTIFICATE_LAYOUTS.map((l) => ({ value: l.id, label: l.label })), { value: CUSTOM_LAYOUT_ID, label: "Custom" }]}
+          value={layout}
+          onChange={(v) => setLayout(v as CertificateLayout | typeof CUSTOM_LAYOUT_ID)}
+        />
+        <div className="space-y-3 lg:grid lg:grid-cols-2 lg:gap-6 lg:space-y-0">
+          {isCustom ? (
+          <div className="lg:col-span-2">
+            <CustomDesignEditor
+              design={customDesign}
+              onChange={changeCustomDesign}
+              fields={CERTIFICATE_CUSTOM_FIELDS.concat([{ key: CERTIFICATE_RECIPIENT_DEFAULT, label: "Recipient column" }])}
+              spec={finalSpec}
+              sampleRow={mergedRows[0] ?? EMPTY_ROW}
+              previewFonts={previewFonts}
+              assets={customAssets}
+              onAssetAdded={(id, src) => setCustomAssets((s) => ({ ...s, [id]: src }))}
+              onError={setError}
+            />
+            <label className="block text-sm font-medium mt-3">Recipient column
+              <input className="field mt-1 w-full min-h-[44px] sm:min-h-0" value={recipientField} onChange={(e) => setRecipientField(e.target.value)} />
+            </label>
+          </div>
+          ) : (
+          <>
           <div className="order-first mb-3 lg:order-last lg:mb-0">
             <MergePreview spec={finalSpec} row={mergedRows[0] ?? EMPTY_ROW} fonts={previewFonts} className="lg:sticky lg:top-4" />
           </div>
           <div className="space-y-3">
-            <Segmented
-              options={CERTIFICATE_LAYOUTS.map((l) => ({ value: l.id, label: l.label }))}
-              value={layout}
-              onChange={(v) => setLayout(v as CertificateLayout)}
-            />
             <LabeledInput label="Title" value={title} onChange={setTitle} />
             <LabeledInput label="Body line" value={bodyLine} onChange={setBodyLine} />
             <LabeledInput label="Detail line" value={detailLine} onChange={setDetailLine} />
@@ -222,6 +315,8 @@ export function CertificateClient() {
               uploadedFonts={uploadedFonts}
             />
           </div>
+          </>
+          )}
         </div>
       </div>
 
