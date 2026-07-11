@@ -24,9 +24,22 @@ async function withStore<T>(
   if (!db) return undefined;
   try {
     return await new Promise<T>((resolve, reject) => {
-      const req = fn(db.transaction(STORE, mode).objectStore(STORE));
-      req.onsuccess = () => resolve(req.result);
-      req.onerror = () => reject(req.error);
+      // A transaction can abort (e.g. quota exceeded on a large background
+      // upload) without the individual request ever firing onerror, which
+      // would otherwise leave this promise pending forever. Settle from
+      // whichever fires first; the first settle wins, the rest are no-ops.
+      let settled = false;
+      const settle = (ok: boolean, value?: T, err?: unknown) => {
+        if (settled) return;
+        settled = true;
+        if (ok) resolve(value as T); else reject(err);
+      };
+      const tx = db.transaction(STORE, mode);
+      tx.onabort = () => settle(false, undefined, tx.error ?? new Error("IndexedDB transaction aborted"));
+      tx.onerror = () => settle(false, undefined, tx.error ?? new Error("IndexedDB transaction error"));
+      const req = fn(tx.objectStore(STORE));
+      req.onsuccess = () => settle(true, req.result);
+      req.onerror = () => settle(false, undefined, req.error);
     });
   } finally {
     db.close();
