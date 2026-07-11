@@ -6,12 +6,26 @@ import { AttendeeListInput } from "@/components/AttendeeListInput";
 import { DesignPanel, type SizePreset } from "@/components/DesignPanel";
 import { MergePreview } from "@/components/MergePreview";
 import { loadDesign, saveDesign } from "@/components/design-store";
+import { CustomDesignEditor } from "@/components/CustomDesignEditor";
+import { loadCustomDesign, saveCustomDesign } from "@/components/custom-design-store";
+import { getAsset } from "@/lib/design-assets";
+import { assetSrc } from "@/lib/custom-upload";
 import { autoMatchColumns, deriveFields, type Rows, type DocumentSpec } from "@event-editor/core/merge";
 import { applyDesign, type DesignOverrides } from "@event-editor/core/design";
+import { customDesignToSpec, type CustomDesign } from "@event-editor/core/custom-design";
 import { renderCombined, renderZip, renderSheet, type FontBytes } from "@/lib/merge-render";
 import { triggerDownload } from "@/lib/merge-download";
 import { designSlots, specFontIds, withDesignFonts, EMPTY_ROW } from "@/lib/design-tools";
 import { addUploadedFont, listUploadedFonts } from "@/lib/designer-fonts";
+
+export const CUSTOM_LAYOUT_ID = "__custom";
+
+const EMPTY_CUSTOM: CustomDesign = {
+  v: 1,
+  page: { width: 841.89, height: 595.28 }, // A4 landscape default until a background sets the size
+  background: null,
+  elements: [],
+};
 
 export interface MergeField { key: string; label: string; default: string }
 export interface MergeToolConfig {
@@ -52,6 +66,33 @@ export function MergeToolClient(config: MergeToolConfig) {
     saveDesign(config.toolId, next);
   }
 
+  // Custom (F3) design: initialise empty (SSR-safe), hydrate the design JSON
+  // plus every referenced asset from IndexedDB after mount, persist on change.
+  const [customDesign, setCustomDesign] = useState<CustomDesign>(EMPTY_CUSTOM);
+  const [customAssets, setCustomAssets] = useState<Record<string, string>>({});
+  useEffect(() => {
+    const saved = loadCustomDesign(config.toolId);
+    if (!saved) return;
+    setCustomDesign(saved);
+    // hydrate every referenced asset from IndexedDB into src strings
+    const ids = new Set<string>();
+    if (saved.background) ids.add(saved.background.assetId);
+    for (const el of saved.elements) if (el.type === "image") ids.add(el.assetId);
+    void Promise.all(Array.from(ids).map(async (id) => {
+      const a = await getAsset(id);
+      if (!a) return null;
+      const kind = a.mime === "application/pdf" ? "pdf" as const : a.mime === "image/jpeg" ? "jpg" as const : "png" as const;
+      return [id, assetSrc(kind, a.bytes)] as const;
+    })).then((pairs) => {
+      setCustomAssets(Object.fromEntries(pairs.filter((p): p is readonly [string, string] => !!p)));
+    });
+  }, [config.toolId]);
+
+  function changeCustomDesign(next: CustomDesign) {
+    setCustomDesign(next);
+    saveCustomDesign(config.toolId, next);
+  }
+
   const [uploadedFonts, setUploadedFonts] = useState<{ id: string; label: string }[]>([]);
   useEffect(() => { setUploadedFonts(listUploadedFonts()); }, []);
   function handleUploadFont(name: string, bytes: Uint8Array) {
@@ -59,11 +100,15 @@ export function MergeToolClient(config: MergeToolConfig) {
     setUploadedFonts(listUploadedFonts());
   }
 
+  const isCustom = layout === CUSTOM_LAYOUT_ID;
   const spec = useMemo(
-    () => config.buildSpec({ layout, text, toggles, recipientField }),
-    [config, layout, text, toggles, recipientField],
+    () => isCustom
+      ? customDesignToSpec(customDesign, customAssets)
+      : config.buildSpec({ layout, text, toggles, recipientField }),
+    [config, isCustom, customDesign, customAssets, layout, text, toggles, recipientField],
   );
-  const finalSpec = useMemo(() => applyDesign(spec, overrides), [spec, overrides]);
+  // Designer overrides apply to built-in layouts only; a custom design IS the design.
+  const finalSpec = useMemo(() => (isCustom ? spec : applyDesign(spec, overrides)), [isCustom, spec, overrides]);
   const slots = useMemo(() => designSlots(spec), [spec]);
 
   // Preview fonts: load the bytes for the fontIds the final spec references
@@ -121,12 +166,35 @@ export function MergeToolClient(config: MergeToolConfig) {
 
       <div className="card space-y-3">
         <p className="text-sm font-medium">Design</p>
+        <Segmented
+          options={[...config.layouts.map((l) => ({ value: l.id, label: l.label })), { value: CUSTOM_LAYOUT_ID, label: "Custom" }]}
+          value={layout}
+          onChange={setLayout}
+        />
         <div className="space-y-3 lg:grid lg:grid-cols-2 lg:gap-6 lg:space-y-0">
+          {isCustom ? (
+          <div className="lg:col-span-2">
+            <CustomDesignEditor
+              design={customDesign}
+              onChange={changeCustomDesign}
+              fields={config.copyFields.map((f) => ({ key: f.key, label: f.label })).concat([{ key: config.recipientDefault, label: config.recipientLabel }])}
+              spec={finalSpec}
+              sampleRow={mergedRows[0] ?? EMPTY_ROW}
+              previewFonts={previewFonts}
+              assets={customAssets}
+              onAssetAdded={(id, src) => setCustomAssets((s) => ({ ...s, [id]: src }))}
+              onError={setError}
+            />
+            <label className="block text-sm font-medium mt-3">{config.recipientLabel}
+              <input className="field mt-1 w-full min-h-[44px] sm:min-h-0" value={recipientField} onChange={(e) => setRecipientField(e.target.value)} />
+            </label>
+          </div>
+          ) : (
+          <>
           <div className="lg:order-2">
             <MergePreview spec={finalSpec} row={mergedRows[0] ?? EMPTY_ROW} fonts={previewFonts} className="lg:sticky lg:top-4" />
           </div>
           <div className="space-y-3 lg:order-1">
-            <Segmented options={config.layouts.map((l) => ({ value: l.id, label: l.label }))} value={layout} onChange={setLayout} />
             {config.copyFields.map((f) => (
               <label key={f.key} className="block text-sm font-medium">{f.label}
                 <input className="field mt-1 w-full min-h-[44px] sm:min-h-0" value={text[f.key] ?? ""} onChange={(e) => setText((s) => ({ ...s, [f.key]: e.target.value }))} />
@@ -152,6 +220,8 @@ export function MergeToolClient(config: MergeToolConfig) {
               uploadedFonts={uploadedFonts}
             />
           </div>
+          </>
+          )}
         </div>
         {rows.headers.length > 0 && !columnOk && (
           <p className="text-sm text-amber-600">No "{recipientColumn}" column found. Available: {rows.headers.join(", ")}.</p>
