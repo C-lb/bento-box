@@ -4,7 +4,7 @@ import { Download } from "lucide-react";
 import { Segmented } from "@/components/Segmented";
 import { FileDrop } from "@/components/FileDrop";
 import {
-  parseDelimited, autoMatchColumns, deriveFields, type Rows,
+  parseDelimited, autoMatchColumns, deriveFields, remapRows, type Rows,
 } from "@event-editor/core/merge";
 import { certificateSpec, CERTIFICATE_LAYOUTS, type CertificateLayout } from "@event-editor/core/certificate";
 import { applyDesign, type DesignOverrides } from "@event-editor/core/design";
@@ -41,8 +41,9 @@ const CERTIFICATE_CUSTOM_FIELDS = [
 
 // Matches the recipientField useState default below; the recipient field
 // element dropped on the Custom canvas always uses this fixed token, exactly
-// like MergeToolClient's `config.recipientDefault` (the recipient input just
-// picks which sheet column that fixed token maps to).
+// like MergeToolClient's `config.recipientDefault`. The recipient input only
+// picks a column *name* — `mergedRows` (via `remapRows`) is what actually
+// maps that column's values onto this fixed token for rendering.
 const CERTIFICATE_RECIPIENT_DEFAULT = "Name";
 
 const EMPTY_CUSTOM: CustomDesign = {
@@ -147,19 +148,11 @@ export function CertificateClient() {
   const mapping = useMemo(() => autoMatchColumns(fields, rows.headers), [fields, rows.headers]);
   const recipientColumn = mapping[recipientField] ?? recipientField;
 
-  // remap every derived field's token against its matched column (for the
-  // built-in layouts only "recipientField" is ever a token, so this is
-  // behaviour-identical to the old recipient-only remap there)
+  // Resolve every derived field's token against its matched column, and the
+  // recipient's fixed token against the user's chosen recipient column.
   const mergedRows = useMemo(
-    () => rows.rows.map((r) => {
-      const out = { ...r };
-      for (const fld of fields) {
-        const col = mapping[fld] ?? fld;
-        out[fld] = r[col] ?? r[fld] ?? "";
-      }
-      return out;
-    }),
-    [rows.rows, fields, mapping],
+    () => remapRows(rows.rows, fields, mapping, CERTIFICATE_RECIPIENT_DEFAULT, recipientColumn),
+    [rows.rows, fields, mapping, recipientColumn],
   );
 
   const fontKey = useMemo(() => specFontIds(finalSpec).join("|"), [finalSpec]);

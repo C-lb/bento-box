@@ -127,3 +127,32 @@ export function autoMatchColumns(
   }
   return out;
 }
+
+/**
+ * Remap every derived field's token against its matched sheet column, PLUS
+ * explicitly remap the recipient's fixed token to the user's chosen recipient
+ * column. This second step matters for Custom mode: a placed recipient field
+ * element always carries the tool's fixed token (e.g. "Name"), and that token
+ * is only sometimes also a `field` that `autoMatchColumns` resolves via
+ * header/synonym matching — the user's typed recipient-column choice
+ * (`recipientColumn`, already resolved through `mapping`) must win for that
+ * key regardless of what auto-matching found (or didn't find) for it.
+ */
+export function remapRows(
+  rows: Record<string, string>[],
+  fields: string[],
+  mapping: Record<string, string | null>,
+  recipientDefault: string,
+  recipientColumn: string,
+): Record<string, string>[] {
+  return rows.map((r) => {
+    const out = { ...r };
+    for (const fld of fields) {
+      if (fld === recipientDefault) continue; // set explicitly below, from the user's recipient-column choice
+      const col = mapping[fld] ?? fld;
+      out[fld] = r[col] ?? r[fld] ?? "";
+    }
+    out[recipientDefault] = r[recipientColumn] ?? r[recipientDefault] ?? "";
+    return out;
+  });
+}

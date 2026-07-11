@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { customDesignToSpec, type CustomDesign } from "@event-editor/core/custom-design";
-import { deriveFields, autoMatchColumns } from "@event-editor/core/merge";
+import { deriveFields, autoMatchColumns, remapRows } from "@event-editor/core/merge";
 
 const design: CustomDesign = {
   v: 1,
@@ -53,5 +53,37 @@ describe("certificate's Custom mode field vocabulary flows through", () => {
     const spec = customDesignToSpec(certificateDesign, {});
     const mapping = autoMatchColumns(deriveFields(spec), ["Full Name", "title", "Email"]);
     expect(mapping["Name"]).toBe("Full Name");
+  });
+});
+
+describe("Custom mode respects the user's typed recipient-column input when merging rows", () => {
+  // Reproduces the reported bug: a sheet column named "Participant" (which
+  // autoMatchColumns can't resolve via exact/synonym header match against the
+  // fixed "Name" token) is only wired up because the user typed "Participant"
+  // into the recipient-column input. remapRows must honour that explicit
+  // choice for the recipient's fixed token, not just what auto-matching found.
+  const design: CustomDesign = {
+    v: 1,
+    page: { width: 400, height: 300 },
+    background: null,
+    elements: [
+      { id: "1", type: "field", field: "Name", x: 10, y: 10, w: 100, h: 20, size: 14, color: "#000000", align: "left" },
+    ],
+  };
+
+  it("remaps the fixed recipient token from the user's chosen column, not just auto-match", () => {
+    const spec = customDesignToSpec(design, {});
+    const fields = deriveFields(spec);
+    const headers = ["Participant"];
+    const mapping = autoMatchColumns(fields, headers);
+    // Auto-match can't resolve "Name" -> "Participant" (no exact/synonym hit).
+    expect(mapping["Name"]).toBeNull();
+
+    const recipientField = "Participant"; // what the user typed into the recipient input
+    const recipientColumn = mapping[recipientField] ?? recipientField;
+    const rows = [{ Participant: "Ada Lovelace" }];
+
+    const merged = remapRows(rows, fields, mapping, "Name", recipientColumn);
+    expect(merged[0]["Name"]).toBe("Ada Lovelace");
   });
 });

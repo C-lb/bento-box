@@ -10,7 +10,7 @@ import { CustomDesignEditor } from "@/components/CustomDesignEditor";
 import { loadCustomDesign, saveCustomDesign } from "@/components/custom-design-store";
 import { getAsset } from "@/lib/design-assets";
 import { assetSrc } from "@/lib/custom-upload";
-import { autoMatchColumns, deriveFields, type Rows, type DocumentSpec } from "@event-editor/core/merge";
+import { autoMatchColumns, deriveFields, remapRows, type Rows, type DocumentSpec } from "@event-editor/core/merge";
 import { applyDesign, type DesignOverrides } from "@event-editor/core/design";
 import { customDesignToSpec, type CustomDesign } from "@event-editor/core/custom-design";
 import { renderCombined, renderZip, renderSheet, type FontBytes } from "@/lib/merge-render";
@@ -125,17 +125,11 @@ export function MergeToolClient(config: MergeToolConfig) {
   const mapping = useMemo(() => autoMatchColumns(fields, rows.headers), [fields, rows.headers]);
   const recipientColumn = mapping[recipientField] ?? recipientField;
 
+  // Resolve every derived field's token against its matched column, and the
+  // recipient's fixed token against the user's chosen recipient column.
   const mergedRows = useMemo(
-    () => rows.rows.map((r) => {
-      const out = { ...r };
-      // resolve every derived field's token against its matched column
-      for (const fld of fields) {
-        const col = mapping[fld] ?? fld;
-        out[fld] = r[col] ?? r[fld] ?? "";
-      }
-      return out;
-    }),
-    [rows.rows, fields, mapping],
+    () => remapRows(rows.rows, fields, mapping, config.recipientDefault, recipientColumn),
+    [rows.rows, fields, mapping, config.recipientDefault, recipientColumn],
   );
 
   const columnOk = rows.headers.length === 0 || rows.headers.includes(recipientColumn);
