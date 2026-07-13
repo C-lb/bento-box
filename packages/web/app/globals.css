@@ -43,6 +43,23 @@ body {
   transition: transform 120ms ease, width 120ms ease, top 120ms ease, height 120ms ease;
 }
 
+/* Hover tooltip (pointer devices only): put data-tip on the trigger. Drops
+   BELOW the trigger since the nav sits at the top of the viewport. */
+[data-tip] { position: relative; }
+@media (hover: hover) {
+  [data-tip]:hover::after,
+  [data-tip]:focus-visible::after {
+    content: attr(data-tip);
+    @apply absolute left-1/2 z-50 whitespace-nowrap rounded-lg border border-line bg-surface px-2.5 py-1.5 text-xs font-medium text-ink shadow-soft;
+    top: calc(100% + 8px);
+    pointer-events: none;
+    opacity: 0;
+    transform: translateX(-50%) translateY(-4px);
+    animation: tip-in 0.14s ease forwards;
+  }
+}
+@keyframes tip-in { to { opacity: 1; transform: translateX(-50%) translateY(0); } }
+
 @keyframes eq {
   0%, 100% { transform: scaleY(0.7); }
   50% { transform: scaleY(1.25); }
@@ -84,6 +101,8 @@ body {
 .dots-trigger:hover .dots-wave circle:nth-child(3) { animation-delay: 0.18s; }
 
 @media (prefers-reduced-motion: reduce) {
+  [data-tip]:hover::after,
+  [data-tip]:focus-visible::after { animation: none; opacity: 1; transform: translateX(-50%); }
   .fav-pop { animation: none; }
   .fav-spark > i { animation: none; opacity: 0; }
   .spin-hover:hover { animation: none; }

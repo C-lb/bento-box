@@ -75,6 +75,7 @@ function serverEnv() {
     EE_DATA_DIR: dataDir,
     EE_BIN_DIR: binDir,
     EE_FONT_PATH: fontPath,
+    EE_APP_VERSION: app.getVersion(),
     ...(presetEnv ? { EE_PRESET_ENV: presetEnv } : {}),
     EE_PUBLIC_URL: BASE,
     PORT: String(PORT),

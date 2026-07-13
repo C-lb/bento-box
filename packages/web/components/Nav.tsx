@@ -42,6 +42,15 @@ export function Nav() {
     setMotionOK(!window.matchMedia("(prefers-reduced-motion: reduce)").matches);
   }, []);
 
+  // App version for the wordmark tooltip; null outside the desktop shell.
+  const [version, setVersion] = useState<string | null>(null);
+  useEffect(() => {
+    fetch("/api/version")
+      .then((r) => r.json())
+      .then((d) => setVersion(typeof d?.version === "string" ? d.version : null))
+      .catch(() => {});
+  }, []);
+
   useEffect(() => {
     const nav = window.navigation;
     if (!nav) return;
@@ -85,6 +94,7 @@ export function Nav() {
           aria-label="Home, show all tools"
           onClick={() => setActiveGroup(ALL)}
           className="flex shrink-0 items-center gap-2 text-sm font-semibold text-ink"
+          data-tip={version ? `Version ${version}` : undefined}
         >
           <svg viewBox="0 0 600 600" width={21} height={21} className="shrink-0" aria-hidden>
             {/* Bento home glyph, layout from Caleb's 1.svg with fatter gaps and
