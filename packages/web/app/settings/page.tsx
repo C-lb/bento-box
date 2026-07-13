@@ -73,7 +73,9 @@ async function SettingsBody({ searchParams }: { searchParams: Promise<{ google?:
                 </span>
               )}
               {c.id === "google" && c.configured && (
-                <a className="btn min-h-[44px] sm:min-h-0 w-full sm:w-auto justify-center" href="/api/google/auth">Re-auth</a>
+                <a className="btn min-h-[44px] sm:min-h-0 w-full sm:w-auto justify-center" href="/api/google/auth">
+                  {googleToken ? "Re-auth" : "Connect"}
+                </a>
               )}
             </span>
           </li>

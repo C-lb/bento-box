@@ -213,7 +213,13 @@ writeFileSync(serverJs, serverSrc);
 // into build/preset.env; electron-builder ships it in Resources and main.js
 // points EE_PRESET_ENV at it. Always written, even empty, so the settings action
 // can say "no preset keys in this build" instead of failing on a missing file.
-const PRESET_BAKE_KEYS = ["EE_UNLOCK_CODE", "GROQ_API_KEY", "ANTHROPIC_API_KEY"];
+const PRESET_BAKE_KEYS = [
+  "EE_UNLOCK_CODE",
+  "GROQ_API_KEY",
+  "ANTHROPIC_API_KEY",
+  "GOOGLE_CLIENT_ID",
+  "GOOGLE_CLIENT_SECRET",
+];
 const rootEnvPath = resolve(repo, ".env");
 const rootEnvLines = existsSync(rootEnvPath) ? readFileSync(rootEnvPath, "utf8").split(/\r?\n/) : [];
 let presetBody = "# preset keys for the settings setup code, baked at package time\n";

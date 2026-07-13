@@ -3,7 +3,7 @@
 import { createHash, timingSafeEqual } from "node:crypto";
 import { upsertEnvKeys, readEnvValues, ENV_KEYS, type EnvKey } from "@event-editor/core/settings";
 import { envFilePath } from "./env-path";
-import { PRESET_KEYS, presetSourcePath, resolvePreset } from "./preset";
+import { PRESET_KEYS, PRESET_LABELS, presetSourcePath, resolvePreset } from "./preset";
 
 export type SaveState = { ok: boolean; message: string } | null;
 
@@ -47,8 +47,9 @@ export async function applyUnlockCode(_prev: SaveState, formData: FormData): Pro
       return { ok: false, message: "Code accepted, but no preset keys were found on this machine." };
     }
     upsertEnvKeys(envFilePath(), preset.keys);
-    const names = found.map((k) => (k === "GROQ_API_KEY" ? "Groq" : "Claude")).join(" and ");
-    return { ok: true, message: `Filled in the ${names} key${found.length > 1 ? "s" : ""}. Restart the app to apply.` };
+    const names = found.map((k) => PRESET_LABELS[k]);
+    const list = names.length > 1 ? `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}` : names[0];
+    return { ok: true, message: `Filled in the ${list} key${found.length > 1 ? "s" : ""}. Restart the app to apply.` };
   } catch (e) {
     return { ok: false, message: e instanceof Error ? e.message : "Could not fill in the keys." };
   }

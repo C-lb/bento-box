@@ -26,6 +26,12 @@ jobs:
         env:
           # unsigned builds (personal use) - skip electron-builder code signing
           CSC_IDENTITY_AUTO_DISCOVERY: "false"
+          # preset keys baked into Resources/preset.env for the settings setup
+          # code (assemble-server.mjs reads these when there is no repo .env)
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
       - uses: softprops/action-gh-release@v2
         with:
           files: |

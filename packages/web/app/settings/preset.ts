@@ -1,8 +1,21 @@
 import path from "node:path";
 
 // The only keys the unlock code is allowed to fill in.
-export const PRESET_KEYS = ["GROQ_API_KEY", "ANTHROPIC_API_KEY"] as const;
+export const PRESET_KEYS = [
+  "GROQ_API_KEY",
+  "ANTHROPIC_API_KEY",
+  "GOOGLE_CLIENT_ID",
+  "GOOGLE_CLIENT_SECRET",
+] as const;
 export type PresetKey = (typeof PRESET_KEYS)[number];
+
+// Human names for the "Filled in the ... keys" confirmation.
+export const PRESET_LABELS: Record<PresetKey, string> = {
+  GROQ_API_KEY: "Groq",
+  ANTHROPIC_API_KEY: "Claude",
+  GOOGLE_CLIENT_ID: "Google client ID",
+  GOOGLE_CLIENT_SECRET: "Google client secret",
+};
 
 // Fallback when neither the source .env nor the process env sets EE_UNLOCK_CODE.
 export const DEFAULT_UNLOCK_CODE = "bento";
