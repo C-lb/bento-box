@@ -126,7 +126,10 @@ export function FolderPicker({
           <div className="relative">
             <Search size={14} strokeWidth={1.75} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted" aria-hidden />
             <input
-              className="field w-full pl-8"
+              className="field w-full"
+              // .field's own px-3 is declared after the utility layer in
+              // globals.css and wins the cascade, so pl-8 has no effect here.
+              style={{ paddingLeft: "2.1rem" }}
               placeholder="Search all folders"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
