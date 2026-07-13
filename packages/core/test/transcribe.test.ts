@@ -4,6 +4,7 @@ import {
   mergeSegments,
   formatTimestamp,
   buildTranscriptHtml,
+  buildDocHtml,
   buildSummaryPrompt,
   buildEventDetailsPrompt,
   buildLinkedInPrompt,
@@ -64,6 +65,26 @@ describe("buildTranscriptHtml", () => {
     expect(html).toContain("A &lt;b&gt;summary&lt;/b&gt;");
     expect(html).toContain("<h1>Transcript</h1>");
     expect(html).toContain("[00:00:05] first &amp; line");
+  });
+});
+
+describe("buildDocHtml", () => {
+  it("slots drafts between the summary and the transcript, in linkedin-then-article order", () => {
+    const html = buildDocHtml("the summary", [{ startSec: 0, text: "words" }], {
+      linkedin: "post text",
+      article: "article text",
+    });
+    const order = ["<h1>Summary</h1>", "<h1>LinkedIn post</h1>", "<h1>Article</h1>", "<h1>Transcript</h1>"].map((h) =>
+      html.indexOf(h),
+    );
+    expect(order.every((i) => i >= 0)).toBe(true);
+    expect([...order].sort((a, b) => a - b)).toEqual(order);
+  });
+
+  it("omits draft sections that are missing or empty", () => {
+    const html = buildDocHtml("s", [], { linkedin: null, article: "" });
+    expect(html).not.toContain("LinkedIn post");
+    expect(html).not.toContain("<h1>Article</h1>");
   });
 });
 

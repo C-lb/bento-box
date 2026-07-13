@@ -83,6 +83,7 @@ export const transcriptions = sqliteTable("transcriptions", {
   eventDetails: text("event_details"),
   summaryLinkedin: text("summary_linkedin"),
   summaryArticle: text("summary_article"),
+  transcriptSegments: text("transcript_segments"), // JSON MergedSegment[] so the doc can be rebuilt later
 });
 
 export const styleExamples = sqliteTable("style_examples", {

@@ -185,6 +185,7 @@ export function runMigrations(db: BetterSQLite3Database<any>): void {
   addColumnIfMissing(db, "transcriptions", "event_details", "TEXT");
   addColumnIfMissing(db, "transcriptions", "summary_linkedin", "TEXT");
   addColumnIfMissing(db, "transcriptions", "summary_article", "TEXT");
+  addColumnIfMissing(db, "transcriptions", "transcript_segments", "TEXT");
   addColumnIfMissing(db, "jobs", "platform", "TEXT");
   seedStyleExamples(db);
 }

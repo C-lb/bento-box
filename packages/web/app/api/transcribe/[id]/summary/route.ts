@@ -7,6 +7,7 @@ import { getDb } from "@/lib/db";
 import { visionClient, generateFormattedSummary, regenerateSelection } from "@/lib/anthropic";
 import { pickCachedSummary, type SummaryFormat } from "@/lib/summary-format";
 import { spliceSelection } from "@/lib/summary-splice";
+import { syncTranscriptionDoc } from "@/lib/doc-sync";
 
 export const runtime = "nodejs";
 
@@ -15,6 +16,14 @@ const EMPTY: EventDetails = { eventName: "", eventDescription: "", speakers: [],
 function saveDraft(db: ReturnType<typeof getDb>, id: number, format: SummaryFormat, text: string) {
   const col = format === "linkedin" ? { summaryLinkedin: text } : { summaryArticle: text };
   db.update(transcriptions).set({ ...col, updatedAt: Date.now() }).where(eq(transcriptions.id, id)).run();
+}
+
+// Push the saved drafts into the transcription's Google Doc (between the
+// summary and the transcript). Best-effort; reads the row fresh so it carries
+// whatever saveDraft just wrote.
+async function syncDoc(db: ReturnType<typeof getDb>, id: number): Promise<boolean> {
+  const row = db.select().from(transcriptions).where(eq(transcriptions.id, id)).all()[0];
+  return row ? syncTranscriptionDoc(db, row) : false;
 }
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -36,7 +45,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     // Save a hand-edited draft.
     if (body.save === true && typeof body.draft === "string") {
       saveDraft(db, nid, format, body.draft);
-      return NextResponse.json({ text: body.draft });
+      return NextResponse.json({ text: body.draft, docSynced: await syncDoc(db, nid) });
     }
 
     // Regenerate a selected span within the provided draft.
@@ -49,7 +58,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       const rewritten = await regenerateSelection(visionClient(), format, draft, selection, details, examples);
       const next = spliceSelection(draft, start, end, rewritten);
       saveDraft(db, nid, format, next);
-      return NextResponse.json({ text: next });
+      return NextResponse.json({ text: next, docSynced: await syncDoc(db, nid) });
     }
 
     // Whole-draft regenerate (bypass cache) or first-time generate.
@@ -60,7 +69,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     }
     const text = await generateFormattedSummary(visionClient(), format, row.transcriptText, details, examples);
     saveDraft(db, nid, format, text);
-    return NextResponse.json({ text });
+    return NextResponse.json({ text, docSynced: await syncDoc(db, nid) });
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "generation failed" }, { status: 500 });
   }
@@ -73,5 +82,5 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
     .set({ summaryLinkedin: null, summaryArticle: null, updatedAt: Date.now() })
     .where(eq(transcriptions.id, Number(id)))
     .run();
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({ ok: true, docSynced: await syncDoc(db, Number(id)) });
 }

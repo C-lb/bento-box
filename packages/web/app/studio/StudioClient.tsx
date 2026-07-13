@@ -4,15 +4,14 @@ import { FRAME_LIST } from "@event-editor/core/frames";
 import { StatusBadge } from "@/components/StatusBadge";
 import { headshotStatusView } from "@/lib/status";
 import { usePollWhileVisible } from "@/lib/use-visible-poll";
+import { FolderPicker, type PickedFolder } from "@/components/FolderPicker";
 
-interface Folder { id: string; name: string; }
 interface DriveImg { id: string; name: string; }
 interface Headshot { id: number; status: string; imageUrl: string | null; errorMessage: string | null; }
 
 export function StudioClient() {
   const [connected, setConnected] = useState<boolean | null>(null);
-  const [folders, setFolders] = useState<Folder[]>([]);
-  const [folderId, setFolderId] = useState("");
+  const [folder, setFolder] = useState<PickedFolder | null>(null);
   const [images, setImages] = useState<DriveImg[]>([]);
   const [fileId, setFileId] = useState("");
   const [frameId, setFrameId] = useState(FRAME_LIST[0]?.id ?? "");
@@ -28,19 +27,16 @@ export function StudioClient() {
   const [canvaConnected, setCanvaConnected] = useState<boolean | null>(null);
 
   useEffect(() => {
-    fetch("/api/drive/folders").then(async (r) => {
-      if (r.status === 401) { setConnected(false); return; }
-      setConnected(true);
-      setFolders((await r.json()).folders ?? []);
-    }).catch(() => setConnected(false));
+    // Probe for the Google connection only; the FolderPicker lists on demand.
+    fetch("/api/drive/folders?parent=root").then((r) => setConnected(r.status !== 401)).catch(() => setConnected(false));
   }, []);
 
   useEffect(() => {
-    if (!folderId) { setImages([]); return; }
+    if (!folder) { setImages([]); return; }
     setFileId("");
-    fetch(`/api/studio/images?folderId=${encodeURIComponent(folderId)}`)
+    fetch(`/api/studio/images?folderId=${encodeURIComponent(folder.id)}`)
       .then((r) => r.json()).then((d) => setImages(d.images ?? [])).catch(() => setImages([]));
-  }, [folderId]);
+  }, [folder]);
 
   useEffect(() => {
     if (renderer !== "canva" || canvaConnected !== null) return;
@@ -91,7 +87,7 @@ export function StudioClient() {
   }
 
   function startOver() {
-    setFolderId("");
+    setFolder(null);
     setImages([]);
     setFileId("");
     setNameText("");
@@ -115,14 +111,9 @@ export function StudioClient() {
     <div className="mt-8 space-y-6">
       <div className="card">
         <p className="eyebrow">Step 1: choose a photo</p>
-        <select
-          className="field mt-3 w-full sm:w-auto min-h-[44px] sm:min-h-0"
-          value={folderId}
-          onChange={(e) => setFolderId(e.target.value)}
-        >
-          <option value="">Choose a folder</option>
-          {folders.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
-        </select>
+        <div className="mt-3">
+          <FolderPicker value={folder} onChange={setFolder} />
+        </div>
         {images.length > 0 && (
           <div className="mt-4 grid grid-cols-3 gap-3 sm:grid-cols-4">
             {images.map((img) => (

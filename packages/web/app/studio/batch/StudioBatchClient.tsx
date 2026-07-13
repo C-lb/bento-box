@@ -5,8 +5,8 @@ import { detectColumns } from "@event-editor/core/columns";
 import { StatusBadge } from "@/components/StatusBadge";
 import { headshotStatusView } from "@/lib/status";
 import { usePollWhileVisible } from "@/lib/use-visible-poll";
+import { FolderPicker, type PickedFolder } from "@/components/FolderPicker";
 
-interface Folder { id: string; name: string; }
 type MatchStatus = "matched" | "ambiguous" | "unmatched";
 interface RowMatch { status: MatchStatus; driveFileId?: string; candidates?: string[]; }
 interface MatchedRow { index: number; name: string; title: string; match: RowMatch; }
@@ -53,7 +53,6 @@ function StatusChip({ status }: { status: MatchStatus }) {
 export function StudioBatchClient() {
   // Google Drive connection
   const [connected, setConnected] = useState<boolean | null>(null);
-  const [folders, setFolders] = useState<Folder[]>([]);
 
   // Sheet input
   const [spreadsheetInput, setSpreadsheetInput] = useState("");
@@ -75,7 +74,8 @@ export function StudioBatchClient() {
   const [styleId, setStyleId] = useState<string>(FRAME_LIST[0]?.id ?? "");
 
   // Folder
-  const [folderId, setFolderId] = useState("");
+  const [folder, setFolder] = useState<PickedFolder | null>(null);
+  const folderId = folder?.id ?? "";
 
   // Match
   const [matchLoading, setMatchLoading] = useState(false);
@@ -93,13 +93,9 @@ export function StudioBatchClient() {
 
   const selectAllRef = useRef<HTMLInputElement>(null);
 
-  // Load Drive folders on mount
+  // Probe for the Google connection on mount; the FolderPicker lists on demand.
   useEffect(() => {
-    fetch("/api/drive/folders").then(async (r) => {
-      if (r.status === 401) { setConnected(false); return; }
-      setConnected(true);
-      setFolders((await r.json()).folders ?? []);
-    }).catch(() => setConnected(false));
+    fetch("/api/drive/folders?parent=root").then((r) => setConnected(r.status !== 401)).catch(() => setConnected(false));
   }, []);
 
   // Load Canva templates when renderer switches to canva
@@ -508,16 +504,9 @@ export function StudioBatchClient() {
       {/* Step 3: Photo folder */}
       <div className="card">
         <p className="eyebrow">Step 3: photo folder</p>
-        <select
-          className="field mt-3 block w-full sm:w-auto min-h-[44px] sm:min-h-0"
-          value={folderId}
-          onChange={(e) => setFolderId(e.target.value)}
-        >
-          <option value="">Choose a folder</option>
-          {folders.map((f) => (
-            <option key={f.id} value={f.id}>{f.name}</option>
-          ))}
-        </select>
+        <div className="mt-3">
+          <FolderPicker value={folder} onChange={setFolder} />
+        </div>
       </div>
 
       {/* Step 4: Match */}

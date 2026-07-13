@@ -17,6 +17,9 @@ export interface DrivePresentation {
 }
 export interface DriveClient {
   listFolders(): Promise<DriveFolder[]>;
+  listChildFolders(parentId: string): Promise<DriveFolder[]>;
+  listSharedFolders(): Promise<DriveFolder[]>;
+  searchFolders(term: string): Promise<DriveFolder[]>;
   listImages(folderId: string): Promise<DriveImage[]>;
   downloadThumbnail(image: DriveImage): Promise<Buffer | null>;
   downloadFile(fileId: string): Promise<Buffer>;
@@ -26,11 +29,37 @@ export interface DriveClient {
   uploadFile(name: string, bytes: Uint8Array, mimeType: string, folderId: string): Promise<{ id: string; url: string }>;
 }
 
+// Drive query strings wrap values in single quotes; escape backslashes and quotes.
+export function escapeDriveQuery(s: string): string {
+  return s.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+}
+
+const FOLDER_MIME = "mimeType='application/vnd.google-apps.folder' and trashed=false";
+
 export function makeDriveClient(drive: drive_v3.Drive): DriveClient {
+  async function folderQuery(q: string): Promise<DriveFolder[]> {
+    const out: DriveFolder[] = [];
+    let pageToken: string | undefined;
+    do {
+      const res = await drive.files.list({
+        q,
+        fields: "nextPageToken, files(id,name)",
+        orderBy: "name",
+        pageSize: 200,
+        pageToken,
+      });
+      for (const f of res.data.files ?? []) {
+        if (f.id) out.push({ id: f.id, name: f.name ?? "(untitled)" });
+      }
+      pageToken = res.data.nextPageToken ?? undefined;
+    } while (pageToken && out.length < 1000);
+    return out;
+  }
+
   return {
     async listFolders() {
       const res = await drive.files.list({
-        q: "mimeType='application/vnd.google-apps.folder' and trashed=false",
+        q: FOLDER_MIME,
         fields: "files(id,name)",
         orderBy: "name",
         pageSize: 100,
@@ -38,6 +67,15 @@ export function makeDriveClient(drive: drive_v3.Drive): DriveClient {
       return (res.data.files ?? [])
         .filter((f): f is typeof f & { id: string } => !!f.id)
         .map((f) => ({ id: f.id, name: f.name ?? "(untitled)" }));
+    },
+    async listChildFolders(parentId: string) {
+      return folderQuery(`'${escapeDriveQuery(parentId)}' in parents and ${FOLDER_MIME}`);
+    },
+    async listSharedFolders() {
+      return folderQuery(`sharedWithMe = true and ${FOLDER_MIME}`);
+    },
+    async searchFolders(term: string) {
+      return folderQuery(`name contains '${escapeDriveQuery(term)}' and ${FOLDER_MIME}`);
     },
     async listImages(folderId: string) {
       const out: DriveImage[] = [];

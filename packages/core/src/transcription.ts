@@ -66,7 +66,7 @@ export async function runTranscription(
     }
     const segments = mergeSegments(results, prepared.offsets);
     const transcript = plainText(segments);
-    touch(db, id, { transcriptText: transcript, status: "summarizing" });
+    touch(db, id, { transcriptText: transcript, transcriptSegments: JSON.stringify(segments), status: "summarizing" });
 
     const summary = await deps.summarize(transcript);
     touch(db, id, { summaryText: summary, status: "creating_doc" });

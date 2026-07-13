@@ -1,6 +1,19 @@
 import { Readable } from "node:stream";
 import type { drive_v3 } from "googleapis";
 
+// Replace the whole body of an existing Doc (same id and URL). Drive re-imports
+// the HTML the same way create does, so any manual edits in the Doc are lost.
+export async function updateGoogleDoc(
+  drive: drive_v3.Drive,
+  fileId: string,
+  html: string,
+): Promise<void> {
+  await drive.files.update({
+    fileId,
+    media: { mimeType: "text/html", body: Readable.from(html) },
+  });
+}
+
 export async function createGoogleDoc(
   drive: drive_v3.Drive,
   html: string,

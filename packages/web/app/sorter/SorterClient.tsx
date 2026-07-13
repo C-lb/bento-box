@@ -3,8 +3,8 @@ import { useCallback, useEffect, useState } from "react";
 import { StatusBadge } from "@/components/StatusBadge";
 import { jobStatusView } from "@/lib/status";
 import { usePollWhileVisible } from "@/lib/use-visible-poll";
+import { FolderPicker, type PickedFolder } from "@/components/FolderPicker";
 
-interface Folder { id: string; name: string; }
 interface Job { id: number; status: string; total: number; processed: number; errorMessage: string | null; }
 interface Photo {
   id: number;
@@ -19,8 +19,7 @@ interface Photo {
 
 export function SorterClient() {
   const [connected, setConnected] = useState<boolean | null>(null);
-  const [folders, setFolders] = useState<Folder[]>([]);
-  const [folderId, setFolderId] = useState("");
+  const [folder, setFolder] = useState<PickedFolder | null>(null);
   const [jobId, setJobId] = useState<number | null>(null);
   const [job, setJob] = useState<Job | null>(null);
   const [photos, setPhotos] = useState<Photo[]>([]);
@@ -28,12 +27,8 @@ export function SorterClient() {
   const [platform, setPlatform] = useState<"instagram" | "linkedin" | "profile">("linkedin");
 
   useEffect(() => {
-    fetch("/api/drive/folders").then(async (r) => {
-      if (r.status === 401) { setConnected(false); return; }
-      setConnected(true);
-      const data = await r.json();
-      setFolders(data.folders ?? []);
-    }).catch(() => setConnected(false));
+    // Probe for the Google connection only; the FolderPicker lists on demand.
+    fetch("/api/drive/folders?parent=root").then((r) => setConnected(r.status !== 401)).catch(() => setConnected(false));
   }, []);
 
   const jobSettled = job != null && (job.status === "done" || job.status === "error");
@@ -52,14 +47,13 @@ export function SorterClient() {
   usePollWhileVisible(pollTick, 1000, jobId != null && !jobSettled);
 
   async function scan() {
-    if (!folderId) return;
+    if (!folder) return;
     setBusy(true);
     try {
-      const folder = folders.find((f) => f.id === folderId);
       const r = await fetch("/api/sorter/jobs", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ folderId, folderName: folder?.name, platform }),
+        body: JSON.stringify({ folderId: folder.id, folderName: folder.name, platform }),
       });
       const data = await r.json();
       if (data.jobId) { setJobId(data.jobId); setJob(null); setPhotos([]); }
@@ -109,18 +103,11 @@ export function SorterClient() {
           </div>
         </div>
         <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-          <select
-            className="field w-full sm:w-auto min-h-[44px] sm:min-h-0"
-            value={folderId}
-            onChange={(e) => setFolderId(e.target.value)}
-          >
-            <option value="">Choose a folder</option>
-            {folders.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
-          </select>
-          <button className="btn btn-accent min-h-[44px] sm:min-h-0 w-full sm:w-auto justify-center" onClick={scan} disabled={!folderId || busy}>
+          <FolderPicker value={folder} onChange={setFolder} disabled={busy} />
+          <button className="btn btn-accent min-h-[44px] sm:min-h-0 w-full sm:w-auto justify-center" onClick={scan} disabled={!folder || busy}>
             {busy ? "Starting…" : "Scan folder"}
           </button>
-          {!folderId && <span className="text-sm text-muted">Pick a folder first</span>}
+          {!folder && <span className="text-sm text-muted">Pick a folder first</span>}
         </div>
       </div>
 

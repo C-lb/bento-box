@@ -58,17 +58,33 @@ function escapeHtml(s: string): string {
     .replace(/>/g, "&gt;");
 }
 
-export function buildTranscriptHtml(summary: string, segments: MergedSegment[]): string {
-  const summaryParas = summary
+function textParas(text: string): string {
+  return text
     .split(/\n{2,}|\n/)
     .map((p) => p.trim())
     .filter(Boolean)
     .map((p) => `<p>${escapeHtml(p)}</p>`)
     .join("");
+}
+
+export type DocDrafts = { linkedin?: string | null; article?: string | null };
+
+// Full doc body. Drafts (when present) sit between the summary and the
+// transcript so the shareable content reads top-down: summary, LinkedIn post,
+// article, then the raw timestamped transcript.
+export function buildDocHtml(summary: string, segments: MergedSegment[], drafts: DocDrafts = {}): string {
+  const sections = [`<h1>Summary</h1>${textParas(summary)}`];
+  if (drafts.linkedin) sections.push(`<h1>LinkedIn post</h1>${textParas(drafts.linkedin)}`);
+  if (drafts.article) sections.push(`<h1>Article</h1>${textParas(drafts.article)}`);
   const lines = segments
     .map((seg) => `<p>[${formatTimestamp(seg.startSec)}] ${escapeHtml(seg.text)}</p>`)
     .join("");
-  return `<h1>Summary</h1>${summaryParas}<h1>Transcript</h1>${lines}`;
+  sections.push(`<h1>Transcript</h1>${lines}`);
+  return sections.join("");
+}
+
+export function buildTranscriptHtml(summary: string, segments: MergedSegment[]): string {
+  return buildDocHtml(summary, segments);
 }
 
 const MEDIA_EXTS = new Set([
