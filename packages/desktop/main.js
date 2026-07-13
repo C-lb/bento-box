@@ -11,6 +11,7 @@ const { readFileSync, mkdirSync, existsSync, writeFileSync } = require("node:fs"
 const path = require("node:path");
 const net = require("node:net");
 const { resolveDirs } = require("./lib/dirs.js");
+const { readPid, writePid, clearPid, isAlive } = require("./lib/pidfile.js");
 
 const HOST = "127.0.0.1";
 const PORT = 4571;
@@ -98,15 +99,37 @@ function runMigrations(env) {
   });
 }
 
+function pidFilePath() {
+  return path.join(app.getPath("userData"), "server.pid");
+}
+
+// Reclaim the port from a previous instance's server. The pid file tells us
+// whose it is; anything else on the port is genuinely not ours to kill.
+async function killStaleServer() {
+  const pid = readPid(pidFilePath());
+  if (!pid || pid === process.pid || !isAlive(pid)) return;
+  try { process.kill(pid); } catch {}
+  const deadline = Date.now() + 5000;
+  while (Date.now() < deadline) {
+    if (!(await portInUse())) { clearPid(pidFilePath()); return; }
+    await new Promise((r) => setTimeout(r, 250));
+  }
+  try { process.kill(pid, "SIGKILL"); } catch {}
+  await new Promise((r) => setTimeout(r, 500));
+  if (!(await portInUse())) clearPid(pidFilePath());
+}
+
 function startServer(env) {
   const entry = path.join(serverRoot(), "packages", "web", "server.js");
   serverProc = fork(entry, [], { env: { ...env, ELECTRON_RUN_AS_NODE: "1" }, stdio: "inherit" });
+  writePid(pidFilePath(), serverProc.pid);
   serverProc.on("error", (err) => {
     if (quitting) return;
     dialog.showErrorBox("event-editor server stopped", `Server process error: ${err.message}`);
     app.quit();
   });
   serverProc.on("exit", (code) => {
+    clearPid(pidFilePath());
     if (quitting) return;
     if (code === 0 || code === null) return; // null = killed by signal during normal shutdown
     dialog.showErrorBox("event-editor server stopped", `Server exited unexpectedly (code ${code}).`);
@@ -157,6 +180,11 @@ async function boot() {
     return;
   }
   if (await portInUse()) {
+    // Usually our own orphan: Settings relaunch used app.exit (skips
+    // before-quit) or a crash left the server behind. Reclaim, then re-check.
+    await killStaleServer();
+  }
+  if (await portInUse()) {
     dialog.showErrorBox("event-editor", `Port ${PORT} is already in use. Close whatever is using it and relaunch.`);
     app.quit();
     return;
@@ -170,9 +198,19 @@ async function boot() {
 
 // The renderer's Settings page calls window.ee.relaunch() after saving keys, so
 // the forked server reboots and picks up the rewritten per-user .env.
+// app.exit() skips before-quit, so kill the server here and wait for it to die
+// or the relaunched instance finds the port taken (the "Port 4571 is already in
+// use" loop). The boot-time killStaleServer() is the belt to this suspender.
 ipcMain.handle("ee:relaunch", () => {
-  app.relaunch();
-  app.exit(0);
+  quitting = true;
+  const finish = () => { app.relaunch(); app.exit(0); };
+  if (serverProc && serverProc.exitCode === null && !serverProc.killed) {
+    const fallback = setTimeout(finish, 3000);
+    serverProc.once("exit", () => { clearTimeout(fallback); finish(); });
+    serverProc.kill();
+  } else {
+    finish();
+  }
 });
 
 app.whenReady().then(boot).catch((e) => {
