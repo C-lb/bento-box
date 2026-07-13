@@ -43,8 +43,17 @@ export async function POST(request: Request) {
   if (!request.body) return NextResponse.json({ error: "empty body" }, { status: 400 });
 
   const filename = safeName(raw);
-  const db = getDb();
-  const id = createTranscription(db, { originalFilename: filename });
+  let db: ReturnType<typeof getDb>;
+  let id: number;
+  try {
+    db = getDb();
+    id = createTranscription(db, { originalFilename: filename });
+  } catch (err) {
+    // Before this catch, a throw here (db open, insert) surfaced as a bare
+    // "Internal Server Error" page with no hint of the cause.
+    const message = err instanceof Error ? err.message : String(err);
+    return NextResponse.json({ error: `Could not start the upload: ${message}` }, { status: 500 });
+  }
 
   const dir = resolve("data/uploads", String(id));
   const path = resolve(dir, filename);
@@ -64,14 +73,15 @@ export async function POST(request: Request) {
     startTranscription(db, id);
     return NextResponse.json({ id });
   } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
     db.update(transcriptions)
       .set({
         status: "error",
-        errorMessage: err instanceof Error ? err.message : String(err),
+        errorMessage: message,
         updatedAt: Date.now(),
       })
       .where(eq(transcriptions.id, id))
       .run();
-    return NextResponse.json({ id, error: "upload failed" }, { status: 500 });
+    return NextResponse.json({ id, error: `Upload failed: ${message}` }, { status: 500 });
   }
 }

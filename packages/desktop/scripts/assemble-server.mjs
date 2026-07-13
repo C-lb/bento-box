@@ -1,6 +1,6 @@
 // packages/desktop/scripts/assemble-server.mjs
 // Assembles a self-contained, runnable Next server tree into build/server.
-import { cpSync, rmSync, mkdirSync, existsSync, readFileSync, writeFileSync, readdirSync } from "node:fs";
+import { cpSync, rmSync, mkdirSync, existsSync, readFileSync, writeFileSync, readdirSync, lstatSync, readlinkSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -27,6 +27,43 @@ mkdirSync(out, { recursive: true });
 
 // 1. the whole standalone tree (server.js + traced node_modules, incl. @event-editor/core + native deps)
 cpSync(standalone, out, { recursive: true });
+// 1b. Turbopack externalises some packages under hashed aliases in
+// .next/node_modules (e.g. "@anthropic-ai/sdk-8a97726827ff28fc") that are
+// SYMLINKS back into the build machine's tree. ESM `import()` resolves through
+// these links directly (the require() shim in step 7 never sees it), and on CI
+// Next writes them as ABSOLUTE paths into the runner's checkout, so the shipped
+// link dangles on every other machine and any route importing the package dies
+// with a bare 500 (bit v0.0.14: transcribe + photo sorter). Replace every such
+// symlink with a real copy of the package so nothing downstream (electron-builder,
+// dmg, Windows) can mangle a link again.
+const nextNm = resolve(out, "packages/web/.next/node_modules");
+if (existsSync(nextNm)) {
+  const entries = [];
+  for (const name of readdirSync(nextNm)) {
+    const p = resolve(nextNm, name);
+    if (name.startsWith("@")) for (const sub of readdirSync(p)) entries.push(resolve(p, sub));
+    else entries.push(p);
+  }
+  for (const link of entries) {
+    if (!lstatSync(link).isSymbolicLink()) continue;
+    const target = readlinkSync(link);
+    const m = /node_modules[\\/](.+?)[\\/]?$/.exec(target);
+    if (!m) {
+      console.error(`unrecognised symlink under .next/node_modules: ${link} -> ${target}`);
+      process.exit(1);
+    }
+    const realPkg = m[1].split(/[\\/]/).slice(0, m[1].startsWith("@") ? 2 : 1).join("/");
+    const realDir = resolve(out, "node_modules", realPkg);
+    if (!existsSync(realDir)) {
+      console.error(`.next/node_modules alias ${link} points at ${realPkg}, which is not in the bundle's node_modules`);
+      process.exit(1);
+    }
+    rmSync(link);
+    cpSync(realDir, link, { recursive: true, dereference: true });
+    console.log(`dereferenced .next alias -> ${realPkg}`);
+  }
+}
+
 // 2. static assets Next does not copy into standalone
 cpSync(resolve(web, ".next/static"), resolve(out, "packages/web/.next/static"), { recursive: true });
 if (existsSync(resolve(web, "public"))) {
@@ -168,5 +205,28 @@ module._load = function (request, parent, isMain) {
 // --- end event-editor shim ---`;
 serverSrc = serverSrc.replace(anchor, anchor + "\n" + shim);
 writeFileSync(serverJs, serverSrc);
+
+// 8. Preset keys for the settings setup code. The packaged app has no repo .env
+// two levels above cwd (the dev fallback in settings/preset.ts), so without this
+// the code is a no-op in installed builds. Bake the preset keys from the build
+// machine's repo .env (or the process env, so CI can supply them as secrets)
+// into build/preset.env; electron-builder ships it in Resources and main.js
+// points EE_PRESET_ENV at it. Always written, even empty, so the settings action
+// can say "no preset keys in this build" instead of failing on a missing file.
+const PRESET_BAKE_KEYS = ["EE_UNLOCK_CODE", "GROQ_API_KEY", "ANTHROPIC_API_KEY"];
+const rootEnvPath = resolve(repo, ".env");
+const rootEnvLines = existsSync(rootEnvPath) ? readFileSync(rootEnvPath, "utf8").split(/\r?\n/) : [];
+let presetBody = "# preset keys for the settings setup code, baked at package time\n";
+let presetCount = 0;
+for (const key of PRESET_BAKE_KEYS) {
+  const fromFile = rootEnvLines.find((l) => l.startsWith(`${key}=`));
+  const value = fromFile ? fromFile.slice(key.length + 1).trim() : (process.env[key] ?? "").trim();
+  if (value) {
+    presetBody += `${key}=${value}\n`;
+    presetCount++;
+  }
+}
+writeFileSync(resolve(here, "../build/preset.env"), presetBody);
+console.log(`preset.env baked with ${presetCount} key(s)`);
 
 console.log("assembled server ->", out);

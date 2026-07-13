@@ -31,6 +31,10 @@
       {
         "from": "build/server",
         "to": "server"
+      },
+      {
+        "from": "build/preset.env",
+        "to": "preset.env"
       }
     ],
     "asar": true,

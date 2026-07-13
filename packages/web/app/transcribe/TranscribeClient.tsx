@@ -143,7 +143,8 @@ export function TranscribeClient() {
         return;
       }
       if (!r.ok || !data?.id) {
-        setUploadError(data?.error ?? "Upload failed. Please try again.");
+        const body = r.text().trim().slice(0, 200);
+        setUploadError(data?.error ?? `Upload failed (HTTP ${r.status})${body ? `: ${body}` : ""}`);
         return;
       }
       setId(data.id);

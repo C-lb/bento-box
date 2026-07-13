@@ -57,6 +57,14 @@ function serverEnv() {
   const fontPath = app.isPackaged
     ? path.join(process.resourcesPath, "server", "packages", "web", "assets", "fonts", "DMSans-Medium.ttf")
     : path.join(__dirname, "build", "server", "packages", "web", "assets", "fonts", "DMSans-Medium.ttf");
+  // Setup-code preset source: packaged builds carry a baked preset.env in
+  // Resources (assemble-server.mjs writes it); without this the settings code
+  // has no keys to fill from once the app leaves the dev machine. An external
+  // EE_PRESET_ENV still wins.
+  const bakedPreset = app.isPackaged
+    ? path.join(process.resourcesPath, "preset.env")
+    : path.join(__dirname, "build", "preset.env");
+  const presetEnv = process.env.EE_PRESET_ENV ?? (existsSync(bakedPreset) ? bakedPreset : null);
   return {
     ...process.env,
     ...keys,
@@ -67,6 +75,7 @@ function serverEnv() {
     EE_DATA_DIR: dataDir,
     EE_BIN_DIR: binDir,
     EE_FONT_PATH: fontPath,
+    ...(presetEnv ? { EE_PRESET_ENV: presetEnv } : {}),
     EE_PUBLIC_URL: BASE,
     PORT: String(PORT),
     HOSTNAME: HOST,

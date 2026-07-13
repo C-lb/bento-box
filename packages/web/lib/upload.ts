@@ -1,4 +1,9 @@
-export type UploadResponse = { ok: boolean; status: number; json: () => Promise<unknown> };
+export type UploadResponse = {
+  ok: boolean;
+  status: number;
+  json: () => Promise<unknown>;
+  text: () => string;
+};
 
 function xhrUpload(
   url: string,
@@ -18,6 +23,7 @@ function xhrUpload(
         ok: xhr.status >= 200 && xhr.status < 300,
         status: xhr.status,
         json: async () => JSON.parse(xhr.responseText),
+        text: () => xhr.responseText,
       });
     xhr.onerror = () => reject(new Error("Upload failed. Check the connection."));
     xhr.send(body);
