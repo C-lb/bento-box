@@ -38,6 +38,11 @@ export function escapeDriveQuery(s: string): string {
 
 const FOLDER_MIME = "mimeType='application/vnd.google-apps.folder' and trashed=false";
 
+// Without these, list/get/create only see "My Drive". Shared drives and content
+// nested inside shared-with-me folders (e.g. Active Events > event > Photos) stay
+// invisible, which is where the real event photos live.
+const ALL_DRIVES = { includeItemsFromAllDrives: true, supportsAllDrives: true } as const;
+
 export function makeDriveClient(drive: drive_v3.Drive): DriveClient {
   async function folderQuery(q: string): Promise<DriveFolder[]> {
     const out: DriveFolder[] = [];
@@ -49,6 +54,7 @@ export function makeDriveClient(drive: drive_v3.Drive): DriveClient {
         orderBy: "name",
         pageSize: 200,
         pageToken,
+        ...ALL_DRIVES,
       });
       for (const f of res.data.files ?? []) {
         if (f.id) out.push({ id: f.id, name: f.name ?? "(untitled)" });
@@ -67,6 +73,7 @@ export function makeDriveClient(drive: drive_v3.Drive): DriveClient {
         fields: "nextPageToken, files(id,name,mimeType,thumbnailLink)",
         pageSize: 100,
         pageToken,
+        ...ALL_DRIVES,
       });
       for (const f of res.data.files ?? []) {
         if (!f.id) continue;
@@ -93,6 +100,7 @@ export function makeDriveClient(drive: drive_v3.Drive): DriveClient {
         fields: "files(id,name)",
         orderBy: "name",
         pageSize: 100,
+        ...ALL_DRIVES,
       });
       return (res.data.files ?? [])
         .filter((f): f is typeof f & { id: string } => !!f.id)
@@ -149,11 +157,11 @@ export function makeDriveClient(drive: drive_v3.Drive): DriveClient {
       }
     },
     async downloadFile(fileId: string) {
-      const res = await drive.files.get({ fileId, alt: "media" }, { responseType: "arraybuffer" });
+      const res = await drive.files.get({ fileId, alt: "media", supportsAllDrives: true }, { responseType: "arraybuffer" });
       return Buffer.from(res.data as ArrayBuffer);
     },
     async thumbnailFor(fileId: string) {
-      const meta = await drive.files.get({ fileId, fields: "thumbnailLink" });
+      const meta = await drive.files.get({ fileId, fields: "thumbnailLink", supportsAllDrives: true });
       const link = meta.data.thumbnailLink;
       if (!link) return null;
       try {
@@ -175,6 +183,7 @@ export function makeDriveClient(drive: drive_v3.Drive): DriveClient {
           fields: "nextPageToken, files(id,name)",
           pageSize: 100,
           pageToken,
+          ...ALL_DRIVES,
         });
         for (const f of res.data.files ?? []) {
           if (f.id) out.push({ id: f.id, name: f.name ?? "(untitled)" });
@@ -188,6 +197,7 @@ export function makeDriveClient(drive: drive_v3.Drive): DriveClient {
         requestBody: { name, parents: folderId ? [folderId] : undefined },
         media: { mimeType: "application/pdf", body: Readable.from(Buffer.from(bytes)) },
         fields: "id, webViewLink",
+        supportsAllDrives: true,
       });
       const id = res.data.id;
       if (!id) throw new Error("Drive did not return a file id");
@@ -198,6 +208,7 @@ export function makeDriveClient(drive: drive_v3.Drive): DriveClient {
         requestBody: { name, parents: folderId ? [folderId] : undefined },
         media: { mimeType, body: Readable.from(Buffer.from(bytes)) },
         fields: "id, webViewLink",
+        supportsAllDrives: true,
       });
       const id = res.data.id;
       if (!id) throw new Error("Drive did not return a file id");
