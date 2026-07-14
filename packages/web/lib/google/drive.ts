@@ -6,6 +6,18 @@ export interface DriveImage {
   name: string;
   mimeType: string;
   thumbnailLink: string | null;
+  // True source dimensions from Drive's file metadata. The thumbnail we download
+  // is downscaled, so these are the only reliable read of the original's size.
+  width: number | null;
+  height: number | null;
+}
+
+// Drive thumbnail links carry a size suffix (e.g. "=s220"). Ask for a larger
+// edge so the preview is sharp enough for the vision model to judge and for the
+// gallery to enlarge without pixelating.
+const THUMB_EDGE = 1024;
+export function biggerThumbnail(link: string): string {
+  return /=s\d+(-[a-z]+)?$/i.test(link) ? link.replace(/=s\d+(-[a-z]+)?$/i, `=s${THUMB_EDGE}`) : `${link}=s${THUMB_EDGE}`;
 }
 export interface DriveFolder {
   id: string;
@@ -70,7 +82,7 @@ export function makeDriveClient(drive: drive_v3.Drive): DriveClient {
     do {
       const res = await drive.files.list({
         q: `'${escapeDriveQuery(folderId)}' in parents and mimeType contains 'image/' and trashed=false`,
-        fields: "nextPageToken, files(id,name,mimeType,thumbnailLink)",
+        fields: "nextPageToken, files(id,name,mimeType,thumbnailLink,imageMediaMetadata(width,height))",
         pageSize: 100,
         pageToken,
         ...ALL_DRIVES,
@@ -82,6 +94,8 @@ export function makeDriveClient(drive: drive_v3.Drive): DriveClient {
           name: f.name ?? "(untitled)",
           mimeType: f.mimeType ?? "application/octet-stream",
           thumbnailLink: f.thumbnailLink ?? null,
+          width: f.imageMediaMetadata?.width ?? null,
+          height: f.imageMediaMetadata?.height ?? null,
         });
       }
       pageToken = res.data.nextPageToken ?? undefined;
@@ -148,7 +162,7 @@ export function makeDriveClient(drive: drive_v3.Drive): DriveClient {
       try {
         // drive client shares the OAuth2 auth; reuse its request to carry credentials
         const res = await (drive.context._options.auth as any).request({
-          url: image.thumbnailLink,
+          url: biggerThumbnail(image.thumbnailLink),
           responseType: "arraybuffer",
         });
         return Buffer.from(res.data as ArrayBuffer);
@@ -166,7 +180,7 @@ export function makeDriveClient(drive: drive_v3.Drive): DriveClient {
       if (!link) return null;
       try {
         const res = await (drive.context._options.auth as any).request({
-          url: link,
+          url: biggerThumbnail(link),
           responseType: "arraybuffer",
         });
         return Buffer.from(res.data as ArrayBuffer);

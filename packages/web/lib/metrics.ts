@@ -1,10 +1,16 @@
 import sharp from "sharp";
 import type { ImageMetrics } from "@event-editor/core/rank";
 
-export async function computeMetrics(filePath: string): Promise<ImageMetrics> {
+export async function computeMetrics(
+  filePath: string,
+  known?: { width: number | null; height: number | null },
+): Promise<ImageMetrics> {
+  // width/height drive the resolution gate, so prefer the true source dimensions
+  // (from Drive metadata) over the downscaled thumbnail's. Sharpness and
+  // brightness are always measured from the thumbnail raster below.
   const meta = await sharp(filePath).metadata();
-  const width = meta.width ?? 0;
-  const height = meta.height ?? 0;
+  const width = known?.width ?? meta.width ?? 0;
+  const height = known?.height ?? meta.height ?? 0;
 
   // Downscale to a small greyscale raster for cheap, stable metrics.
   const side = 64;

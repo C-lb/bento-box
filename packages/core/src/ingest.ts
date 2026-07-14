@@ -6,6 +6,10 @@ export interface IngestImage {
   id: string;
   name: string;
   mimeType: string;
+  // True source dimensions from Drive metadata, when available. Persisted so the
+  // resolution gate judges the original, not the downscaled thumbnail.
+  width?: number | null;
+  height?: number | null;
 }
 
 export interface IngestDeps {
@@ -56,6 +60,8 @@ export async function runIngest(
           driveFileId: img.id,
           name: img.name,
           mimeType: img.mimeType,
+          width: img.width ?? null,
+          height: img.height ?? null,
           stage: "pending",
         })
         .run();

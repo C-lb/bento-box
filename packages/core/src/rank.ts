@@ -34,7 +34,9 @@ export const HEURISTICS_LENIENT = {
 export function scoreHeuristics(m: ImageMetrics, platform: Platform = "linkedin"): HeuristicVerdict {
   const H = platform === "instagram" ? HEURISTICS_LENIENT : HEURISTICS;
   const longEdge = Math.max(m.width, m.height);
-  if (longEdge < H.minLongEdge) {
+  // Fail open when the true size is unknown (longEdge 0): judge the photo rather
+  // than reject it on a dimension we couldn't read.
+  if (longEdge > 0 && longEdge < H.minLongEdge) {
     return { rejected: true, reason: `Low resolution (${m.width}x${m.height})` };
   }
   if (m.sharpness < H.minSharpness) {

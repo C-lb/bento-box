@@ -77,7 +77,7 @@ export function startScan(
     const client = visionClient();
     const context = getRankingContext(db, args.platform);
     await runRanking(db, jobId, {
-      getMetrics: (photo) => computeMetrics(resolve(photo.thumbnailPath!)),
+      getMetrics: (photo) => computeMetrics(resolve(photo.thumbnailPath!), { width: photo.width, height: photo.height }),
       scoreVision: async (photo) => {
         const bytes = await readFile(resolve(photo.thumbnailPath!));
         return withBackoff(() =>

@@ -9,6 +9,10 @@ export interface RankingPhoto {
   name: string;
   mimeType: string;
   thumbnailPath: string | null;
+  // True source dimensions from Drive (may be null if Drive didn't report them).
+  // Used for the resolution gate so a downscaled thumbnail can't fail a photo.
+  width: number | null;
+  height: number | null;
 }
 
 export interface RankingDeps {
@@ -40,7 +44,7 @@ export async function runRanking(
     const survivors: RankingPhoto[] = [];
     let processed = 0;
     for (const p of pending) {
-      const photo: RankingPhoto = { id: p.id, name: p.name, mimeType: p.mimeType, thumbnailPath: p.thumbnailPath };
+      const photo: RankingPhoto = { id: p.id, name: p.name, mimeType: p.mimeType, thumbnailPath: p.thumbnailPath, width: p.width, height: p.height };
       if (!photo.thumbnailPath) {
         db.update(photos).set({ stage: "errored", errorMessage: "no thumbnail" }).where(eq(photos.id, p.id)).run();
         touch(db, jobId, { processed: ++processed });

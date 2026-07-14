@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { StatusBadge } from "@/components/StatusBadge";
 import { jobStatusView } from "@/lib/status";
 import { usePollWhileVisible } from "@/lib/use-visible-poll";
@@ -26,6 +26,17 @@ export function SorterClient() {
   const [busy, setBusy] = useState(false);
   const [platform, setPlatform] = useState<"instagram" | "linkedin" | "profile">("linkedin");
   const [includeSubfolders, setIncludeSubfolders] = useState(true);
+  const [highlightId, setHighlightId] = useState<number | null>(null);
+  const highlightTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Scroll the gallery to a pick and flash a ring so it's obvious which one.
+  function jumpToPhoto(id: number) {
+    document.getElementById(`sorter-photo-${id}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+    setHighlightId(id);
+    if (highlightTimer.current) clearTimeout(highlightTimer.current);
+    highlightTimer.current = setTimeout(() => setHighlightId(null), 1800);
+  }
+  useEffect(() => () => { if (highlightTimer.current) clearTimeout(highlightTimer.current); }, []);
 
   useEffect(() => {
     // Probe for the Google connection only; the FolderPicker lists on demand.
@@ -77,6 +88,9 @@ export function SorterClient() {
       </div>
     );
   }
+
+  const ranked = photos.filter((p) => p.stage === "ranked" && p.rank != null).sort((a, b) => a.rank! - b.rank!);
+  const topPicks = ranked.slice(0, 5);
 
   return (
     <div className="mt-8">
@@ -144,39 +158,81 @@ export function SorterClient() {
             </div>
           )}
 
-          {job.status !== "error" && (
-            <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
-              {sortPhotos(photos).map((p) => (
-                <div key={p.id} className="rounded-lg border border-line p-2">
-                  <div className="aspect-square overflow-hidden rounded bg-canvas">
-                    {p.stage === "ranked" || p.stage === "rejected" || p.stage === "errored" ? (
-                      <img src={`/api/thumb/${p.id}`} alt={p.name} className="h-full w-full object-cover" />
-                    ) : null}
-                  </div>
-                  <div className="mt-2 flex items-center justify-between gap-2">
-                    <p className="truncate text-xs text-muted" title={p.name}>{p.name}</p>
-                    {p.stage === "ranked" && p.score != null && (
-                      <span className="rounded bg-raised px-1.5 py-0.5 text-xs font-medium text-ink shadow-raisededge">{p.score}</span>
-                    )}
-                  </div>
-                  {p.stage === "ranked" && p.reasons?.length ? (
-                    <p className="mt-1 text-xs text-muted">{p.reasons.join(" · ")}</p>
-                  ) : null}
-                  {p.stage === "rejected" && (
-                    <p className="mt-1 text-xs text-muted">Skipped: {p.rejectReason}</p>
-                  )}
-                  {p.stage === "errored" && (
-                    <p className="mt-1 text-xs text-danger">Could not score{p.errorMessage ? `: ${p.errorMessage}` : ""}</p>
-                  )}
-                  {p.stage === "ranked" && (
-                    <a className="btn mt-2 min-h-[44px] sm:min-h-0 w-full justify-center text-xs" href={`/studio?photoId=${p.id}`}>
-                      Send to Headshot Studio
-                    </a>
+        </div>
+      )}
+
+      {job && job.status !== "error" && topPicks.length > 0 && (
+        <div className="card mt-5">
+          <p className="eyebrow">Top picks</p>
+          <p className="mt-1 text-sm text-muted">
+            The best {topPicks.length} of this batch, highest score first. Tap one to jump to it in the gallery.
+          </p>
+          <div className="mt-4 grid grid-cols-3 gap-3 sm:grid-cols-5">
+            {topPicks.map((p) => (
+              <button
+                key={p.id}
+                type="button"
+                onClick={() => jumpToPhoto(p.id)}
+                data-tip="Jump to this photo"
+                className="group text-left focus-visible:outline-none"
+              >
+                <div className="relative aspect-square overflow-hidden rounded-lg bg-canvas ring-1 ring-line transition group-hover:ring-accent/40 group-focus-visible:ring-2 group-focus-visible:ring-accent">
+                  <img src={`/api/thumb/${p.id}`} alt={p.name} className="h-full w-full object-cover" />
+                  <span className="absolute left-1.5 top-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-surface/90 text-xs font-semibold text-ink shadow-soft">
+                    {p.rank}
+                  </span>
+                  {p.score != null && (
+                    <span className="absolute right-1.5 top-1.5 rounded bg-surface/90 px-1.5 py-0.5 text-xs font-medium text-ink shadow-soft">
+                      {p.score}
+                    </span>
                   )}
                 </div>
-              ))}
-            </div>
-          )}
+                <p className="mt-1.5 truncate text-xs text-muted" title={p.name}>{p.name}</p>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {job && job.status !== "error" && (
+        <div className="card mt-5">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+            {sortPhotos(photos).map((p) => (
+              <div
+                key={p.id}
+                id={`sorter-photo-${p.id}`}
+                className={`rounded-lg border p-2 transition ${
+                  highlightId === p.id ? "border-accent ring-2 ring-accent" : "border-line"
+                }`}
+              >
+                <div className="aspect-square overflow-hidden rounded bg-canvas">
+                  {p.stage === "ranked" || p.stage === "rejected" || p.stage === "errored" ? (
+                    <img src={`/api/thumb/${p.id}`} alt={p.name} className="h-full w-full object-cover" />
+                  ) : null}
+                </div>
+                <div className="mt-2 flex items-center justify-between gap-2">
+                  <p className="truncate text-xs text-muted" title={p.name}>{p.name}</p>
+                  {p.stage === "ranked" && p.score != null && (
+                    <span className="rounded bg-raised px-1.5 py-0.5 text-xs font-medium text-ink shadow-raisededge">{p.score}</span>
+                  )}
+                </div>
+                {p.stage === "ranked" && p.reasons?.length ? (
+                  <p className="mt-1 text-xs text-muted">{p.reasons.join(" · ")}</p>
+                ) : null}
+                {p.stage === "rejected" && (
+                  <p className="mt-1 text-xs text-muted">Skipped: {p.rejectReason}</p>
+                )}
+                {p.stage === "errored" && (
+                  <p className="mt-1 text-xs text-danger">Could not score{p.errorMessage ? `: ${p.errorMessage}` : ""}</p>
+                )}
+                {p.stage === "ranked" && (
+                  <a className="btn mt-2 min-h-[44px] sm:min-h-0 w-full justify-center text-xs" href={`/studio?photoId=${p.id}`}>
+                    Send to Headshot Studio
+                  </a>
+                )}
+              </div>
+            ))}
+          </div>
         </div>
       )}
     </div>
