@@ -2,6 +2,7 @@
 import { useRef, useState } from "react";
 import { Download, Loader2 } from "lucide-react";
 import { Segmented } from "@/components/Segmented";
+import { FileDrop } from "@/components/FileDrop";
 import { uploadWithProgress } from "@/lib/upload";
 
 interface Result { id: string; filename: string; bytesIn: number; bytesOut: number }
@@ -63,15 +64,10 @@ export function VideoClient() {
   return (
     <div className="mt-8 space-y-5">
       <div className="card">
-        <label className="block text-sm font-medium">Video
-          <input
-            ref={fileRef}
-            type="file"
-            accept="video/*"
-            onChange={onPickFile}
-            className="field mt-1 min-h-[44px] sm:min-h-0 file:mr-3 file:rounded-md file:border-0 file:bg-raised file:px-3 file:py-1 file:text-ink"
-          />
-        </label>
+        <p className="text-sm font-medium">Video</p>
+        <div className="mt-1">
+          <FileDrop inputRef={fileRef} accept="video/*" onChange={onPickFile} label="Drop a video here, or click to browse" />
+        </div>
 
         <div className="mt-4">
           <p className="text-sm font-medium">Preset</p>
