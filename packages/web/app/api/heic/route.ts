@@ -13,9 +13,13 @@ export async function POST(request: Request) {
   if (!(file instanceof File) || file.size === 0) {
     return NextResponse.json({ error: "A file is required" }, { status: 400 });
   }
+  const num = (k: string) => (form.get(k) != null ? Number(form.get(k)) : undefined);
   const opts = normalizeHeicOpts({
     format: typeof form.get("format") === "string" ? String(form.get("format")) : undefined,
-    quality: form.get("quality") != null ? Number(form.get("quality")) : undefined,
+    quality: num("quality"),
+    saturation: num("saturation"),
+    brightness: num("brightness"),
+    haze: num("haze"),
   });
   const filename = heicOutName(file.name || "image", opts.format);
 

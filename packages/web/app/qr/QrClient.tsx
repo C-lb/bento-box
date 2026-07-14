@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { Download } from "lucide-react";
 import { Segmented } from "@/components/Segmented";
+import { SnapSlider } from "@/components/SnapSlider";
 import { normalizeQrOpts, type QrEcc, type QrFormat } from "@event-editor/core/qr";
 
 export function QrClient() {
@@ -90,17 +91,15 @@ export function QrClient() {
         </label>
 
         <div className="mt-4">
-          <label className="block text-sm font-medium">Size
-            <span className="ml-2 text-sm text-muted">{size}px</span>
-          </label>
-          <input
-            type="range"
+          <SnapSlider
+            label="Size"
+            value={size}
+            onChange={setSize}
             min={128}
             max={1024}
             step={8}
-            value={size}
-            onChange={(e) => setSize(Number(e.target.value))}
-            className="mt-1 w-full"
+            checkpoints={[128, 256, 512, 1024]}
+            format={(v) => `${v}px`}
           />
         </div>
 

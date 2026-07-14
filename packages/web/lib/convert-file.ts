@@ -4,6 +4,7 @@ import { createCanvas } from "@napi-rs/canvas";
 import { readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { heicToImage } from "@/lib/heic";
+import { normalizeHeicOpts } from "@event-editor/core/heic";
 import { zipFiles } from "@/lib/pdf";
 import { convertDir, transcodeAudio } from "@/lib/convert";
 import {
@@ -25,7 +26,7 @@ export async function imageToRaster(input: Buffer, output: "png" | "jpg" | "webp
 // param directly) and `quality` on a 0-100 scale (it divides by 100 itself
 // before calling heic-convert) — NOT "PNG"/"JPEG" or a pre-divided 0..1 value.
 export async function heicToRaster(input: Buffer, output: "png" | "jpg"): Promise<Buffer> {
-  return heicToImage(input, { format: output, quality: LOSSY_QUALITY });
+  return heicToImage(input, normalizeHeicOpts({ format: output, quality: LOSSY_QUALITY }));
 }
 
 // png/jpeg bytes → one-page PDF sized exactly to the image.

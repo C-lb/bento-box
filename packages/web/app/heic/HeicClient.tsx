@@ -2,6 +2,8 @@
 import { useRef, useState } from "react";
 import { Download, Loader2 } from "lucide-react";
 import { Segmented } from "@/components/Segmented";
+import { FileDrop } from "@/components/FileDrop";
+import { SnapSlider } from "@/components/SnapSlider";
 import { uploadWithProgress } from "@/lib/upload";
 
 type Status = "idle" | "busy" | "done" | "error";
@@ -31,7 +33,13 @@ export function HeicClient() {
 
   const [format, setFormat] = useState<"jpg" | "png">("jpg");
   const [quality, setQuality] = useState(82);
+  const [saturation, setSaturation] = useState(1);
+  const [brightness, setBrightness] = useState(1);
+  const [haze, setHaze] = useState(0);
   const [rows, setRows] = useState<Row[]>([]);
+
+  const filtersActive = saturation !== 1 || brightness !== 1 || haze > 0;
+  function resetFilters() { setSaturation(1); setBrightness(1); setHaze(0); }
 
   function onPickFiles() {
     const files = fileRef.current?.files;
@@ -54,6 +62,9 @@ export function HeicClient() {
       fd.append("file", row.file);
       fd.append("format", format);
       fd.append("quality", String(quality));
+      fd.append("saturation", String(saturation));
+      fd.append("brightness", String(brightness));
+      fd.append("haze", String(haze));
       const r = await uploadWithProgress("/api/heic", fd, (p) =>
         setRows((prev) => prev.map((row) => (row.key === key ? { ...row, progress: p } : row))),
       );
@@ -85,16 +96,10 @@ export function HeicClient() {
   return (
     <div className="mt-8 space-y-5">
       <div className="card">
-        <label className="block text-sm font-medium">Photos
-          <input
-            ref={fileRef}
-            type="file"
-            multiple
-            accept=".heic,.heif,image/heic,image/heif"
-            onChange={onPickFiles}
-            className="field mt-1 min-h-[44px] sm:min-h-0 file:mr-3 file:rounded-md file:border-0 file:bg-raised file:px-3 file:py-1 file:text-ink"
-          />
-        </label>
+        <p className="text-sm font-medium">Photos</p>
+        <div className="mt-1">
+          <FileDrop inputRef={fileRef} accept=".heic,.heif,image/heic,image/heif" multiple onChange={onPickFiles} label="Drop HEIC photos here, or click to browse" />
+        </div>
         <p className="mt-1 text-sm text-muted">Pick one or more HEIC or HEIF photos.</p>
 
         <div className="mt-4">
@@ -110,18 +115,58 @@ export function HeicClient() {
 
         {format === "jpg" && (
           <div className="mt-4">
-            <label className="block text-sm font-medium">Quality: {quality}
-              <input
-                type="range"
-                min={1}
-                max={100}
-                value={quality}
-                onChange={(e) => setQuality(Number(e.target.value))}
-                className="mt-1 w-full"
-              />
-            </label>
+            <SnapSlider
+              label="Quality"
+              value={quality}
+              onChange={setQuality}
+              min={1}
+              max={100}
+              checkpoints={[25, 50, 75, 100]}
+              format={(v) => `${v}`}
+            />
           </div>
         )}
+
+        <div className="mt-5">
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-medium">Filters</p>
+            {filtersActive && (
+              <button type="button" className="text-sm text-muted hover:text-ink" onClick={resetFilters}>Reset</button>
+            )}
+          </div>
+          <div className="mt-3 space-y-4">
+            <SnapSlider
+              label="Saturation"
+              value={saturation}
+              onChange={setSaturation}
+              min={0}
+              max={2}
+              step={0.05}
+              checkpoints={[0, 1, 2]}
+              format={(v) => `${Math.round(v * 100)}%`}
+            />
+            <SnapSlider
+              label="Brightness"
+              value={brightness}
+              onChange={setBrightness}
+              min={0}
+              max={2}
+              step={0.05}
+              checkpoints={[0.5, 1, 1.5]}
+              format={(v) => `${Math.round(v * 100)}%`}
+            />
+            <SnapSlider
+              label="Haze"
+              value={haze}
+              onChange={setHaze}
+              min={0}
+              max={20}
+              step={0.5}
+              checkpoints={[0, 5, 10, 20]}
+              format={(v) => (v === 0 ? "off" : `${v}`)}
+            />
+          </div>
+        </div>
 
         <div className="mt-4 flex items-center gap-3">
           <button type="button" className="btn btn-accent min-h-[44px] sm:min-h-0 w-full sm:w-auto justify-center" onClick={convertAll} disabled={!canConvert}>
