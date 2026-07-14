@@ -198,13 +198,13 @@ export function ShortenClient() {
       {history.length > 0 && (
         <div className="card">
           <div className="flex items-center justify-between">
-            <p className="text-sm font-medium">History</p>
+            <p className="text-sm font-medium">See past links</p>
             <button
               type="button"
               className="btn min-h-[44px] sm:min-h-0"
               onClick={handleClearHistory}
             >
-              Clear history
+              Clear all
             </button>
           </div>
           <ul className="mt-3 space-y-3">

@@ -1,11 +1,27 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { Download, Loader2 } from "lucide-react";
+import { Download, Loader2, Wand2, Trash2 } from "lucide-react";
 import { Segmented } from "@/components/Segmented";
 import { cutoutOutName, normalizeBgFill } from "@event-editor/core/cutout";
+import { composeCutout, canvasToPngBlob, decodeToRgb, type BgFill } from "@/lib/cutout-canvas";
+import {
+  addCutoutHistory,
+  listCutoutHistory,
+  removeCutoutHistory,
+  clearCutoutHistory,
+  newCutoutId,
+  type CutoutHistoryItem,
+} from "@/lib/cutout-history";
+import { CutoutEditor } from "./CutoutEditor";
 
 type FillMode = "transparent" | "white" | "custom";
 type Status = "idle" | "loading" | "busy" | "done" | "error";
+
+interface EditData {
+  alpha: Uint8ClampedArray;
+  width: number;
+  height: number;
+}
 
 interface Row {
   key: string;
@@ -15,6 +31,17 @@ interface Row {
   url?: string;
   filename?: string;
   error?: string;
+  edit?: EditData;
+}
+
+interface EditorSession {
+  key: string;
+  fileName: string;
+  rgb: ImageData;
+  alpha: Uint8ClampedArray;
+  width: number;
+  height: number;
+  fill: BgFill;
 }
 
 let keySeq = 0;
@@ -29,17 +56,44 @@ export function CutoutClient() {
   const [fill, setFill] = useState<FillMode>("transparent");
   const [customColor, setCustomColor] = useState("#ffffff");
   const [rows, setRows] = useState<Row[]>([]);
+  const [editor, setEditor] = useState<EditorSession | null>(null);
+  const [openingEditor, setOpeningEditor] = useState<string | null>(null);
+
+  const [history, setHistory] = useState<CutoutHistoryItem[]>([]);
+  const [thumbs, setThumbs] = useState<Record<string, string>>({});
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const segmenterRef = useRef<any>(null);
 
-  // Keep a ref in sync with rows so unmount cleanup revokes the URLs that are
-  // actually live, not the rows captured by the initial-render closure.
   const rowsRef = useRef(rows);
   useEffect(() => { rowsRef.current = rows; }, [rows]);
   useEffect(() => () => {
     for (const r of rowsRef.current) if (r.url) URL.revokeObjectURL(r.url);
   }, []);
+
+  // Load persisted history once.
+  useEffect(() => {
+    let alive = true;
+    listCutoutHistory().then((items) => { if (alive) setHistory(items); });
+    return () => { alive = false; };
+  }, []);
+
+  // Thumbnails: one object URL per history item, revoked when the set changes.
+  useEffect(() => {
+    const map: Record<string, string> = {};
+    for (const it of history) map[it.id] = URL.createObjectURL(it.blob);
+    setThumbs(map);
+    return () => { for (const url of Object.values(map)) URL.revokeObjectURL(url); };
+  }, [history]);
+
+  async function saveToHistory(name: string, blob: Blob) {
+    await addCutoutHistory({ id: newCutoutId(), name, at: Date.now(), blob });
+    setHistory(await listCutoutHistory());
+  }
+
+  function currentFill(): BgFill {
+    return normalizeBgFill({ mode: fill, color: customColor });
+  }
 
   function onPickFiles() {
     const files = fileRef.current?.files;
@@ -76,7 +130,7 @@ export function CutoutClient() {
     return seg;
   }
 
-  async function runRow(key: string, fillColor: { color: string } | "transparent") {
+  async function runRow(key: string, fillColor: BgFill) {
     const row = rowsRef.current.find((r) => r.key === key);
     if (!row) return;
 
@@ -88,6 +142,7 @@ export function CutoutClient() {
       const seg = await getSegmenter();
       setRows((prev) => prev.map((r) => (r.key === key ? { ...r, status: "busy" } : r)));
 
+      const { rgb, W, H } = await decodeToRgb(row.file);
       const bitmap = await createImageBitmap(row.file);
       const result = seg.segment(bitmap);
       try {
@@ -96,51 +151,27 @@ export function CutoutClient() {
         const conf = mask.getAsFloat32Array();
         const mw = mask.width;
         const mh = mask.height;
-        // Always export at the input image's full resolution. MediaPipe may
-        // return the confidence mask at the model's internal size (~256px), so
-        // we sample the mask with nearest-neighbor scaling onto the full-res
-        // pixels instead of shrinking the image down to the mask.
-        const W = bitmap.width;
-        const H = bitmap.height;
 
-        const canvasA = document.createElement("canvas");
-        canvasA.width = W;
-        canvasA.height = H;
-        const ctxA = canvasA.getContext("2d");
-        if (!ctxA) throw new Error("Canvas not supported.");
-        ctxA.drawImage(bitmap, 0, 0);
-        const img = ctxA.getImageData(0, 0, W, H);
+        // Sample the (small) confidence mask onto full-res alpha, nearest-neighbor.
+        const alpha = new Uint8ClampedArray(W * H);
         for (let y = 0; y < H; y++) {
           const my = Math.floor((y * mh) / H);
           for (let x = 0; x < W; x++) {
             const mx = Math.floor((x * mw) / W);
-            const a = conf[my * mw + mx];
-            img.data[(y * W + x) * 4 + 3] = Math.round(a * 255);
+            alpha[y * W + x] = Math.round(conf[my * mw + mx] * 255);
           }
         }
-        ctxA.putImageData(img, 0, 0);
 
-        let outCanvas = canvasA;
-        if (fillColor !== "transparent") {
-          const canvasB = document.createElement("canvas");
-          canvasB.width = W;
-          canvasB.height = H;
-          const ctxB = canvasB.getContext("2d");
-          if (!ctxB) throw new Error("Canvas not supported.");
-          ctxB.fillStyle = fillColor.color;
-          ctxB.fillRect(0, 0, W, H);
-          ctxB.drawImage(canvasA, 0, 0);
-          outCanvas = canvasB;
-        }
-
-        const blob: Blob | null = await new Promise((resolve) => outCanvas.toBlob(resolve, "image/png"));
-        if (!blob) throw new Error("Could not export the result.");
+        const outCanvas = composeCutout(rgb, alpha, fillColor);
+        const blob = await canvasToPngBlob(outCanvas);
+        const filename = cutoutOutName(row.file.name);
         const url = URL.createObjectURL(blob);
         setRows((prev) =>
           prev.map((r) =>
-            r.key === key ? { ...r, status: "done", url, filename: cutoutOutName(row.file.name) } : r,
+            r.key === key ? { ...r, status: "done", url, filename, edit: { alpha, width: W, height: H } } : r,
           ),
         );
+        void saveToHistory(filename, blob);
       } finally {
         result.close();
         bitmap.close();
@@ -152,12 +183,61 @@ export function CutoutClient() {
   }
 
   async function runAll() {
-    const fillColor = normalizeBgFill({ mode: fill, color: customColor });
+    const fillColor = currentFill();
     for (const row of rowsRef.current) {
       if (row.status === "idle" || row.status === "error") {
         await runRow(row.key, fillColor);
       }
     }
+  }
+
+  async function openEditor(key: string) {
+    const row = rowsRef.current.find((r) => r.key === key);
+    if (!row?.edit) return;
+    setOpeningEditor(key);
+    try {
+      const { rgb, W, H } = await decodeToRgb(row.file);
+      setEditor({
+        key,
+        fileName: row.name,
+        rgb,
+        alpha: new Uint8ClampedArray(row.edit.alpha),
+        width: W,
+        height: H,
+        fill: currentFill(),
+      });
+    } catch {
+      // if decode fails, just leave the editor closed
+    } finally {
+      setOpeningEditor(null);
+    }
+  }
+
+  function applyEdit(alpha: Uint8ClampedArray, blob: Blob) {
+    if (!editor) return;
+    const key = editor.key;
+    const url = URL.createObjectURL(blob);
+    let filename = "cutout.png";
+    setRows((prev) =>
+      prev.map((r) => {
+        if (r.key !== key) return r;
+        if (r.url) URL.revokeObjectURL(r.url);
+        filename = r.filename ?? cutoutOutName(r.name);
+        return { ...r, url, edit: { alpha, width: editor.width, height: editor.height } };
+      }),
+    );
+    void saveToHistory(filename, blob);
+    setEditor(null);
+  }
+
+  async function handleRemoveHistory(id: string) {
+    await removeCutoutHistory(id);
+    setHistory((prev) => prev.filter((i) => i.id !== id));
+  }
+
+  async function handleClearHistory() {
+    await clearCutoutHistory();
+    setHistory([]);
   }
 
   const anyBusy = rows.some((r) => r.status === "busy" || r.status === "loading");
@@ -255,7 +335,21 @@ export function CutoutClient() {
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src={row.url} alt={`Cutout of ${row.name}`} className="max-h-48 max-w-full" />
                     </div>
-                    <div>
+                    <div className="flex flex-col gap-2 sm:flex-row">
+                      <button
+                        type="button"
+                        className="btn inline-flex items-center justify-center gap-2 min-h-[44px] sm:min-h-0 w-full sm:w-auto"
+                        onClick={() => openEditor(row.key)}
+                        disabled={openingEditor === row.key}
+                        data-tip="Brush to fix edges"
+                      >
+                        {openingEditor === row.key ? (
+                          <Loader2 className="w-4 h-4 animate-spin" strokeWidth={1.75} />
+                        ) : (
+                          <Wand2 className="w-4 h-4" strokeWidth={1.75} />
+                        )}
+                        Touch up
+                      </button>
                       <a className="btn inline-flex items-center gap-2 min-h-[44px] sm:min-h-0 w-full sm:w-auto justify-center" href={row.url} download={row.filename}>
                         <Download className="w-4 h-4" strokeWidth={1.75} /> Download
                       </a>
@@ -270,7 +364,7 @@ export function CutoutClient() {
                       type="button"
                       className="btn min-h-[44px] sm:min-h-0"
                       disabled={anyBusy}
-                      onClick={() => runRow(row.key, normalizeBgFill({ mode: fill, color: customColor }))}
+                      onClick={() => runRow(row.key, currentFill())}
                     >
                       Retry
                     </button>
@@ -280,6 +374,69 @@ export function CutoutClient() {
             </div>
           ))}
         </div>
+      )}
+
+      {history.length > 0 && (
+        <div className="card">
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-medium">See past cut-outs</p>
+            <button type="button" className="btn min-h-[44px] sm:min-h-0" onClick={handleClearHistory}>
+              Clear all
+            </button>
+          </div>
+          <ul className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3">
+            {history.map((item) => (
+              <li key={item.id} className="space-y-2">
+                <div
+                  className="rounded-md p-2"
+                  style={{
+                    backgroundImage: "repeating-conic-gradient(#ccc 0% 25%, transparent 0% 50%)",
+                    backgroundSize: "12px 12px",
+                  }}
+                >
+                  {thumbs[item.id] && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={thumbs[item.id]} alt={item.name} className="mx-auto max-h-28 max-w-full" />
+                  )}
+                </div>
+                <p className="truncate text-sm">{item.name}</p>
+                <div className="flex gap-2">
+                  {thumbs[item.id] && (
+                    <a
+                      className="btn inline-flex flex-1 items-center justify-center gap-2 min-h-[44px] sm:min-h-0"
+                      href={thumbs[item.id]}
+                      download={item.name}
+                    >
+                      <Download className="w-4 h-4" strokeWidth={1.75} /> Save
+                    </a>
+                  )}
+                  <button
+                    type="button"
+                    className="btn min-h-[44px] sm:min-h-0"
+                    onClick={() => handleRemoveHistory(item.id)}
+                    aria-label={`Remove ${item.name} from history`}
+                    data-tip="Remove"
+                  >
+                    <Trash2 className="w-4 h-4" strokeWidth={1.75} />
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {editor && (
+        <CutoutEditor
+          fileName={editor.fileName}
+          rgb={editor.rgb}
+          width={editor.width}
+          height={editor.height}
+          initialAlpha={editor.alpha}
+          fill={editor.fill}
+          onCancel={() => setEditor(null)}
+          onApply={applyEdit}
+        />
       )}
     </div>
   );
