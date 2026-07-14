@@ -32,7 +32,7 @@ async function withBackoff<T>(fn: () => Promise<T>, tries = 4): Promise<T> {
 export function startScan(
   db: Db,
   drive: DriveClient,
-  args: { folderId: string; folderName: string; platform: Platform },
+  args: { folderId: string; folderName: string; platform: Platform; includeSubfolders?: boolean },
 ): number {
   const jobId = createScanJob(db, { driveFolderId: args.folderId, driveFolderName: args.folderName, platform: args.platform });
 
@@ -42,7 +42,8 @@ export function startScan(
       jobId,
       args.folderId,
       {
-        listImages: (folderId) => drive.listImages(folderId),
+        listImages: (folderId) =>
+          args.includeSubfolders ? drive.listImagesDeep(folderId) : drive.listImages(folderId),
         saveThumbnail: async (jId, pId, image) => {
           const raw = await drive.downloadThumbnail(image as DriveImage);
           if (!raw) return null;

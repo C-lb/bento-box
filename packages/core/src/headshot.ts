@@ -6,12 +6,15 @@ import { getFrame, type FrameSpec } from "./frames.js";
 
 export interface HeadshotRenderDeps {
   loadPhoto(driveFileId: string): Promise<Buffer>;
+  loadUpload(path: string): Promise<Buffer>;
   render(photo: Buffer, frame: FrameSpec, nameText: string, titleText: string): Promise<Buffer>;
   save(id: number, png: Buffer): Promise<string>;
 }
 
 export interface CreateHeadshotArgs {
-  driveFileId: string;
+  /** Exactly one of driveFileId / uploadPath identifies the source photo. */
+  driveFileId?: string;
+  uploadPath?: string;
   frameId: string;
   nameText: string;
   titleText: string;
@@ -27,8 +30,9 @@ export function createHeadshot(db: BetterSQLite3Database<any>, args: CreateHeads
   const res = db
     .insert(headshots)
     .values({
-      source: "drive",
-      sourceDriveFileId: args.driveFileId,
+      source: args.uploadPath ? "upload" : "drive",
+      sourceDriveFileId: args.uploadPath ? null : args.driveFileId,
+      sourceUploadPath: args.uploadPath ?? null,
       renderer: "local",
       canvaTemplateId: null,
       templateId: args.frameId,
@@ -54,7 +58,10 @@ export async function runHeadshotRender(
     const frame = getFrame(row.templateId ?? "");
     if (!frame) throw new Error(`unknown frame: ${row.templateId}`);
 
-    const photo = await deps.loadPhoto(row.sourceDriveFileId!);
+    const photo =
+      row.source === "upload"
+        ? await deps.loadUpload(row.sourceUploadPath!)
+        : await deps.loadPhoto(row.sourceDriveFileId!);
     const png = await deps.render(photo, frame, row.nameText ?? "", row.titleText ?? "");
     const path = await deps.save(id, png);
     touch(db, id, { outputPath: path, status: "done" });
@@ -64,7 +71,8 @@ export async function runHeadshotRender(
 }
 
 export interface CreateCanvaHeadshotArgs {
-  driveFileId: string;
+  driveFileId?: string;
+  uploadPath?: string;
   canvaTemplateId: string;
   nameText: string;
   titleText: string;
@@ -76,8 +84,9 @@ export function createCanvaHeadshot(db: BetterSQLite3Database<any>, args: Create
   const res = db
     .insert(headshots)
     .values({
-      source: "drive",
-      sourceDriveFileId: args.driveFileId,
+      source: args.uploadPath ? "upload" : "drive",
+      sourceDriveFileId: args.uploadPath ? null : args.driveFileId,
+      sourceUploadPath: args.uploadPath ?? null,
       renderer: "canva",
       canvaTemplateId: args.canvaTemplateId,
       templateId: null,
@@ -94,6 +103,7 @@ export function createCanvaHeadshot(db: BetterSQLite3Database<any>, args: Create
 
 export interface CanvaRenderDeps {
   loadPhoto(driveFileId: string): Promise<Buffer>;
+  loadUpload(path: string): Promise<Buffer>;
   getDataset(templateId: string): Promise<{ fields: { name: string; type: string }[] }>;
   resolveFields(dataset: { fields: { name: string; type: string }[] }): { photo: string; name: string; title: string };
   uploadAsset(photo: Buffer, name: string): Promise<string>;
@@ -120,7 +130,10 @@ export async function runHeadshotCanva(
     const dataset = await deps.getDataset(templateId);
     const fields = deps.resolveFields(dataset);
 
-    const photo = await deps.loadPhoto(row.sourceDriveFileId!);
+    const photo =
+      row.source === "upload"
+        ? await deps.loadUpload(row.sourceUploadPath!)
+        : await deps.loadPhoto(row.sourceDriveFileId!);
     const assetId = await deps.uploadAsset(photo, `headshot-${id}`);
     const data = {
       [fields.photo]: { type: "image" as const, asset_id: assetId },

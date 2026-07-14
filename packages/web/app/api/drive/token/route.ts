@@ -5,14 +5,12 @@ import { googleAccessToken } from "@/lib/google/oauth";
 export const runtime = "nodejs";
 
 export async function GET() {
-  const apiKey = process.env.GOOGLE_PICKER_API_KEY;
-  const appId = process.env.GOOGLE_PICKER_APP_ID;
-  if (!apiKey || !appId) {
-    return NextResponse.json(
-      { error: "Drive picker is not configured. Set GOOGLE_PICKER_API_KEY and GOOGLE_PICKER_APP_ID." },
-      { status: 400 },
-    );
-  }
+  // The Picker works with just the signed-in OAuth token. A developer key and
+  // app ID are optional refinements (the key raises quota, the app ID scopes to
+  // your Cloud project), so pass them through only when they're configured
+  // rather than blocking the picker when they're absent.
+  const apiKey = process.env.GOOGLE_PICKER_API_KEY || null;
+  const appId = process.env.GOOGLE_PICKER_APP_ID || null;
   const tok = await googleAccessToken(getDb());
   if (!tok) {
     return NextResponse.json({ error: "Google is not connected. Re-auth on settings." }, { status: 400 });

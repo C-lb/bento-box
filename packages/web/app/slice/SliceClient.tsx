@@ -161,11 +161,12 @@ export function SliceClient({ hasAi }: { hasAi: boolean }) {
       const view = new w.google.picker.DocsView(w.google.picker.ViewId.DOCS)
         .setMimeTypes("application/vnd.openxmlformats-officedocument.presentationml.presentation,application/vnd.ms-powerpoint")
         .setIncludeFolders(true);
-      const picker = new w.google.picker.PickerBuilder()
+      const builder = new w.google.picker.PickerBuilder()
         .addView(view)
-        .setOAuthToken(data.access_token)
-        .setDeveloperKey(data.apiKey)
-        .setAppId(data.appId)
+        .setOAuthToken(data.access_token);
+      if (data.apiKey) builder.setDeveloperKey(data.apiKey);
+      if (data.appId) builder.setAppId(data.appId);
+      const picker = builder
         .setCallback((res: any) => {
           if (res.action === w.google.picker.Action.PICKED) {
             const doc = res.docs?.[0];

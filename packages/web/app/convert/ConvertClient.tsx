@@ -30,6 +30,7 @@ export function ConvertClient({ ytDlp }: { ytDlp: boolean }) {
 
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<Result | null>(null);
 
@@ -70,9 +71,40 @@ export function ConvertClient({ ytDlp }: { ytDlp: boolean }) {
 
   const canConvert = !busy && (mode === "link" ? isUrl(url) : hasFile && !unsupported);
 
+  // Read the /api/convert/url ndjson stream, surfacing each stage's message and
+  // returning the final { id, filename, ext } once the "done" event lands.
+  async function readConvertStream(r: Response): Promise<Result> {
+    if (!r.ok || !r.body) {
+      const data = await readJsonOrThrow(r);
+      throw new Error(data?.error ?? "Conversion failed");
+    }
+    const reader = r.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    let done: Result | null = null;
+    for (;;) {
+      const { value, done: streamDone } = await reader.read();
+      if (streamDone) break;
+      buffer += decoder.decode(value, { stream: true });
+      let nl: number;
+      while ((nl = buffer.indexOf("\n")) >= 0) {
+        const line = buffer.slice(0, nl).trim();
+        buffer = buffer.slice(nl + 1);
+        if (!line) continue;
+        const evt = JSON.parse(line);
+        if (evt.type === "status") setStatus(evt.message);
+        else if (evt.type === "error") throw new Error(evt.error);
+        else if (evt.type === "done") done = { id: evt.id, filename: evt.filename ?? filename, ext: evt.ext };
+      }
+    }
+    if (!done) throw new Error("The conversion ended unexpectedly");
+    return done;
+  }
+
   async function convert() {
     setError(null);
     setResult(null);
+    setStatus(null);
     setDriveUrl(null);
     setDriveError(null);
     setBusy(true);
@@ -85,8 +117,7 @@ export function ConvertClient({ ytDlp }: { ytDlp: boolean }) {
           headers: { "content-type": "application/json" },
           body: JSON.stringify({ url: url.trim(), filename }),
         });
-        data = await readJsonOrThrow(r);
-        if (!r.ok || !data?.id) throw new Error(data?.error ?? "Conversion failed");
+        data = await readConvertStream(r);
       } else {
         const f = fileRef.current?.files?.[0];
         if (!f) { setError("Choose a file first."); setBusy(false); return; }
@@ -103,6 +134,7 @@ export function ConvertClient({ ytDlp }: { ytDlp: boolean }) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
       setBusy(false);
+      setStatus(null);
     }
   }
 
@@ -136,11 +168,12 @@ export function ConvertClient({ ytDlp }: { ytDlp: boolean }) {
       const view = new w.google.picker.DocsView(w.google.picker.ViewId.FOLDERS)
         .setSelectFolderEnabled(true)
         .setMimeTypes("application/vnd.google-apps.folder");
-      const picker = new w.google.picker.PickerBuilder()
+      const builder = new w.google.picker.PickerBuilder()
         .addView(view)
-        .setOAuthToken(data.access_token)
-        .setDeveloperKey(data.apiKey)
-        .setAppId(data.appId)
+        .setOAuthToken(data.access_token);
+      if (data.apiKey) builder.setDeveloperKey(data.apiKey);
+      if (data.appId) builder.setAppId(data.appId);
+      const picker = builder
         .setCallback((res: any) => {
           if (res.action === w.google.picker.Action.PICKED) {
             const folderId = res.docs?.[0]?.id;
@@ -208,7 +241,7 @@ export function ConvertClient({ ytDlp }: { ytDlp: boolean }) {
                   }}
                 />
               </label>
-              <p className="mt-1 text-sm text-muted">Paste a link and we fetch the audio, then transcode it to mp3.</p>
+              <p className="mt-1 text-sm text-muted">Paste a video or a Spotify track link. Spotify songs are matched to the closest YouTube result, then transcoded to mp3.</p>
             </div>
           ) : (
             <div className="mt-4 rounded-lg border border-line bg-raised px-4 py-3 shadow-raisededge">
@@ -280,6 +313,13 @@ export function ConvertClient({ ytDlp }: { ytDlp: boolean }) {
             <span className="text-sm text-muted">Uploading {Math.round(progress * 100)}%</span>
           )}
         </div>
+
+        {busy && mode === "link" && status && (
+          <div className="mt-3 flex items-center gap-2 text-sm text-muted">
+            <Loader2 className="w-4 h-4 animate-spin" strokeWidth={1.75} />
+            <span>{status}</span>
+          </div>
+        )}
 
         {busy && mode === "file" && (
           <div className="mt-3 h-1.5 w-full rounded-full bg-line overflow-hidden">

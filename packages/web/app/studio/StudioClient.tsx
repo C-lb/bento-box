@@ -11,9 +11,14 @@ interface Headshot { id: number; status: string; imageUrl: string | null; errorM
 
 export function StudioClient() {
   const [connected, setConnected] = useState<boolean | null>(null);
+  const [source, setSource] = useState<"drive" | "upload">("drive");
   const [folder, setFolder] = useState<PickedFolder | null>(null);
   const [images, setImages] = useState<DriveImg[]>([]);
   const [fileId, setFileId] = useState("");
+  const [uploadId, setUploadId] = useState<string | null>(null);
+  const [uploadName, setUploadName] = useState("");
+  const [uploadPreview, setUploadPreview] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
   const [frameId, setFrameId] = useState(FRAME_LIST[0]?.id ?? "");
   const [nameText, setNameText] = useState("");
   const [titleText, setTitleText] = useState("");
@@ -61,16 +66,39 @@ export function StudioClient() {
   }, [hsId]);
   usePollWhileVisible(pollTick, 1000, hsId != null && !hsSettled);
 
+  const hasSource = source === "upload" ? !!uploadId : !!fileId;
+
+  async function onPickFile(file: File) {
+    setUploading(true);
+    setErr(null);
+    setUploadId(null);
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      const r = await fetch("/api/studio/upload", { method: "POST", body: form });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error ?? "Upload failed");
+      setUploadId(d.uploadId);
+      setUploadName(file.name);
+      setUploadPreview((prev) => { if (prev) URL.revokeObjectURL(prev); return URL.createObjectURL(file); });
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : String(e));
+    } finally {
+      setUploading(false);
+    }
+  }
+
   async function generate() {
-    if (!fileId) return;
+    if (!hasSource) return;
     if (renderer === "canva" && !templateId) return;
     if (renderer === "local" && !frameId) return;
     setBusy(true);
     setErr(null);
     try {
+      const src = source === "upload" ? { uploadId } : { driveFileId: fileId };
       const payload = renderer === "canva"
-        ? { renderer, driveFileId: fileId, templateId, nameText, titleText }
-        : { renderer, driveFileId: fileId, frameId, nameText, titleText };
+        ? { renderer, ...src, templateId, nameText, titleText }
+        : { renderer, ...src, frameId, nameText, titleText };
       const r = await fetch("/api/studio/headshots", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -90,6 +118,9 @@ export function StudioClient() {
     setFolder(null);
     setImages([]);
     setFileId("");
+    setUploadId(null);
+    setUploadName("");
+    setUploadPreview((prev) => { if (prev) URL.revokeObjectURL(prev); return null; });
     setNameText("");
     setTitleText("");
     setTemplateId("");
@@ -98,35 +129,80 @@ export function StudioClient() {
     setErr(null);
   }
 
-  if (connected === false) {
-    return (
-      <div className="card mt-8">
-        <p className="text-muted">Connect your Google account to read Drive folders.</p>
-        <a className="btn btn-accent mt-4 min-h-[44px] sm:min-h-0 w-full sm:w-auto justify-center inline-flex items-center" href="/api/google/auth">Connect Google Drive</a>
-      </div>
-    );
-  }
-
   return (
     <div className="mt-8 space-y-6">
       <div className="card">
         <p className="eyebrow">Step 1: choose a photo</p>
-        <div className="mt-3">
-          <FolderPicker value={folder} onChange={setFolder} />
+        <div className="mt-3 inline-flex rounded-lg border border-line p-1">
+          {([
+            { id: "drive", label: "Google Drive" },
+            { id: "upload", label: "Upload a file" },
+          ] as const).map((opt) => (
+            <button
+              key={opt.id}
+              type="button"
+              onClick={() => setSource(opt.id)}
+              className={`min-h-[44px] sm:min-h-0 px-4 py-1.5 rounded-md text-sm ${source === opt.id ? "bg-accent text-white" : "text-muted hover:text-ink"}`}
+            >
+              {opt.label}
+            </button>
+          ))}
         </div>
-        {images.length > 0 && (
-          <div className="mt-4 grid grid-cols-3 gap-3 sm:grid-cols-4">
-            {images.map((img) => (
-              <button
-                key={img.id}
-                onClick={() => setFileId(img.id)}
-                className={`overflow-hidden rounded-lg border ${fileId === img.id ? "border-accent" : "border-line"}`}
-                title={img.name}
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={`/api/studio/drive-thumb/${img.id}`} alt={img.name} className="aspect-square w-full object-cover" />
-              </button>
-            ))}
+
+        {source === "drive" && connected === false && (
+          <div className="mt-4">
+            <p className="text-sm text-muted">Connect your Google account to read Drive folders, or upload a file instead.</p>
+            <a className="btn btn-accent mt-3 min-h-[44px] sm:min-h-0 w-full sm:w-auto justify-center inline-flex items-center" href="/api/google/auth">Connect Google Drive</a>
+          </div>
+        )}
+
+        {source === "drive" && connected !== false && (
+          <>
+            <div className="mt-3">
+              <FolderPicker value={folder} onChange={setFolder} />
+            </div>
+            {images.length > 0 && (
+              <div className="mt-4 grid grid-cols-3 gap-3 sm:grid-cols-4">
+                {images.map((img) => (
+                  <button
+                    key={img.id}
+                    onClick={() => setFileId(img.id)}
+                    className={`overflow-hidden rounded-lg border ${fileId === img.id ? "border-accent" : "border-line"}`}
+                    title={img.name}
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={`/api/studio/drive-thumb/${img.id}`} alt={img.name} className="aspect-square w-full object-cover" />
+                  </button>
+                ))}
+              </div>
+            )}
+          </>
+        )}
+
+        {source === "upload" && (
+          <div className="mt-4">
+            <label className="btn min-h-[44px] sm:min-h-0 inline-flex cursor-pointer items-center gap-2">
+              <input
+                type="file"
+                accept="image/*"
+                className="sr-only"
+                onChange={(e) => { const f = e.target.files?.[0]; if (f) onPickFile(f); e.target.value = ""; }}
+                disabled={uploading || busy}
+              />
+              {uploading ? "Uploading…" : uploadId ? "Choose a different photo" : "Choose a photo"}
+            </label>
+            {uploadPreview && (
+              <div className="mt-4 flex items-center gap-3">
+                <div className="h-20 w-20 overflow-hidden rounded-lg border border-line">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={uploadPreview} alt={uploadName} className="h-full w-full object-cover" />
+                </div>
+                <div className="min-w-0">
+                  <p className="truncate text-sm text-ink" title={uploadName}>{uploadName}</p>
+                  {uploadId && <p className="text-sm text-success">Ready to use</p>}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -192,11 +268,11 @@ export function StudioClient() {
         <button
           className="btn btn-accent mt-4 min-h-[44px] sm:min-h-0 w-full sm:w-auto justify-center"
           onClick={generate}
-          disabled={busy || !fileId || (renderer === "canva" ? !templateId : !frameId)}
+          disabled={busy || uploading || !hasSource || (renderer === "canva" ? !templateId : !frameId)}
         >
           {busy ? "Starting…" : "Generate headshot"}
         </button>
-        {(!fileId || (renderer === "canva" ? !templateId : !frameId)) && (
+        {(!hasSource || (renderer === "canva" ? !templateId : !frameId)) && (
           <p className="mt-2 text-sm text-muted">
             Pick a photo and a {renderer === "canva" ? "template" : "frame"} first.
           </p>

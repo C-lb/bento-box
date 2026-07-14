@@ -76,7 +76,7 @@ export const TOOLS: Tool[] = [
   {
     id: "convert",
     href: "/convert",
-    title: "Convert a file/video to audio",
+    title: "Convert file/link to audio",
     body: "Change a file's format. Images to png, jpg, webp, or pdf; pdf to images; audio and video to mp3, wav, or m4a. Or paste a link for audio.",
     Icon: ArrowRightLeft,
     defaultGroups: ["media"],

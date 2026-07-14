@@ -23,11 +23,16 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const { folderId, folderName, platform } = await request.json();
+  const { folderId, folderName, platform, includeSubfolders } = await request.json();
   if (!folderId) return NextResponse.json({ error: "folderId required" }, { status: 400 });
   const plat: Platform = typeof platform === "string" && isPlatform(platform) ? platform : "linkedin";
   const drive = await authedDriveClient(getDb());
   if (!drive) return NextResponse.json({ error: "not_connected" }, { status: 401 });
-  const jobId = startScan(getDb(), makeDriveClient(drive), { folderId, folderName: folderName ?? "(folder)", platform: plat });
+  const jobId = startScan(getDb(), makeDriveClient(drive), {
+    folderId,
+    folderName: folderName ?? "(folder)",
+    platform: plat,
+    includeSubfolders: includeSubfolders === true,
+  });
   return NextResponse.json({ jobId });
 }

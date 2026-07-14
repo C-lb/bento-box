@@ -6,6 +6,10 @@ export const PRESET_KEYS = [
   "ANTHROPIC_API_KEY",
   "GOOGLE_CLIENT_ID",
   "GOOGLE_CLIENT_SECRET",
+  "GOOGLE_PICKER_API_KEY",
+  "GOOGLE_PICKER_APP_ID",
+  "SPOTIFY_CLIENT_ID",
+  "SPOTIFY_CLIENT_SECRET",
 ] as const;
 export type PresetKey = (typeof PRESET_KEYS)[number];
 
@@ -15,6 +19,10 @@ export const PRESET_LABELS: Record<PresetKey, string> = {
   ANTHROPIC_API_KEY: "Claude",
   GOOGLE_CLIENT_ID: "Google client ID",
   GOOGLE_CLIENT_SECRET: "Google client secret",
+  GOOGLE_PICKER_API_KEY: "Google Picker key",
+  GOOGLE_PICKER_APP_ID: "Google Picker app ID",
+  SPOTIFY_CLIENT_ID: "Spotify client ID",
+  SPOTIFY_CLIENT_SECRET: "Spotify client secret",
 };
 
 // Fallback when neither the source .env nor the process env sets EE_UNLOCK_CODE.

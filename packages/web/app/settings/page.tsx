@@ -9,6 +9,7 @@ import { StyleExamples } from "./StyleExamples";
 import { GroupManager } from "@/components/GroupManager";
 import { RankingContexts } from "./RankingContexts";
 import { ConnectionPills } from "./ConnectionPills";
+import { SpotifyStatus } from "./SpotifyStatus";
 import { dependencyStatuses } from "@/lib/deps";
 import { Dependencies } from "./Dependencies";
 import { HashHighlight } from "./HashHighlight";
@@ -92,6 +93,15 @@ async function SettingsBody({ searchParams }: { searchParams: Promise<{ google?:
               <a className="btn min-h-[44px] sm:min-h-0 w-full sm:w-auto justify-center" href="/api/canva/auth">{canvaToken ? "Re-auth" : "Connect"}</a>
             )}
           </span>
+        </li>
+      </ul>
+      <ul className="mt-3 space-y-3">
+        <li className="card flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <span>Spotify (link to audio)</span>
+            <p className="mt-1 text-sm text-muted">Reads public track details so Spotify links can be matched on YouTube. No login, no audio access.</p>
+          </div>
+          <SpotifyStatus />
         </li>
       </ul>
 

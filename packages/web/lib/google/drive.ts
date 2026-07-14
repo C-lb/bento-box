@@ -21,6 +21,8 @@ export interface DriveClient {
   listSharedFolders(): Promise<DriveFolder[]>;
   searchFolders(term: string): Promise<DriveFolder[]>;
   listImages(folderId: string): Promise<DriveImage[]>;
+  /** listImages, but also descends into every subfolder (breadth-first, deduped). */
+  listImagesDeep(folderId: string): Promise<DriveImage[]>;
   downloadThumbnail(image: DriveImage): Promise<Buffer | null>;
   downloadFile(fileId: string): Promise<Buffer>;
   thumbnailFor(fileId: string): Promise<Buffer | null>;
@@ -56,6 +58,34 @@ export function makeDriveClient(drive: drive_v3.Drive): DriveClient {
     return out;
   }
 
+  async function imagesInFolder(folderId: string): Promise<DriveImage[]> {
+    const out: DriveImage[] = [];
+    let pageToken: string | undefined;
+    do {
+      const res = await drive.files.list({
+        q: `'${escapeDriveQuery(folderId)}' in parents and mimeType contains 'image/' and trashed=false`,
+        fields: "nextPageToken, files(id,name,mimeType,thumbnailLink)",
+        pageSize: 100,
+        pageToken,
+      });
+      for (const f of res.data.files ?? []) {
+        if (!f.id) continue;
+        out.push({
+          id: f.id,
+          name: f.name ?? "(untitled)",
+          mimeType: f.mimeType ?? "application/octet-stream",
+          thumbnailLink: f.thumbnailLink ?? null,
+        });
+      }
+      pageToken = res.data.nextPageToken ?? undefined;
+    } while (pageToken);
+    return out;
+  }
+
+  async function childFolders(parentId: string): Promise<DriveFolder[]> {
+    return folderQuery(`'${escapeDriveQuery(parentId)}' in parents and ${FOLDER_MIME}`);
+  }
+
   return {
     async listFolders() {
       const res = await drive.files.list({
@@ -69,7 +99,7 @@ export function makeDriveClient(drive: drive_v3.Drive): DriveClient {
         .map((f) => ({ id: f.id, name: f.name ?? "(untitled)" }));
     },
     async listChildFolders(parentId: string) {
-      return folderQuery(`'${escapeDriveQuery(parentId)}' in parents and ${FOLDER_MIME}`);
+      return childFolders(parentId);
     },
     async listSharedFolders() {
       return folderQuery(`sharedWithMe = true and ${FOLDER_MIME}`);
@@ -78,27 +108,32 @@ export function makeDriveClient(drive: drive_v3.Drive): DriveClient {
       return folderQuery(`name contains '${escapeDriveQuery(term)}' and ${FOLDER_MIME}`);
     },
     async listImages(folderId: string) {
-      const out: DriveImage[] = [];
-      let pageToken: string | undefined;
-      do {
-        const res = await drive.files.list({
-          q: `'${folderId}' in parents and mimeType contains 'image/' and trashed=false`,
-          fields: "nextPageToken, files(id,name,mimeType,thumbnailLink)",
-          pageSize: 100,
-          pageToken,
-        });
-        for (const f of res.data.files ?? []) {
-          if (!f.id) continue;
-          out.push({
-            id: f.id,
-            name: f.name ?? "(untitled)",
-            mimeType: f.mimeType ?? "application/octet-stream",
-            thumbnailLink: f.thumbnailLink ?? null,
-          });
+      return imagesInFolder(folderId);
+    },
+    async listImagesDeep(rootId: string) {
+      // Breadth-first walk of the folder tree. `seen` guards against cycles
+      // (a folder can have multiple parents, and shortcuts can point back up)
+      // and `byId` dedupes images that live under more than one folder.
+      const seen = new Set<string>([rootId]);
+      const byId = new Map<string, DriveImage>();
+      const queue: string[] = [rootId];
+      // Bound the crawl so a pathological tree can't spin forever.
+      let foldersVisited = 0;
+      const MAX_FOLDERS = 2000;
+      while (queue.length && foldersVisited < MAX_FOLDERS) {
+        const folderId = queue.shift()!;
+        foldersVisited++;
+        for (const img of await imagesInFolder(folderId)) {
+          if (!byId.has(img.id)) byId.set(img.id, img);
         }
-        pageToken = res.data.nextPageToken ?? undefined;
-      } while (pageToken);
-      return out;
+        for (const child of await childFolders(folderId)) {
+          if (!seen.has(child.id)) {
+            seen.add(child.id);
+            queue.push(child.id);
+          }
+        }
+      }
+      return [...byId.values()];
     },
     async downloadThumbnail(image: DriveImage) {
       if (!image.thumbnailLink) return null;

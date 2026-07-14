@@ -4,7 +4,7 @@ import { existsSync } from "node:fs";
 import { rm, readdir, stat } from "node:fs/promises";
 import { spawn } from "node:child_process";
 import ffmpegPath from "ffmpeg-static";
-import { ytDlpTitleArgs, ytDlpExtractArgs, ffmpegMp3Args, audioArgs } from "@event-editor/core/convert";
+import { ytDlpTitleArgs, ytDlpSearchArgs, ytDlpExtractArgs, ffmpegMp3Args, audioArgs } from "@event-editor/core/convert";
 
 const COMMON = ["/opt/homebrew/bin", "/usr/local/bin", "/usr/bin"];
 
@@ -93,6 +93,20 @@ export async function fetchTitle(url: string): Promise<string> {
   if (!bin) throw new Error("yt-dlp is not installed");
   const out = await run(bin, ytDlpTitleArgs(url));
   return out.split("\n").map((l) => l.trim()).find((l) => l.length > 0) ?? "";
+}
+
+// Resolve a search query to the top YouTube match (id + title) without
+// downloading, so the caller can report the match and then fetch it by id.
+export async function searchYouTube(query: string): Promise<{ id: string; title: string }> {
+  const bin = ytDlpBin();
+  if (!bin) throw new Error("yt-dlp is not installed");
+  const out = await run(bin, ytDlpSearchArgs(query));
+  const line = out.split("\n").map((l) => l.trim()).find((l) => l.length > 0) ?? "";
+  const tab = line.indexOf("\t");
+  const vid = tab >= 0 ? line.slice(0, tab) : line;
+  const title = tab >= 0 ? line.slice(tab + 1) : "";
+  if (!vid) throw new Error("No YouTube match was found for that track");
+  return { id: vid, title: title || vid };
 }
 
 export async function extractFromUrl(url: string, id: string): Promise<void> {

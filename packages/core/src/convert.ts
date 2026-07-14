@@ -26,6 +26,13 @@ export function ytDlpTitleArgs(url: string): string[] {
   return ["--no-playlist", "--print", "title", url];
 }
 
+// Resolve a text query to the single best YouTube match without downloading.
+// ytsearch1: lets yt-dlp run the search; id and title come back tab-separated
+// so the caller can then download that exact video by id.
+export function ytDlpSearchArgs(query: string): string[] {
+  return ["--no-playlist", "--print", "%(id)s\t%(title)s", `ytsearch1:${query}`];
+}
+
 export function ytDlpExtractArgs(url: string, outStem: string, ffmpegLocation: string): string[] {
   return [
     "--no-playlist", "-x", "--audio-format", "mp3", "--audio-quality", "192K",

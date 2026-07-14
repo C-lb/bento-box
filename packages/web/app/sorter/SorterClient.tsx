@@ -25,6 +25,7 @@ export function SorterClient() {
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [busy, setBusy] = useState(false);
   const [platform, setPlatform] = useState<"instagram" | "linkedin" | "profile">("linkedin");
+  const [includeSubfolders, setIncludeSubfolders] = useState(true);
 
   useEffect(() => {
     // Probe for the Google connection only; the FolderPicker lists on demand.
@@ -109,6 +110,19 @@ export function SorterClient() {
           </button>
           {!folder && <span className="text-sm text-muted">Pick a folder first</span>}
         </div>
+        <label className="mt-3 flex items-start gap-2.5 cursor-pointer select-none">
+          <input
+            type="checkbox"
+            checked={includeSubfolders}
+            onChange={(e) => setIncludeSubfolders(e.target.checked)}
+            disabled={busy}
+            className="mt-0.5 h-4 w-4 accent-[var(--accent)] disabled:opacity-50"
+          />
+          <span className="text-sm">
+            <span className="text-ink">Include subfolders</span>
+            <span className="ml-2 text-muted">Scans every folder nested inside the one you pick, all the way down.</span>
+          </span>
+        </label>
       </div>
 
       {job && (

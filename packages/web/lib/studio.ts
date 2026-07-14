@@ -1,6 +1,6 @@
 // packages/web/lib/studio.ts
 import { resolve } from "node:path";
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, writeFile, readFile } from "node:fs/promises";
 import { runHeadshotRender, runHeadshotCanva, type CanvaRenderDeps } from "@event-editor/core/headshot";
 import type { openDb } from "@event-editor/core/db";
 import type { DriveClient } from "./google/drive";
@@ -13,9 +13,14 @@ type Db = ReturnType<typeof openDb>;
 
 export const HEADSHOT_DIR = process.env.EE_HEADSHOT_DIR ?? "data/headshots";
 
-export function startHeadshot(db: Db, drive: DriveClient, id: number): void {
+// drive may be null when the source is a local upload (Drive never touched).
+const noDrive = (): Promise<Buffer> =>
+  Promise.reject(new Error("Google Drive is not connected"));
+
+export function startHeadshot(db: Db, drive: DriveClient | null, id: number): void {
   void runHeadshotRender(db, id, {
-    loadPhoto: (fileId) => drive.downloadFile(fileId),
+    loadPhoto: (fileId) => (drive ? drive.downloadFile(fileId) : noDrive()),
+    loadUpload: (path) => readFile(resolve(path)),
     render: (photo, frame, name, title) => renderHeadshot(photo, frame, name, title),
     save: async (hid, png) => {
       await mkdir(resolve(HEADSHOT_DIR), { recursive: true });
@@ -26,9 +31,10 @@ export function startHeadshot(db: Db, drive: DriveClient, id: number): void {
   });
 }
 
-export function buildCanvaDeps(drive: DriveClient, canva: CanvaClient): CanvaRenderDeps {
+export function buildCanvaDeps(drive: DriveClient | null, canva: CanvaClient): CanvaRenderDeps {
   return {
-    loadPhoto: (fileId) => drive.downloadFile(fileId),
+    loadPhoto: (fileId) => (drive ? drive.downloadFile(fileId) : noDrive()),
+    loadUpload: (path) => readFile(resolve(path)),
     getDataset: (templateId) => canva.getDataset(templateId),
     resolveFields: (dataset) => resolveTemplateFields(dataset),
     uploadAsset: (photo, name) => canva.uploadAsset(photo, name),
@@ -44,6 +50,6 @@ export function buildCanvaDeps(drive: DriveClient, canva: CanvaClient): CanvaRen
   };
 }
 
-export function startHeadshotCanva(db: Db, drive: DriveClient, id: number): void {
+export function startHeadshotCanva(db: Db, drive: DriveClient | null, id: number): void {
   void runHeadshotCanva(db, id, buildCanvaDeps(drive, makeCanvaClient(db)));
 }
