@@ -9,6 +9,7 @@ interface Job { id: number; status: string; total: number; processed: number; er
 interface Photo {
   id: number;
   name: string;
+  driveFileId: string;
   stage: string;
   score: number | null;
   rank: number | null;
@@ -41,6 +42,14 @@ export function SorterClient() {
   useEffect(() => {
     // Probe for the Google connection only; the FolderPicker lists on demand.
     fetch("/api/drive/folders?parent=root").then((r) => setConnected(r.status !== 401)).catch(() => setConnected(false));
+  }, []);
+
+  // Opening a past scan links here with ?job=<id>. Load it so the ratings and
+  // top picks come back. The poll below fires once even for a settled job
+  // (job starts null, so it isn't "settled" yet), which pulls in the results.
+  useEffect(() => {
+    const jobParam = new URLSearchParams(window.location.search).get("job");
+    if (jobParam && Number.isFinite(Number(jobParam))) setJobId(Number(jobParam));
   }, []);
 
   const jobSettled = job != null && (job.status === "done" || job.status === "error");
@@ -226,7 +235,7 @@ export function SorterClient() {
                   <p className="mt-1 text-xs text-danger">Could not score{p.errorMessage ? `: ${p.errorMessage}` : ""}</p>
                 )}
                 {p.stage === "ranked" && (
-                  <a className="btn mt-2 min-h-[44px] sm:min-h-0 w-full justify-center text-xs" href={`/studio?photoId=${p.id}`}>
+                  <a className="btn mt-2 min-h-[44px] sm:min-h-0 w-full justify-center text-xs" href={`/studio?driveFileId=${encodeURIComponent(p.driveFileId)}&name=${encodeURIComponent(p.name)}`}>
                     Send to Headshot Studio
                   </a>
                 )}

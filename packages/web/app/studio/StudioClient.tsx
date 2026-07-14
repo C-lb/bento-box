@@ -37,6 +37,18 @@ export function StudioClient() {
     fetch("/api/drive/folders?parent=root").then((r) => setConnected(r.status !== 401)).catch(() => setConnected(false));
   }, []);
 
+  // "Send to Headshot Studio" from the ranker links here with the Drive file id
+  // and name, so preselect that photo, ready to generate.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const driveFileId = params.get("driveFileId");
+    if (driveFileId) {
+      setSource("drive");
+      setFileId(driveFileId);
+      setPickedName(params.get("name") ?? driveFileId);
+    }
+  }, []);
+
   useEffect(() => {
     if (!folder) { setImages([]); return; }
     setFileId("");

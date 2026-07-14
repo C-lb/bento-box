@@ -34,6 +34,11 @@ export function PastScans() {
         const r = await fetch(`/api/sorter/jobs/${it.id}`, { method: "DELETE" });
         if (!r.ok) throw new Error();
       }}
+      renderActions={(it) => (
+        <a className="text-xs text-ink underline underline-offset-2" href={`/sorter?job=${it.id}`}>
+          Open
+        </a>
+      )}
       renderRow={(it) => (
         <>
           <div className="flex items-center justify-between gap-2">
