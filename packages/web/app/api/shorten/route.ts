@@ -43,7 +43,14 @@ export async function POST(request: Request) {
   async function attempt(svc: ShortenService): Promise<Outcome> {
     let res: Response;
     try {
-      res = await fetch(buildCreateUrl(svc, url, body.custom), { signal: AbortSignal.timeout(10_000) });
+      // is.gd/v.gd sit behind Cloudflare, which can challenge header-less
+      // requests (Node's fetch sends no User-Agent by default) — that surfaces
+      // as a non-JSON block page and looks like a network block. Send a plain
+      // UA and JSON Accept so we get the real API response.
+      res = await fetch(buildCreateUrl(svc, url, body.custom), {
+        signal: AbortSignal.timeout(10_000),
+        headers: { "User-Agent": "event-editor/shortener", Accept: "application/json" },
+      });
     } catch {
       // Never reached the host: DNS failure, timeout, offline, or a filter.
       return { ok: false, error: SERVICE_UNAVAILABLE, status: 502, blocked: true };
