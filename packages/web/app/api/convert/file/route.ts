@@ -5,12 +5,16 @@ import { newConvertId, convertDir, transcodeToMp3, cleanupConvert, sweepOldConve
 import { convertUploaded } from "@/lib/convert-file";
 import { sanitizeMp3Filename, defaultNameFromSource } from "@event-editor/core/convert";
 import { isValidConversion, convertOutName, type OutputFormat } from "@event-editor/core/convert-formats";
+import { guardUpload } from "@/lib/upload-guard";
 
 export const runtime = "nodejs";
 
 const OUTPUTS = ["png", "jpg", "webp", "pdf", "mp3", "wav", "m4a"];
 
 export async function POST(request: Request) {
+  const blocked = await guardUpload(request);
+  if (blocked) return blocked;
+
   const form = await request.formData();
   const file = form.get("file");
   if (!(file instanceof File) || file.size === 0) {

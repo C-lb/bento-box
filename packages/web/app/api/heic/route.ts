@@ -6,10 +6,14 @@ import { normalizeHeicOpts, heicOutName } from "@event-editor/core/heic";
 import { recordHeicConversion } from "@event-editor/core/heic-history";
 import { getDb } from "@/lib/db";
 import { heicToImage } from "@/lib/heic";
+import { guardUpload } from "@/lib/upload-guard";
 
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
+  const blocked = await guardUpload(request);
+  if (blocked) return blocked;
+
   const form = await request.formData();
   const file = form.get("file");
   if (!(file instanceof File) || file.size === 0) {

@@ -40,8 +40,14 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  // Exclude only true static prefixes. Extension-based exemptions are decided
-  // inside the middleware via isPublicAsset() so that /api/... paths ending in
-  // an asset extension can never bypass auth or upload caps.
-  matcher: ["/((?!_next/|mediapipe/).*)"],
+  // Exclude true static prefixes, plus the large-upload API routes. Next.js
+  // truncates any middleware-matched request body at ~10 MiB, which silently
+  // corrupts uploads bigger than that. Those routes run their own cap + auth via
+  // guardUpload() instead (see lib/upload-guard.ts — keep this list in sync with
+  // UPLOAD_ROUTE_PREFIXES). Extension-based exemptions for everything else are
+  // decided inside the middleware via isPublicAsset() so that /api/... paths
+  // ending in an asset extension can never bypass auth or upload caps.
+  matcher: [
+    "/((?!_next/|mediapipe/|api/slice/convert|api/video|api/splice|api/transcribe|api/convert/file|api/heic|api/resize|api/pdf/process|api/studio/upload).*)",
+  ],
 };

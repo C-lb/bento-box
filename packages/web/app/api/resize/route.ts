@@ -4,10 +4,14 @@ import { resolve } from "node:path";
 import { newJobId, jobDir, cleanupJob, sweepOldJobs } from "@/lib/jobs";
 import { normalizeResizeOpts, resizeOutName } from "@event-editor/core/resize";
 import { resizeImage } from "@/lib/resize";
+import { guardUpload } from "@/lib/upload-guard";
 
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
+  const blocked = await guardUpload(request);
+  if (blocked) return blocked;
+
   const form = await request.formData();
   const file = form.get("file");
   if (!(file instanceof File) || file.size === 0) {

@@ -10,6 +10,7 @@ import { getDb } from "@/lib/db";
 import { createSliceRun } from "@event-editor/core/slice-runs";
 import { authedDriveClient } from "@/lib/google/oauth";
 import { makeDriveClient } from "@/lib/google/drive";
+import { guardUpload } from "@/lib/upload-guard";
 
 export const runtime = "nodejs";
 
@@ -19,6 +20,9 @@ function safeName(name: string): string {
 }
 
 export async function POST(request: Request) {
+  const blocked = await guardUpload(request);
+  if (blocked) return blocked;
+
   if (!findSoffice()) {
     return NextResponse.json({ error: "LibreOffice is not installed. See the tool page for install steps." }, { status: 400 });
   }

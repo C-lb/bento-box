@@ -4,10 +4,14 @@ import { resolve } from "node:path";
 import { newJobId, jobDir, cleanupJob, sweepOldJobs } from "@/lib/jobs";
 import { validateClips, spliceOutName, type Clip, type SpliceKind, type SpliceScale } from "@event-editor/core/splice";
 import { spliceClips } from "@/lib/splice";
+import { guardUpload } from "@/lib/upload-guard";
 
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
+  const blocked = await guardUpload(request);
+  if (blocked) return blocked;
+
   const form = await request.formData();
   const files = form.getAll("file").filter((f): f is File => f instanceof File && f.size > 0);
   if (files.length === 0) return NextResponse.json({ error: "Add at least one clip" }, { status: 400 });

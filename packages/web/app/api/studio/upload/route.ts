@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { mkdir, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { newJobId, jobDir, sweepOldJobs } from "@/lib/jobs";
+import { guardUpload } from "@/lib/upload-guard";
 
 export const runtime = "nodejs";
 
@@ -9,6 +10,9 @@ export const runtime = "nodejs";
 // Bytes are stashed under data/studio-upload/<id>/src and handed to the render
 // pipeline via an opaque id, so no filesystem path ever crosses the client.
 export async function POST(request: Request) {
+  const blocked = await guardUpload(request);
+  if (blocked) return blocked;
+
   const form = await request.formData();
   const file = form.get("file");
   if (!(file instanceof File) || file.size === 0) {

@@ -1,9 +1,13 @@
 import { NextResponse } from "next/server";
 import { extFromName, stashContext } from "@/lib/context";
+import { guardUpload } from "@/lib/upload-guard";
 
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
+  const blocked = await guardUpload(request);
+  if (blocked) return blocked;
+
   const form = await request.formData().catch(() => null);
   const file = form?.get("file");
   if (!(file instanceof File)) return NextResponse.json({ error: "file field required" }, { status: 400 });

@@ -10,6 +10,7 @@ import { transcriptions } from "@event-editor/core/schema";
 import { getDb } from "@/lib/db";
 import { startTranscription } from "@/lib/transcriber";
 import { linkStash } from "@/lib/context";
+import { guardUpload } from "@/lib/upload-guard";
 
 export const runtime = "nodejs";
 
@@ -38,6 +39,9 @@ function safeName(name: string): string {
 }
 
 export async function POST(request: Request) {
+  const blocked = await guardUpload(request);
+  if (blocked) return blocked;
+
   const raw = request.headers.get("x-filename") ?? new URL(request.url).searchParams.get("filename");
   if (!raw) return NextResponse.json({ error: "x-filename header required" }, { status: 400 });
   if (!request.body) return NextResponse.json({ error: "empty body" }, { status: 400 });

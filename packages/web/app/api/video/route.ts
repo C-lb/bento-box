@@ -4,6 +4,7 @@ import { resolve } from "node:path";
 import { newJobId, jobDir, cleanupJob, sweepOldJobs } from "@/lib/jobs";
 import { crfForPreset, videoOutName, type VideoPreset, type VideoScale } from "@event-editor/core/video";
 import { compressVideo } from "@/lib/video";
+import { guardUpload } from "@/lib/upload-guard";
 
 export const runtime = "nodejs";
 
@@ -11,6 +12,9 @@ const PRESETS: VideoPreset[] = ["smaller", "balanced", "quality"];
 const SCALES: VideoScale[] = ["keep", "1080", "720"];
 
 export async function POST(request: Request) {
+  const blocked = await guardUpload(request);
+  if (blocked) return blocked;
+
   const form = await request.formData();
   const file = form.get("file");
   if (!(file instanceof File) || file.size === 0) {
