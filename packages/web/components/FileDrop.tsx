@@ -10,29 +10,32 @@ export function FileDrop({
   inputRef,
   accept,
   onChange,
+  multiple = false,
   label = "Drop a file here, or click to browse",
 }: {
   inputRef: RefObject<HTMLInputElement | null>;
   accept: string;
   onChange?: (hasFile: boolean) => void;
+  multiple?: boolean;
   label?: string;
 }) {
   const [name, setName] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
 
   function sync() {
-    const f = inputRef.current?.files?.[0] ?? null;
-    setName(f ? f.name : null);
-    onChange?.(!!f);
+    const files = inputRef.current?.files;
+    const n = files?.length ?? 0;
+    setName(n === 0 ? null : n === 1 ? files![0].name : `${n} files`);
+    onChange?.(n > 0);
   }
 
   function onDrop(e: DragEvent) {
     e.preventDefault();
     setDragging(false);
-    const file = e.dataTransfer.files?.[0];
-    if (!file || !inputRef.current) return;
+    const dropped = e.dataTransfer.files;
+    if (!dropped || dropped.length === 0 || !inputRef.current) return;
     const dt = new DataTransfer();
-    dt.items.add(file);
+    for (const f of multiple ? Array.from(dropped) : [dropped[0]]) dt.items.add(f);
     inputRef.current.files = dt.files;
     sync();
   }

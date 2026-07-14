@@ -15,6 +15,7 @@ export function StudioClient() {
   const [folder, setFolder] = useState<PickedFolder | null>(null);
   const [images, setImages] = useState<DriveImg[]>([]);
   const [fileId, setFileId] = useState("");
+  const [pickedName, setPickedName] = useState("");
   const [uploadId, setUploadId] = useState<string | null>(null);
   const [uploadName, setUploadName] = useState("");
   const [uploadPreview, setUploadPreview] = useState<string | null>(null);
@@ -88,6 +89,54 @@ export function StudioClient() {
     }
   }
 
+  // Native Google Picker (same mechanism as the slicer): lets you pick an image
+  // from anywhere in Drive, including shared drives and search, not just a folder.
+  function loadGapiPicker(): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const w = window as any;
+      if (w.google?.picker) return resolve();
+      const onload = () => w.gapi.load("picker", { callback: () => resolve() });
+      const existing = document.getElementById("gapi-js") as HTMLScriptElement | null;
+      if (existing) { onload(); return; }
+      const s = document.createElement("script");
+      s.id = "gapi-js";
+      s.src = "https://apis.google.com/js/api.js";
+      s.onload = onload;
+      s.onerror = () => reject(new Error("Failed to load the Google Picker"));
+      document.body.appendChild(s);
+    });
+  }
+
+  async function chooseFromDrive() {
+    setErr(null);
+    try {
+      const r = await fetch("/api/drive/token");
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.error ?? "Could not open the Drive picker");
+      await loadGapiPicker();
+      const w = window as any;
+      const view = new w.google.picker.DocsView(w.google.picker.ViewId.DOCS_IMAGES)
+        .setIncludeFolders(true)
+        .setSelectFolderEnabled(false);
+      const builder = new w.google.picker.PickerBuilder()
+        .addView(view)
+        .setOAuthToken(data.access_token);
+      if (data.apiKey) builder.setDeveloperKey(data.apiKey);
+      if (data.appId) builder.setAppId(data.appId);
+      const picker = builder
+        .setCallback((res: any) => {
+          if (res.action === w.google.picker.Action.PICKED) {
+            const doc = res.docs?.[0];
+            if (doc) { setFileId(doc.id); setPickedName(doc.name ?? doc.id); }
+          }
+        })
+        .build();
+      picker.setVisible(true);
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : String(e));
+    }
+  }
+
   async function generate() {
     if (!hasSource) return;
     if (renderer === "canva" && !templateId) return;
@@ -118,6 +167,7 @@ export function StudioClient() {
     setFolder(null);
     setImages([]);
     setFileId("");
+    setPickedName("");
     setUploadId(null);
     setUploadName("");
     setUploadPreview((prev) => { if (prev) URL.revokeObjectURL(prev); return null; });
@@ -158,6 +208,12 @@ export function StudioClient() {
 
         {source === "drive" && connected !== false && (
           <>
+            <div className="mt-3 flex flex-col sm:flex-row sm:items-center gap-3">
+              <button type="button" className="btn min-h-[44px] sm:min-h-0 w-full sm:w-auto justify-center" onClick={chooseFromDrive}>
+                Choose from Google Drive
+              </button>
+              <span className="text-sm text-muted">or browse a folder</span>
+            </div>
             <div className="mt-3">
               <FolderPicker value={folder} onChange={setFolder} />
             </div>
@@ -166,7 +222,7 @@ export function StudioClient() {
                 {images.map((img) => (
                   <button
                     key={img.id}
-                    onClick={() => setFileId(img.id)}
+                    onClick={() => { setFileId(img.id); setPickedName(img.name); }}
                     className={`overflow-hidden rounded-lg border ${fileId === img.id ? "border-accent" : "border-line"}`}
                     title={img.name}
                   >
@@ -174,6 +230,18 @@ export function StudioClient() {
                     <img src={`/api/studio/drive-thumb/${img.id}`} alt={img.name} className="aspect-square w-full object-cover" />
                   </button>
                 ))}
+              </div>
+            )}
+            {fileId && (
+              <div className="mt-4 flex items-center gap-3">
+                <div className="h-20 w-20 overflow-hidden rounded-lg border border-line">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={`/api/studio/drive-thumb/${fileId}`} alt={pickedName || "selected"} className="h-full w-full object-cover" />
+                </div>
+                <div className="min-w-0">
+                  <p className="truncate text-sm text-ink" title={pickedName}>{pickedName || "Selected photo"}</p>
+                  <p className="text-sm text-success">Ready to use</p>
+                </div>
               </div>
             )}
           </>

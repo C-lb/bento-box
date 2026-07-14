@@ -2,10 +2,24 @@
 import { useRef, useState } from "react";
 import { Download, Loader2 } from "lucide-react";
 import { Segmented } from "@/components/Segmented";
+import { FileDrop } from "@/components/FileDrop";
+import { SnapSlider } from "@/components/SnapSlider";
 import { uploadWithProgress } from "@/lib/upload";
 
 type Status = "idle" | "busy" | "done" | "error";
 type Format = "keep" | "jpg" | "png" | "webp";
+
+// Standard aspect ratios. "free" leaves width and height independent; any other
+// choice links them, so keying in one dimension fills the other proportionally.
+const RATIOS: { id: string; label: string; w: number; h: number }[] = [
+  { id: "free", label: "Free", w: 0, h: 0 },
+  { id: "1:1", label: "1:1", w: 1, h: 1 },
+  { id: "4:3", label: "4:3", w: 4, h: 3 },
+  { id: "3:2", label: "3:2", w: 3, h: 2 },
+  { id: "16:9", label: "16:9", w: 16, h: 9 },
+  { id: "4:5", label: "4:5", w: 4, h: 5 },
+  { id: "9:16", label: "9:16", w: 9, h: 16 },
+];
 
 interface Row {
   key: string;
@@ -38,9 +52,29 @@ export function ResizeClient() {
 
   const [maxW, setMaxW] = useState("");
   const [maxH, setMaxH] = useState("");
+  const [ratio, setRatio] = useState("free");
   const [format, setFormat] = useState<Format>("keep");
   const [quality, setQuality] = useState(80);
   const [rows, setRows] = useState<Row[]>([]);
+
+  const activeRatio = RATIOS.find((r) => r.id === ratio);
+  const linked = !!activeRatio && activeRatio.w > 0;
+
+  // Editing one dimension fills the other from the locked ratio. Selecting a
+  // ratio while a width is already set recomputes the height to match.
+  function changeW(v: string) {
+    setMaxW(v);
+    if (linked && v) setMaxH(String(Math.round((Number(v) * activeRatio!.h) / activeRatio!.w)));
+  }
+  function changeH(v: string) {
+    setMaxH(v);
+    if (linked && v) setMaxW(String(Math.round((Number(v) * activeRatio!.w) / activeRatio!.h)));
+  }
+  function changeRatio(id: string) {
+    setRatio(id);
+    const r = RATIOS.find((x) => x.id === id);
+    if (r && r.w > 0 && maxW) setMaxH(String(Math.round((Number(maxW) * r.h) / r.w)));
+  }
 
   function onPickFiles() {
     const files = fileRef.current?.files;
@@ -104,17 +138,22 @@ export function ResizeClient() {
   return (
     <div className="mt-8 space-y-5">
       <div className="card">
-        <label className="block text-sm font-medium">Photos
-          <input
-            ref={fileRef}
-            type="file"
-            multiple
-            accept="image/*"
-            onChange={onPickFiles}
-            className="field mt-1 min-h-[44px] sm:min-h-0 file:mr-3 file:rounded-md file:border-0 file:bg-raised file:px-3 file:py-1 file:text-ink"
-          />
-        </label>
+        <p className="text-sm font-medium">Photos</p>
+        <div className="mt-1">
+          <FileDrop inputRef={fileRef} accept="image/*" multiple onChange={onPickFiles} label="Drop images here, or click to browse" />
+        </div>
         <p className="mt-1 text-sm text-muted">Pick one or more images to compress or resize.</p>
+
+        <div className="mt-4">
+          <p className="text-sm font-medium">Aspect ratio</p>
+          <div className="mt-1">
+            <Segmented
+              options={RATIOS.map((r) => ({ value: r.id, label: r.label }))}
+              value={ratio}
+              onChange={changeRatio}
+            />
+          </div>
+        </div>
 
         <div className="mt-4 flex flex-col sm:flex-row sm:flex-wrap sm:items-end gap-4">
           <label className="block text-sm font-medium">Max width
@@ -123,7 +162,7 @@ export function ResizeClient() {
               min={1}
               placeholder="no limit"
               value={maxW}
-              onChange={(e) => setMaxW(e.target.value)}
+              onChange={(e) => changeW(e.target.value)}
               className="field mt-1 w-full sm:w-32 min-h-[44px] sm:min-h-0"
             />
           </label>
@@ -133,11 +172,14 @@ export function ResizeClient() {
               min={1}
               placeholder="no limit"
               value={maxH}
-              onChange={(e) => setMaxH(e.target.value)}
+              onChange={(e) => changeH(e.target.value)}
               className="field mt-1 w-full sm:w-32 min-h-[44px] sm:min-h-0"
             />
           </label>
         </div>
+        {linked && (
+          <p className="mt-2 text-sm text-muted">Width and height are locked to {activeRatio!.label}. Change one and the other follows.</p>
+        )}
 
         <div className="mt-4">
           <p className="text-sm font-medium">Format</p>
@@ -156,16 +198,15 @@ export function ResizeClient() {
         </div>
 
         <div className="mt-4">
-          <label className="block text-sm font-medium">Quality: {quality}
-            <input
-              type="range"
-              min={1}
-              max={100}
-              value={quality}
-              onChange={(e) => setQuality(Number(e.target.value))}
-              className="mt-1 w-full"
-            />
-          </label>
+          <SnapSlider
+            label="Quality"
+            value={quality}
+            onChange={setQuality}
+            min={1}
+            max={100}
+            checkpoints={[25, 50, 75, 100]}
+            format={(v) => `${v}`}
+          />
         </div>
 
         <div className="mt-4 flex items-center gap-3">

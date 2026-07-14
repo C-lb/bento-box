@@ -13,12 +13,13 @@ afterEach(() => {
 });
 
 describe("GET /api/drive/token", () => {
-  it("400 when picker env is not configured", async () => {
+  it("works keyless: 200 with null config when connected but no picker env", async () => {
     delete process.env.GOOGLE_PICKER_API_KEY;
     delete process.env.GOOGLE_PICKER_APP_ID;
+    googleAccessToken.mockResolvedValue({ token: "ya29.x", expiresAt: 999 });
     const res = await GET();
-    expect(res.status).toBe(400);
-    expect(googleAccessToken).not.toHaveBeenCalled();
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ access_token: "ya29.x", expires_at: 999, apiKey: null, appId: null });
   });
 
   it("400 when Google is not connected", async () => {
