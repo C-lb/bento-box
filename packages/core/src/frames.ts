@@ -68,6 +68,11 @@ export interface HeadshotStyle {
   name?: LineStyle;
   title?: LineStyle;
   company?: LineStyle;
+  /** Extra px added between each text line (negative tightens). */
+  lineGap?: number;
+  /** Extra px between the photo and the first text line (shifts the whole
+   *  text block down; negative moves it up toward the photo). */
+  textOffsetY?: number;
   /** Pan, normalized -1..1 as a fraction of the available crop slack. */
   offsetX?: number;
   offsetY?: number;

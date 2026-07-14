@@ -73,6 +73,8 @@ export function sanitizeStyle(raw: unknown): HeadshotStyle | undefined {
   const company = sanitizeLine(s.company);
   const offsetX = clampNum(s.offsetX, -1, 1);
   const offsetY = clampNum(s.offsetY, -1, 1);
+  const lineGap = clampNum(s.lineGap, -40, 200);
+  const textOffsetY = clampNum(s.textOffsetY, -200, 400);
   const rim = sanitizeRim(s.rim);
 
   const style: HeadshotStyle = {
@@ -88,6 +90,8 @@ export function sanitizeStyle(raw: unknown): HeadshotStyle | undefined {
     ...(company ? { company } : {}),
     ...(offsetX != null && offsetX !== 0 ? { offsetX } : {}),
     ...(offsetY != null && offsetY !== 0 ? { offsetY } : {}),
+    ...(lineGap != null && lineGap !== 0 ? { lineGap } : {}),
+    ...(textOffsetY != null && textOffsetY !== 0 ? { textOffsetY } : {}),
     ...(rim ? { rim } : {}),
     ...(s.transparentBg ? { transparentBg: true } : {}),
   };
@@ -106,6 +110,8 @@ export function sanitizeStyle(raw: unknown): HeadshotStyle | undefined {
     company ||
     (offsetX != null && offsetX !== 0) ||
     (offsetY != null && offsetY !== 0) ||
+    (lineGap != null && lineGap !== 0) ||
+    (textOffsetY != null && textOffsetY !== 0) ||
     rim ||
     style.transparentBg;
   return meaningful ? style : undefined;

@@ -75,6 +75,13 @@ describe("sanitizeStyle", () => {
     expect(sanitizeStyle({ rim: { mode: "solid", color: "#000000" } })?.rim?.width).toBe(12);
   });
 
+  it("clamps lineGap and textOffsetY", () => {
+    expect(sanitizeStyle({ lineGap: 500 })).toMatchObject({ lineGap: 200 });
+    expect(sanitizeStyle({ lineGap: -100 })).toMatchObject({ lineGap: -40 });
+    expect(sanitizeStyle({ textOffsetY: 999 })).toMatchObject({ textOffsetY: 400 });
+    expect(sanitizeStyle({ lineGap: 0, textOffsetY: 0 })).toBeUndefined();
+  });
+
   it("keeps transparentBg", () => {
     expect(sanitizeStyle({ transparentBg: true })).toMatchObject({ transparentBg: true });
   });

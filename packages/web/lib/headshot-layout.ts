@@ -55,7 +55,9 @@ export function textLines(
   style: HeadshotStyle | undefined,
   texts: { name: string; title: string; company?: string },
 ): ResolvedLine[] {
-  const gap = frameGap(frame);
+  // lineGap adds to the frame's own inter-line gap; textOffsetY shifts the whole
+  // block down from the photo. Both default to 0 ⇒ unchanged layout.
+  const gap = frameGap(frame) + (style?.lineGap ?? 0);
   const uppercase = !!style?.uppercase;
   const cap = (s: string) => (uppercase ? s.toUpperCase() : s);
 
@@ -66,7 +68,7 @@ export function textLines(
   ];
 
   const out: ResolvedLine[] = [];
-  let yTop = frame.name.y;
+  let yTop = frame.name.y + (style?.textOffsetY ?? 0);
   let first = true;
   for (const { key, text } of order) {
     const base = baseLine(frame, key);

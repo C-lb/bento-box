@@ -46,6 +46,8 @@ export function StudioClient() {
   const [zoom, setZoom] = useState(1);
   const [offsetX, setOffsetX] = useState(0);
   const [offsetY, setOffsetY] = useState(0);
+  const [lineGap, setLineGap] = useState(0);
+  const [textOffsetY, setTextOffsetY] = useState(0);
   const [transparentBg, setTransparentBg] = useState(false);
   const [lines, setLines] = useState<Record<LineKey, LineStyle>>({ name: {}, title: {}, company: {} });
   const [rim, setRim] = useState<RimState>(RIM_DEFAULT);
@@ -130,6 +132,8 @@ export function StudioClient() {
       ...(zoom !== 1 ? { zoom } : {}),
       ...(offsetX ? { offsetX } : {}),
       ...(offsetY ? { offsetY } : {}),
+      ...(lineGap ? { lineGap } : {}),
+      ...(textOffsetY ? { textOffsetY } : {}),
       ...(transparentBg ? { transparentBg: true } : {}),
       ...(companyText.trim() ? { companyText: companyText.trim() } : {}),
     };
@@ -139,7 +143,7 @@ export function StudioClient() {
     if (rim.mode === "gradient") s.rim = { mode: "gradient", width: rim.width, from: rim.from, to: rim.to, angle: rim.angle };
     else if (rim.mode === "solid") s.rim = { mode: "solid", width: rim.width, color: rim.color };
     return s;
-  }, [uppercase, textColor, fontId, zoom, offsetX, offsetY, transparentBg, companyText, lines, rim]);
+  }, [uppercase, textColor, fontId, zoom, offsetX, offsetY, lineGap, textOffsetY, transparentBg, companyText, lines, rim]);
 
   const photoUrl =
     source === "upload" ? uploadPreview : fileId ? `/api/studio/drive-thumb/${fileId}` : null;
@@ -257,6 +261,8 @@ export function StudioClient() {
     setZoom(1);
     setOffsetX(0);
     setOffsetY(0);
+    setLineGap(0);
+    setTextOffsetY(0);
     setTransparentBg(false);
     setLines({ name: {}, title: {}, company: {} });
     setRim(RIM_DEFAULT);
@@ -471,6 +477,23 @@ export function StudioClient() {
                   );
                 })}
                 <p className="text-sm text-muted">Size and spacing are in pixels. Leave blank for the frame default.</p>
+              </div>
+
+              {/* Text spacing */}
+              <div className="flex flex-col gap-3">
+                <span className="text-sm text-muted">Text spacing</span>
+                <label className="flex items-center justify-between text-sm text-muted">
+                  <span>Photo to name</span><span className="text-ink">{textOffsetY > 0 ? "+" : ""}{textOffsetY}px</span>
+                </label>
+                <input type="range" min={-80} max={240} step={2} value={textOffsetY}
+                  onChange={(e) => setTextOffsetY(Number(e.target.value))}
+                  className="w-full accent-[var(--accent)]" aria-label="Space between photo and name" />
+                <label className="flex items-center justify-between text-sm text-muted">
+                  <span>Between lines</span><span className="text-ink">{lineGap > 0 ? "+" : ""}{lineGap}px</span>
+                </label>
+                <input type="range" min={-24} max={120} step={2} value={lineGap}
+                  onChange={(e) => setLineGap(Number(e.target.value))}
+                  className="w-full accent-[var(--accent)]" aria-label="Space between text lines" />
               </div>
 
               {/* Colour + uppercase */}

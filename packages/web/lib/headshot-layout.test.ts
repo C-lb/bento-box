@@ -29,6 +29,18 @@ describe("textLines", () => {
     expect(lines[2].anchor).toBe(circle.title.anchor);
   });
 
+  it("lineGap widens the space between every line", () => {
+    const lines = textLines(circle, { lineGap: 10 }, { name: "D", title: "C", company: "S" });
+    expect(lines[1].yTop).toBe(circle.title.y + 10); // title pushed down by one extra gap
+    expect(lines[2].yTop).toBe(circle.title.y + circle.title.size + (circle.title.y - circle.name.y - circle.name.size) + 20);
+  });
+
+  it("textOffsetY shifts the whole block down from the photo", () => {
+    const lines = textLines(circle, { textOffsetY: 30 }, { name: "D", title: "C" });
+    expect(lines[0].yTop).toBe(circle.name.y + 30);
+    expect(lines[1].yTop).toBe(circle.title.y + 30);
+  });
+
   it("growing name size pushes lines below it down", () => {
     const style: HeadshotStyle = { name: { size: circle.name.size + 20 } };
     const lines = textLines(circle, style, { name: "D", title: "C" });
