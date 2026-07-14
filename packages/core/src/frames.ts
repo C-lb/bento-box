@@ -21,16 +21,60 @@ export interface FrameSpec {
   title: TextLine;
 }
 
+/** Per-line text overrides. Any absent field falls back to the card-level
+ *  style, then to the frame's own default for that line. */
+export interface LineStyle {
+  bold?: boolean;
+  italic?: boolean;
+  /** Cap height in px on the frame's own canvas; absent keeps the frame default. */
+  size?: number;
+  /** Letter-spacing in px; 0 (default) preserves kerning. */
+  tracking?: number;
+}
+
+/** Circle-frame rim. Absent ⇒ no rim. */
+export interface RimSpec {
+  mode: "solid" | "gradient";
+  /** Ring thickness in px on the frame canvas, clamped [2, 80]. */
+  width: number;
+  /** Solid mode colour, #rrggbb. */
+  color?: string;
+  /** Gradient stop 1, #rrggbb. */
+  from?: string;
+  /** Gradient stop 2, #rrggbb. */
+  to?: string;
+  /** Gradient direction in degrees, 0–360. */
+  angle?: number;
+}
+
 /** Per-headshot caption + crop options chosen at generate time. All optional;
- *  an absent field keeps the frame's own default. */
+ *  an absent field keeps the frame's own default. The legacy top-level
+ *  bold/italic/uppercase/color/zoom fields act as the card-level baseline; a
+ *  matching per-line field overrides it. Old persisted cards that only set the
+ *  legacy fields render exactly as before. */
 export interface HeadshotStyle {
   bold?: boolean;
   italic?: boolean;
   uppercase?: boolean;
-  /** Overrides both name and title colour when set. */
+  /** Overrides every line's colour when set. */
   color?: string | null;
   /** Head crop scale, 1 = frame default, up to 3 = tighter on the face. */
   zoom?: number;
+
+  /** Designer-font registry id applied to the whole card, e.g. "inter". */
+  fontId?: string;
+  /** Optional third line; empty/absent ⇒ not drawn. */
+  companyText?: string;
+  name?: LineStyle;
+  title?: LineStyle;
+  company?: LineStyle;
+  /** Pan, normalized -1..1 as a fraction of the available crop slack. */
+  offsetX?: number;
+  offsetY?: number;
+  /** Circle-frame rim. */
+  rim?: RimSpec;
+  /** Export with a transparent background instead of the frame fill. */
+  transparentBg?: boolean;
 }
 
 const ACCENT = "#2563eb";
