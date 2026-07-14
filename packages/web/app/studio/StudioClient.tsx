@@ -7,6 +7,8 @@ import { usePollWhileVisible } from "@/lib/use-visible-poll";
 import { FolderPicker, type PickedFolder } from "@/components/FolderPicker";
 import { DESIGNER_FONTS } from "@/lib/designer-fonts";
 import { PreviewCanvas } from "./PreviewCanvas";
+import { PresetBar } from "./PresetBar";
+import type { HeadshotPreset } from "@/lib/headshot-presets";
 
 // The card font dropdown offers each family's base (regular) id; bold is a
 // per-line toggle that maps to the family's -bold face server-side.
@@ -51,6 +53,7 @@ export function StudioClient() {
   const [transparentBg, setTransparentBg] = useState(false);
   const [lines, setLines] = useState<Record<LineKey, LineStyle>>({ name: {}, title: {}, company: {} });
   const [rim, setRim] = useState<RimState>(RIM_DEFAULT);
+  const [activePresetId, setActivePresetId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [hsId, setHsId] = useState<number | null>(null);
   const [hs, setHs] = useState<Headshot | null>(null);
@@ -149,6 +152,30 @@ export function StudioClient() {
     source === "upload" ? uploadPreview : fileId ? `/api/studio/drive-thumb/${fileId}` : null;
   const activeFrame = getFrame(frameId);
   const isCircle = activeFrame?.photo.shape === "circle";
+
+  // Load a saved preset into the controls. Leaves the photo, name/title, and
+  // zoom/pan alone (those are per-person); applies company text only if the
+  // preset baked it in.
+  function applyPreset(p: HeadshotPreset) {
+    const s = p.style;
+    setFrameId(p.frameId);
+    setUppercase(!!s.uppercase);
+    setTextColor(s.color ?? "");
+    setFontId(s.fontId ?? "");
+    setLines({ name: s.name ?? {}, title: s.title ?? {}, company: s.company ?? {} });
+    setLineGap(s.lineGap ?? 0);
+    setTextOffsetY(s.textOffsetY ?? 0);
+    setTransparentBg(!!s.transparentBg);
+    if (s.rim?.mode === "gradient") {
+      setRim({ mode: "gradient", width: s.rim.width, color: RIM_DEFAULT.color, from: s.rim.from ?? RIM_DEFAULT.from, to: s.rim.to ?? RIM_DEFAULT.to, angle: s.rim.angle ?? RIM_DEFAULT.angle });
+    } else if (s.rim?.mode === "solid") {
+      setRim({ ...RIM_DEFAULT, mode: "solid", width: s.rim.width, color: s.rim.color ?? RIM_DEFAULT.color });
+    } else {
+      setRim(RIM_DEFAULT);
+    }
+    if (p.includeCompany && s.companyText) setCompanyText(s.companyText);
+    setActivePresetId(p.id);
+  }
 
   async function onPickFile(file: File) {
     setUploading(true);
@@ -266,6 +293,7 @@ export function StudioClient() {
     setTransparentBg(false);
     setLines({ name: {}, title: {}, company: {} });
     setRim(RIM_DEFAULT);
+    setActivePresetId(null);
     setTemplateId("");
     setHsId(null);
     setHs(null);
@@ -432,6 +460,8 @@ export function StudioClient() {
           <div className="mt-3 grid gap-6 lg:grid-cols-2">
             {/* Controls */}
             <div className="flex flex-col gap-5">
+              <PresetBar frameId={frameId} style={style} manage activeId={activePresetId} onApply={applyPreset} />
+
               <div className="flex flex-col gap-3">
                 <input className="field min-h-[44px] sm:min-h-0" placeholder="Name"
                   value={nameText} onChange={(e) => setNameText(e.target.value)} />

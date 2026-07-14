@@ -1,11 +1,13 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { FRAME_LIST } from "@event-editor/core/frames";
+import { FRAME_LIST, type HeadshotStyle } from "@event-editor/core/frames";
 import { detectColumns } from "@event-editor/core/columns";
 import { StatusBadge } from "@/components/StatusBadge";
 import { headshotStatusView } from "@/lib/status";
 import { usePollWhileVisible } from "@/lib/use-visible-poll";
 import { FolderPicker, type PickedFolder } from "@/components/FolderPicker";
+import { PresetBar } from "../PresetBar";
+import type { HeadshotPreset } from "@/lib/headshot-presets";
 
 type MatchStatus = "matched" | "ambiguous" | "unmatched";
 interface RowMatch { status: MatchStatus; driveFileId?: string; candidates?: string[]; }
@@ -72,6 +74,8 @@ export function StudioBatchClient() {
   const [canvaConnected, setCanvaConnected] = useState<boolean | null>(null);
   const [templates, setTemplates] = useState<{ id: string; title: string }[]>([]);
   const [styleId, setStyleId] = useState<string>(FRAME_LIST[0]?.id ?? "");
+  const [presetStyle, setPresetStyle] = useState<HeadshotStyle | null>(null);
+  const [activePresetId, setActivePresetId] = useState<string | null>(null);
 
   // Folder
   const [folder, setFolder] = useState<PickedFolder | null>(null);
@@ -108,11 +112,25 @@ export function StudioBatchClient() {
     }).catch(() => setCanvaConnected(false));
   }, [renderer, canvaConnected]);
 
-  // Reset styleId when renderer changes
+  // Reset styleId (and any applied preset) when renderer changes
   useEffect(() => {
     if (renderer === "local") setStyleId(FRAME_LIST[0]?.id ?? "");
     else setStyleId("");
+    setPresetStyle(null);
+    setActivePresetId(null);
   }, [renderer]);
+
+  function applyBatchPreset(p: HeadshotPreset) {
+    setStyleId(p.frameId);
+    setPresetStyle(p.style);
+    setActivePresetId(p.id);
+  }
+
+  function pickFrame(id: string) {
+    setStyleId(id);
+    setPresetStyle(null);
+    setActivePresetId(null);
+  }
 
   // Keep select-all indeterminate state in sync
   useEffect(() => {
@@ -235,7 +253,7 @@ export function StudioBatchClient() {
       const r = await fetch("/api/studio/batch", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ renderer, styleId, rows: submitRows }),
+        body: JSON.stringify({ renderer, styleId, rows: submitRows, ...(presetStyle ? { style: presetStyle } : {}) }),
       });
       const d = await r.json();
       if (!r.ok) throw new Error(d.error ?? "failed to start batch");
@@ -463,17 +481,23 @@ export function StudioBatchClient() {
         </div>
 
         {renderer === "local" && (
-          <div className="mt-4 flex flex-wrap gap-3">
-            {FRAME_LIST.map((f) => (
-              <button
-                key={f.id}
-                type="button"
-                onClick={() => setStyleId(f.id)}
-                className={`btn min-h-[44px] sm:min-h-0 ${styleId === f.id ? "btn-accent" : ""}`}
-              >
-                {f.label}
-              </button>
-            ))}
+          <div className="mt-4 flex flex-col gap-5">
+            <div className="flex flex-wrap gap-3">
+              {FRAME_LIST.map((f) => (
+                <button
+                  key={f.id}
+                  type="button"
+                  onClick={() => pickFrame(f.id)}
+                  className={`btn min-h-[44px] sm:min-h-0 ${styleId === f.id && !activePresetId ? "btn-accent" : ""}`}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
+            <PresetBar frameId={styleId} style={presetStyle ?? {}} manage={false} activeId={activePresetId} onApply={applyBatchPreset} />
+            {activePresetId && (
+              <p className="text-sm text-muted">Preset applied to every generated card. Pick a frame above to clear it.</p>
+            )}
           </div>
         )}
 

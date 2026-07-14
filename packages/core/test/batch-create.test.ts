@@ -43,4 +43,28 @@ describe("createBatchHeadshots", () => {
     expect(r.status).toBe("rendering");
     expect(r.batchId).toBe("b2");
   });
+
+  it("threads a preset style onto every local row", () => {
+    const db = freshDb();
+    const style = { fontId: "inter", name: { bold: true }, rim: { mode: "gradient" as const, width: 18, from: "#ec4899", to: "#7c3aed", angle: 45 } };
+    const ids = createBatchHeadshots(db, {
+      batchId: "b3", renderer: "local", styleId: "circle", style,
+      rows: [
+        { driveFileId: "f4", nameText: "Ada", titleText: "CTO" },
+        { driveFileId: "f5", nameText: "Grace", titleText: "Adm" },
+      ],
+    });
+    const rows = db.select().from(headshots).all();
+    expect(rows).toHaveLength(2);
+    for (const r of rows) {
+      expect(JSON.parse(r.styleJson!)).toMatchObject(style);
+    }
+    // Canva ignores style: no styleJson written.
+    const cdb = freshDb();
+    const cids = createBatchHeadshots(cdb, {
+      batchId: "b4", renderer: "canva", styleId: "tmpl", style,
+      rows: [{ driveFileId: "f6", nameText: "X", titleText: "Y" }],
+    });
+    expect(cdb.select().from(headshots).where(eq(headshots.id, cids[0])).all()[0].styleJson).toBeNull();
+  });
 });

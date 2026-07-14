@@ -171,6 +171,8 @@ export function createBatchHeadshots(
     renderer: "local" | "canva";
     styleId: string;
     rows: { driveFileId: string; nameText: string; titleText: string }[];
+    /** Local renderer only: a preset's look applied to every row (Canva ignores it). */
+    style?: HeadshotStyle;
   },
 ): number[] {
   return args.rows.map((row) =>
@@ -187,6 +189,7 @@ export function createBatchHeadshots(
           frameId: args.styleId,
           nameText: row.nameText,
           titleText: row.titleText,
+          style: args.style,
           batchId: args.batchId,
         }),
   );

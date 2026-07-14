@@ -6,6 +6,7 @@ import { makeDriveClient } from "@/lib/google/drive";
 import { createBatchHeadshots } from "@event-editor/core/headshot";
 import { getFrame } from "@event-editor/core/frames";
 import { runBatch } from "@/lib/batch";
+import { sanitizeStyle } from "@/lib/headshot-style-sanitize";
 
 export const runtime = "nodejs";
 
@@ -29,8 +30,11 @@ export async function POST(request: Request) {
   const drive = await authedDriveClient(db);
   if (!drive) return NextResponse.json({ error: "not_connected" }, { status: 401 });
 
+  // A preset's look applies to every local-rendered row; Canva ignores it.
+  const style = renderer === "local" ? sanitizeStyle(body?.style) : undefined;
+
   const batchId = randomBytes(8).toString("hex");
-  const ids = createBatchHeadshots(db, { batchId, renderer, styleId, rows: clean });
+  const ids = createBatchHeadshots(db, { batchId, renderer, styleId, rows: clean, style });
   runBatch(db, makeDriveClient(drive), renderer, ids);
   return NextResponse.json({ batchId, ids });
 }
