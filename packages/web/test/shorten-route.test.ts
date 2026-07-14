@@ -124,28 +124,39 @@ describe("POST /api/shorten", () => {
     expect(body.error).toBeTruthy();
   });
 
-  it("returns 502 with the unavailable message when the upstream fetch throws", async () => {
-    vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("network down"));
+  it("returns 502 with a network-blocked message when the upstream fetch throws", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("network down"));
     const res = await POST(req({ url: "https://example.com" }));
     expect(res.status).toBe(502);
     const body = await res.json();
-    expect(body.error).toBe(UNAVAILABLE);
+    expect(body.error).toMatch(/could not reach/i);
+    // Falls back to the sibling service before giving up.
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
-  it("returns 502 with the unavailable message on a non-JSON upstream response", async () => {
+  it("returns 502 with a network-blocked message on a non-JSON upstream response", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("<html>maintenance</html>", { status: 200 }));
     const res = await POST(req({ url: "https://example.com" }));
     expect(res.status).toBe(502);
     const body = await res.json();
-    expect(body.error).toBe(UNAVAILABLE);
+    expect(body.error).toMatch(/could not reach/i);
   });
 
-  it("returns 502 with the unavailable message when a 200 response has no shorturl", async () => {
+  it("returns 502 with a network-blocked message when a 200 response has no shorturl", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({}), { status: 200 }));
     const res = await POST(req({ url: "https://example.com" }));
     expect(res.status).toBe(502);
     const body = await res.json();
-    expect(body.error).toBe(UNAVAILABLE);
+    expect(body.error).toMatch(/could not reach/i);
+  });
+
+  it("does not fall back on a real service error (e.g. bad url)", async () => {
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(new Response(JSON.stringify({ errorcode: 1 }), { status: 200 }));
+    const res = await POST(req({ url: "https://example.com" }));
+    expect(res.status).toBe(400);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
   it("returns 400 on invalid body (missing url)", async () => {
