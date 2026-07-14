@@ -26,7 +26,18 @@ export const PRESET_LABELS: Record<PresetKey, string> = {
 };
 
 // Fallback when neither the source .env nor the process env sets EE_UNLOCK_CODE.
-export const DEFAULT_UNLOCK_CODE = "bento";
+export const DEFAULT_UNLOCK_CODE = "bentocaleb";
+
+// User-added codes live here as a comma-separated list, and every one of them
+// unlocks the same preset keys as the primary code.
+export const EXTRA_CODES_KEY = "EE_UNLOCK_CODES";
+
+export function parseExtraCodes(raw: string | undefined | null): string[] {
+  return (raw ?? "")
+    .split(",")
+    .map((c) => c.trim())
+    .filter((c) => c.length > 0);
+}
 
 // Where preset keys are read from. Packaged builds can point EE_PRESET_ENV at a
 // bundled env file; in dev the repo-root .env already holds the real keys
@@ -35,20 +46,23 @@ export function presetSourcePath(): string {
   return process.env.EE_PRESET_ENV ?? path.resolve(process.cwd(), "..", "..", ".env");
 }
 
-export type Preset = { code: string; keys: Partial<Record<PresetKey, string>> };
+export type Preset = { code: string; codes: string[]; keys: Partial<Record<PresetKey, string>> };
 
 // Pure resolution so it can be tested without touching the filesystem: the
-// expected code comes from the process env, then the source file, then the
-// default; key values prefer the source file over the process env.
+// primary code comes from the process env, then the source file, then the
+// default; `codes` adds any user-saved EE_UNLOCK_CODES, all of which unlock the
+// same keys. Key values prefer the source file over the process env.
 export function resolvePreset(
   fileValues: Record<string, string>,
   env: Record<string, string | undefined>,
 ): Preset {
   const code = env.EE_UNLOCK_CODE?.trim() || fileValues.EE_UNLOCK_CODE || DEFAULT_UNLOCK_CODE;
+  const extras = parseExtraCodes(env[EXTRA_CODES_KEY] ?? fileValues[EXTRA_CODES_KEY]);
+  const codes = [...new Set([code, ...extras])];
   const keys: Partial<Record<PresetKey, string>> = {};
   for (const k of PRESET_KEYS) {
     const v = fileValues[k] ?? env[k]?.trim();
     if (v) keys[k] = v;
   }
-  return { code, keys };
+  return { code, codes, keys };
 }

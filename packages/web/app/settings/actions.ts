@@ -1,9 +1,9 @@
 "use server";
 
 import { createHash, timingSafeEqual } from "node:crypto";
-import { upsertEnvKeys, readEnvValues, ENV_KEYS, type EnvKey } from "@event-editor/core/settings";
+import { upsertEnvKeys, upsertRawEnvKeys, readEnvValues, ENV_KEYS, type EnvKey } from "@event-editor/core/settings";
 import { envFilePath } from "./env-path";
-import { PRESET_KEYS, PRESET_LABELS, presetSourcePath, resolvePreset } from "./preset";
+import { PRESET_KEYS, PRESET_LABELS, presetSourcePath, resolvePreset, parseExtraCodes, EXTRA_CODES_KEY } from "./preset";
 
 export type SaveState = { ok: boolean; message: string } | null;
 
@@ -37,9 +37,13 @@ export async function applyUnlockCode(_prev: SaveState, formData: FormData): Pro
     return { ok: false, message: "Enter a code first." };
   }
   try {
-    const fileValues = readEnvValues(presetSourcePath(), ["EE_UNLOCK_CODE", ...PRESET_KEYS]);
-    const preset = resolvePreset(fileValues, process.env);
-    if (!codesMatch(given.trim(), preset.code)) {
+    // Accepted codes come from the preset source AND any the user saved into
+    // their own env file, so a saved code keeps working across installs.
+    const presetFile = readEnvValues(presetSourcePath(), ["EE_UNLOCK_CODE", EXTRA_CODES_KEY, ...PRESET_KEYS]);
+    const userExtras = readEnvValues(envFilePath(), [EXTRA_CODES_KEY]);
+    const preset = resolvePreset(presetFile, process.env);
+    const accepted = [...new Set([...preset.codes, ...parseExtraCodes(userExtras[EXTRA_CODES_KEY])])];
+    if (!accepted.some((c) => codesMatch(given.trim(), c))) {
       return { ok: false, message: "That code didn't match." };
     }
     const found = PRESET_KEYS.filter((k) => preset.keys[k]);
@@ -52,5 +56,30 @@ export async function applyUnlockCode(_prev: SaveState, formData: FormData): Pro
     return { ok: true, message: `Filled in the ${list} key${found.length > 1 ? "s" : ""}. Restart the app to apply.` };
   } catch (e) {
     return { ok: false, message: e instanceof Error ? e.message : "Could not fill in the keys." };
+  }
+}
+
+// Save a new setup code into the user's env file so it is accepted from now on
+// (alongside the built-in code). Codes are stored comma-separated under
+// EE_UNLOCK_CODES; adding one that is already present is a no-op.
+export async function addSetupCode(_prev: SaveState, formData: FormData): Promise<SaveState> {
+  const given = formData.get("newCode");
+  if (typeof given !== "string" || given.trim() === "") {
+    return { ok: false, message: "Enter a setup code to save." };
+  }
+  const code = given.trim();
+  if (code.includes(",")) {
+    return { ok: false, message: "Setup codes can't contain a comma." };
+  }
+  try {
+    const existing = parseExtraCodes(readEnvValues(envFilePath(), [EXTRA_CODES_KEY])[EXTRA_CODES_KEY]);
+    if (existing.includes(code)) {
+      return { ok: true, message: "That setup code is already saved." };
+    }
+    const next = [...existing, code];
+    upsertRawEnvKeys(envFilePath(), { [EXTRA_CODES_KEY]: next.join(",") });
+    return { ok: true, message: `Saved. ${next.length} setup code${next.length > 1 ? "s" : ""} now unlock the keys.` };
+  } catch (e) {
+    return { ok: false, message: e instanceof Error ? e.message : "Could not save the setup code." };
   }
 }

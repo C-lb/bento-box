@@ -40,11 +40,12 @@ async function SettingsBody({ searchParams }: { searchParams: Promise<{ google?:
   const deps = await dependencyStatuses();
 
   const byId = Object.fromEntries(connections.map((c) => [c.id, c.configured]));
+  // Canva is a secondary connection; it lives in the list below, not the top
+  // status pills, which stay focused on the three core services.
   const pills = [
     { id: "groq", label: "Groq", ready: !!byId["groq"] },
     { id: "anthropic", label: "Claude", ready: !!byId["anthropic"] },
     { id: "google", label: "Google", ready: !!byId["google"] && googleToken !== null },
-    { id: "canva", label: "Canva", ready: canvaConfigured && canvaToken !== null },
   ];
 
   return (

@@ -80,13 +80,20 @@ export function readEnvValues(file: string, keys: readonly string[]): Record<str
 // Keys outside ENV_KEYS are ignored. Used by the packaged app's settings form,
 // which writes the per-user .env that main.js loads at launch.
 export function upsertEnvKeys(file: string, updates: Partial<Record<EnvKey, string | undefined>>): void {
-  const clean: Partial<Record<EnvKey, string>> = {};
+  const clean: Record<string, string> = {};
   for (const key of ENV_KEYS) {
     const raw = updates[key];
     if (typeof raw !== "string") continue;
     const v = raw.trim();
     if (v !== "") clean[key] = v;
   }
+  upsertRawEnvKeys(file, clean);
+}
+
+// Merge arbitrary key/value pairs into the dotenv file, preserving comments and
+// unrelated lines. Unlike upsertEnvKeys this is NOT limited to ENV_KEYS, so it
+// can persist config such as EE_UNLOCK_CODES that the user manages by hand.
+export function upsertRawEnvKeys(file: string, clean: Record<string, string>): void {
   if (Object.keys(clean).length === 0) return;
 
   // readFileSync/writeFileSync via a local require so this stays a pure module
@@ -95,14 +102,14 @@ export function upsertEnvKeys(file: string, updates: Partial<Record<EnvKey, stri
 
   const existing = existsSync(file) ? readFileSync(file, "utf8") : "";
   const lines = existing === "" ? [] : existing.split("\n");
-  const remaining = new Set(Object.keys(clean) as EnvKey[]);
+  const remaining = new Set(Object.keys(clean));
 
   const next = lines.map((line) => {
     const t = line.trim();
     if (!t || t.startsWith("#")) return line;
     const eq = t.indexOf("=");
     if (eq === -1) return line;
-    const k = t.slice(0, eq).trim() as EnvKey;
+    const k = t.slice(0, eq).trim();
     if (remaining.has(k)) {
       remaining.delete(k);
       return `${k}=${clean[k]}`;

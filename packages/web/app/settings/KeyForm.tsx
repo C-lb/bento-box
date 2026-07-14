@@ -1,6 +1,8 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useEffect, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import { RefreshCw } from "lucide-react";
 import { saveKeys, type SaveState } from "./actions";
 import { KEY_GUIDES } from "./key-guides";
 
@@ -40,14 +42,28 @@ const GROUPS: { title: string; fields: Field[] }[] = [
 export function KeyForm({ masked, configPath }: { masked: Record<string, string>; configPath: string }) {
   const [state, formAction, pending] = useActionState<SaveState, FormData>(saveKeys, null);
   const [canRelaunch, setCanRelaunch] = useState(false);
+  const [refreshing, startRefresh] = useTransition();
+  const router = useRouter();
   useEffect(() => setCanRelaunch(!!window.ee?.relaunch), []);
 
   return (
     <form action={formAction} className="card mt-4">
-      <p className="text-sm text-muted">
-        Keys are stored on this computer at <code className="text-ink">{configPath}</code>. They take effect after the app
-        restarts. Leave a field blank to keep its current value.
-      </p>
+      <div className="flex items-start justify-between gap-3">
+        <p className="text-sm text-muted">
+          Keys are stored on this computer at <code className="text-ink">{configPath}</code>. They take effect after the app
+          restarts. Leave a field blank to keep its current value.
+        </p>
+        <button
+          type="button"
+          onClick={() => startRefresh(() => router.refresh())}
+          disabled={refreshing}
+          className="btn shrink-0 inline-flex items-center gap-2"
+          title="Re-read the saved keys from disk"
+        >
+          <RefreshCw className={`w-4 h-4 ${refreshing ? "animate-spin" : ""}`} strokeWidth={1.75} />
+          {refreshing ? "Checking" : "Refresh"}
+        </button>
+      </div>
 
       <div className="mt-5 space-y-6">
         {GROUPS.map((g) => (
