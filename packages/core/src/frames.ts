@@ -85,6 +85,16 @@ export interface HeadshotStyle {
 const ACCENT = "#2563eb";
 
 export const FRAMES: Record<string, FrameSpec> = {
+  // Circle is the default and leads the picker (FRAME_LIST order follows this).
+  circle: {
+    id: "circle",
+    label: "Circle",
+    canvas: 1080,
+    bg: "#f5f5f4",
+    photo: { x: 230, y: 120, w: 620, h: 620, shape: "circle" },
+    name: { x: 540, y: 832, size: 52, color: "#18181b", anchor: "center" },
+    title: { x: 540, y: 904, size: 30, color: "#71717a", anchor: "center" },
+  },
   "clean-band": {
     id: "clean-band",
     label: "Clean band",
@@ -95,15 +105,6 @@ export const FRAMES: Record<string, FrameSpec> = {
     accent: { x: 0, y: 839, w: 1080, h: 3, fill: ACCENT },
     name: { x: 64, y: 902, size: 52, color: "#ffffff", anchor: "left" },
     title: { x: 64, y: 974, size: 30, color: "#a1a1aa", anchor: "left" },
-  },
-  circle: {
-    id: "circle",
-    label: "Circle",
-    canvas: 1080,
-    bg: "#f5f5f4",
-    photo: { x: 230, y: 120, w: 620, h: 620, shape: "circle" },
-    name: { x: 540, y: 832, size: 52, color: "#18181b", anchor: "center" },
-    title: { x: 540, y: 904, size: 30, color: "#71717a", anchor: "center" },
   },
   "minimal-corner": {
     id: "minimal-corner",
