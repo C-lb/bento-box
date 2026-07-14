@@ -1,10 +1,13 @@
 import { NextResponse } from "next/server";
 import {
   buildCreateUrl,
-  mapServiceError,
-  SERVICE_UNAVAILABLE,
+  buildTinyurlUrl,
+  classifyCreatePhp,
+  classifyTinyurl,
+  MSG,
   validateCustomName,
   validateLongUrl,
+  type ProviderOutcome,
   type ShortenService,
 } from "@/lib/shorten";
 
@@ -31,58 +34,62 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unsupported shortening service." }, { status: 400 });
   }
   const url = (body.url ?? "").trim();
+  const custom = body.custom;
 
-  // Try the chosen service, then fall back to the sibling (same API) once, so a
-  // transient blip on one still resolves. A `blocked` outcome means the request
-  // never reached the service (offline, or a network that filters shorteners) —
-  // that is distinct from the service answering with an error code.
-  type Outcome =
-    | { ok: true; shorturl: string }
-    | { ok: false; error: string; status: number; blocked: boolean };
-
-  async function attempt(svc: ShortenService): Promise<Outcome> {
-    let res: Response;
+  // Read a URL as text, or null if the request never got an HTTP response — the
+  // one genuine "network" signal (DNS failure, offline, timeout, a filter). A
+  // plain User-Agent + JSON Accept keeps Cloudflare from serving a challenge page
+  // to Node's header-less default fetch.
+  async function fetchText(target: string): Promise<string | null> {
     try {
-      // is.gd/v.gd sit behind Cloudflare, which can challenge header-less
-      // requests (Node's fetch sends no User-Agent by default) — that surfaces
-      // as a non-JSON block page and looks like a network block. Send a plain
-      // UA and JSON Accept so we get the real API response.
-      res = await fetch(buildCreateUrl(svc, url, body.custom), {
+      const res = await fetch(target, {
         signal: AbortSignal.timeout(10_000),
         headers: { "User-Agent": "event-editor/shortener", Accept: "application/json" },
       });
+      return await res.text();
     } catch {
-      // Never reached the host: DNS failure, timeout, offline, or a filter.
-      return { ok: false, error: SERVICE_UNAVAILABLE, status: 502, blocked: true };
+      return null;
     }
-    let data: { shorturl?: string; errorcode?: number };
-    try {
-      data = await res.json();
-    } catch {
-      // Reached something, but not the JSON API (e.g. a block page or 5xx html).
-      return { ok: false, error: SERVICE_UNAVAILABLE, status: 502, blocked: true };
-    }
-    if (data.errorcode !== undefined) {
-      return { ok: false, error: mapServiceError(data.errorcode), status: 400, blocked: false };
-    }
-    if (!data.shorturl) return { ok: false, error: SERVICE_UNAVAILABLE, status: 502, blocked: true };
-    return { ok: true, shorturl: data.shorturl };
   }
 
-  const order = [service as ShortenService, ...ALLOWED_SERVICES.filter((s) => s !== service)];
-  let last: Outcome | null = null;
-  for (const svc of order) {
-    const out = await attempt(svc);
+  async function attemptCreatePhp(svc: ShortenService): Promise<ProviderOutcome> {
+    const raw = await fetchText(buildCreateUrl(svc, url, custom));
+    if (raw === null) return { ok: false, kind: "unreachable", error: MSG.unreachableAll };
+    return classifyCreatePhp(raw);
+  }
+
+  async function attemptTinyurl(): Promise<ProviderOutcome> {
+    const raw = await fetchText(buildTinyurlUrl(url, custom));
+    if (raw === null) return { ok: false, kind: "unreachable", error: MSG.unreachableAll };
+    return classifyTinyurl(raw, custom);
+  }
+
+  // Try the chosen create.php service, its sibling, then TinyURL — which is on
+  // separate infrastructure, so it still works when is.gd/v.gd throttle this IP
+  // together. A "rejected" outcome (bad/blocked link, taken name) stops early:
+  // another provider would refuse the same link, so surface the real reason.
+  const createOrder = [
+    service as ShortenService,
+    ...ALLOWED_SERVICES.filter((s) => s !== service),
+  ];
+  const attempts: Array<() => Promise<ProviderOutcome>> = [
+    ...createOrder.map((svc) => () => attemptCreatePhp(svc)),
+    attemptTinyurl,
+  ];
+
+  let reachedAny = false;
+  for (const attempt of attempts) {
+    const out = await attempt();
     if (out.ok) return NextResponse.json({ shorturl: out.shorturl });
-    last = out;
-    // A real service error (bad url, taken name, rate limit) won't differ across
-    // siblings, so stop and report it. Only fall back on a blocked/unreachable.
-    if (!out.blocked) break;
+    if (out.kind !== "unreachable") reachedAny = true;
+    if (out.kind === "rejected") return NextResponse.json({ error: out.error }, { status: 400 });
+    // "throttled" or "unreachable" — fall through to the next provider.
   }
 
-  const failure = last ?? { error: SERVICE_UNAVAILABLE, status: 502, blocked: true };
-  const error = failure.blocked
-    ? "Could not reach the link shortener. Your network or DNS may be blocking is.gd and v.gd, which some networks filter as URL shorteners."
-    : failure.error;
-  return NextResponse.json({ error }, { status: failure.status });
+  // Every provider failed without a definitive rejection. If any of them actually
+  // answered, the network is fine and they're throttling; otherwise it's a true
+  // reachability problem.
+  return reachedAny
+    ? NextResponse.json({ error: MSG.throttledAll }, { status: 503 })
+    : NextResponse.json({ error: MSG.unreachableAll }, { status: 502 });
 }
