@@ -100,6 +100,7 @@ export function QrClient() {
             step={8}
             checkpoints={[128, 256, 512, 1024]}
             format={(v) => `${v}px`}
+            editable
           />
         </div>
 

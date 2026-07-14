@@ -206,6 +206,8 @@ export function ResizeClient() {
             max={100}
             checkpoints={[25, 50, 75, 100]}
             format={(v) => `${v}`}
+            editable
+            hint="How much detail to keep when re-encoding. Higher looks better but the file is larger; lower compresses harder and can soften the image."
           />
         </div>
 

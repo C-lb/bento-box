@@ -1,6 +1,6 @@
 "use client";
 import { useRef, useState } from "react";
-import { Download, Loader2 } from "lucide-react";
+import { Download, Loader2, ChevronDown } from "lucide-react";
 import { Segmented } from "@/components/Segmented";
 import { FileDrop } from "@/components/FileDrop";
 import { SnapSlider } from "@/components/SnapSlider";
@@ -39,6 +39,7 @@ export function HeicClient() {
   const [haze, setHaze] = useState(0);
   const [rows, setRows] = useState<Row[]>([]);
 
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const filtersActive = saturation !== 1 || brightness !== 1 || haze > 0;
   function resetFilters() { setSaturation(1); setBrightness(1); setHaze(0); }
 
@@ -127,49 +128,64 @@ export function HeicClient() {
               max={100}
               checkpoints={[25, 50, 75, 100]}
               format={(v) => `${v}`}
+              editable
+              hint="How much detail to keep when compressing the jpg. Higher looks better but the file is larger; lower squeezes the size down at the cost of sharpness and introduces artefacts."
             />
           </div>
         )}
 
         <div className="mt-5">
-          <div className="flex items-center justify-between">
-            <p className="text-sm font-medium">Filters</p>
-            {filtersActive && (
-              <button type="button" className="text-sm text-muted hover:text-ink" onClick={resetFilters}>Reset</button>
-            )}
-          </div>
-          <div className="mt-3 space-y-4">
-            <SnapSlider
-              label="Saturation"
-              value={saturation}
-              onChange={setSaturation}
-              min={0}
-              max={2}
-              step={0.05}
-              checkpoints={[0, 1, 2]}
-              format={(v) => `${Math.round(v * 100)}%`}
-            />
-            <SnapSlider
-              label="Brightness"
-              value={brightness}
-              onChange={setBrightness}
-              min={0}
-              max={2}
-              step={0.05}
-              checkpoints={[0.5, 1, 1.5]}
-              format={(v) => `${Math.round(v * 100)}%`}
-            />
-            <SnapSlider
-              label="Haze"
-              value={haze}
-              onChange={setHaze}
-              min={0}
-              max={20}
-              step={0.5}
-              checkpoints={[0, 5, 10, 20]}
-              format={(v) => (v === 0 ? "off" : `${v}`)}
-            />
-          </div>
+          <button
+            type="button"
+            onClick={() => setFiltersOpen((v) => !v)}
+            className="flex w-full items-center justify-between"
+            aria-expanded={filtersOpen}
+          >
+            <span className="text-sm font-medium">
+              Filters{filtersActive ? " (on)" : ""}
+            </span>
+            <ChevronDown className={`w-4 h-4 text-muted transition-transform ${filtersOpen ? "rotate-180" : ""}`} strokeWidth={1.75} />
+          </button>
+          {filtersOpen && (
+            <div className="mt-3 space-y-4">
+              <SnapSlider
+                label="Saturation"
+                value={saturation}
+                onChange={setSaturation}
+                min={0}
+                max={2}
+                step={0.05}
+                checkpoints={[0, 1, 2]}
+                format={(v) => `${Math.round(v * 100)}%`}
+                editable
+              />
+              <SnapSlider
+                label="Brightness"
+                value={brightness}
+                onChange={setBrightness}
+                min={0}
+                max={2}
+                step={0.05}
+                checkpoints={[0.5, 1, 1.5]}
+                format={(v) => `${Math.round(v * 100)}%`}
+                editable
+              />
+              <SnapSlider
+                label="Haze"
+                value={haze}
+                onChange={setHaze}
+                min={0}
+                max={20}
+                step={0.5}
+                checkpoints={[0, 5, 10, 20]}
+                format={(v) => (v === 0 ? "off" : `${v}`)}
+                editable
+              />
+              {filtersActive && (
+                <button type="button" className="text-sm text-muted hover:text-ink" onClick={resetFilters}>Reset filters</button>
+              )}
+            </div>
+          )}
         </div>
 
         <div className="mt-4 flex flex-col sm:flex-row sm:items-center gap-3">
