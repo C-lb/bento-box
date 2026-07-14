@@ -58,6 +58,12 @@ function serverEnv() {
   const fontPath = app.isPackaged
     ? path.join(process.resourcesPath, "server", "packages", "web", "assets", "fonts", "DMSans-Medium.ttf")
     : path.join(__dirname, "build", "server", "packages", "web", "assets", "fonts", "DMSans-Medium.ttf");
+  // The headshot renderer reads the bundled designer .ttf files from disk. The
+  // forked server has no reliable cwd, so pin the dir absolutely (mirrors
+  // EE_FONT_PATH) instead of relying on process.cwd().
+  const fontDir = app.isPackaged
+    ? path.join(process.resourcesPath, "server", "packages", "web", "public", "fonts", "designer")
+    : path.join(__dirname, "build", "server", "packages", "web", "public", "fonts", "designer");
   // Setup-code preset source: packaged builds carry a baked preset.env in
   // Resources (assemble-server.mjs writes it); without this the settings code
   // has no keys to fill from once the app leaves the dev machine. An external
@@ -76,6 +82,7 @@ function serverEnv() {
     EE_DATA_DIR: dataDir,
     EE_BIN_DIR: binDir,
     EE_FONT_PATH: fontPath,
+    EE_FONT_DIR: fontDir,
     EE_APP_VERSION: app.getVersion(),
     ...(presetEnv ? { EE_PRESET_ENV: presetEnv } : {}),
     EE_PUBLIC_URL: BASE,
