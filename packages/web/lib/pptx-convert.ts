@@ -1,7 +1,9 @@
 import { spawn } from "node:child_process";
-import { readFile } from "node:fs/promises";
+import { readFile, mkdtemp, rm } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { join, basename } from "node:path";
+import { tmpdir } from "node:os";
+import { pathToFileURL } from "node:url";
 import JSZip from "jszip";
 import { slideTextFromXml, slideNumberFromPath, orderSlidePaths, type SlideText } from "@event-editor/core/pptx";
 
@@ -45,11 +47,36 @@ function run(bin: string, args: string[]): Promise<string> {
   });
 }
 
+/**
+ * soffice args for a headless pptx→pdf conversion in an isolated user profile.
+ * The `-env:UserInstallation` switch MUST come first: it pins soffice to a
+ * private profile dir so this run never connects to a resident soffice instance
+ * on the shared default profile. Without it, a second conversion fired while an
+ * earlier soffice is still resident is silently handed off, exits 0, and writes
+ * no PDF — surfacing as "LibreOffice did not produce a PDF."
+ */
+export function sofficeConvertArgs(pptxPath: string, outDir: string, profileDir: string): string[] {
+  return [
+    `-env:UserInstallation=${pathToFileURL(profileDir).href}`,
+    "--headless",
+    "--convert-to",
+    "pdf",
+    "--outdir",
+    outDir,
+    pptxPath,
+  ];
+}
+
 /** Convert a .pptx to PDF via LibreOffice headless. Returns the output PDF path. */
 export async function convertToPdf(pptxPath: string, outDir: string): Promise<string> {
   const soffice = findSoffice();
   if (!soffice) throw new Error("LibreOffice (soffice) not found. Install it to slice slides.");
-  await run(soffice, ["--headless", "--convert-to", "pdf", "--outdir", outDir, pptxPath]);
+  const profileDir = await mkdtemp(join(tmpdir(), "ee-lo-"));
+  try {
+    await run(soffice, sofficeConvertArgs(pptxPath, outDir, profileDir));
+  } finally {
+    await rm(profileDir, { recursive: true, force: true }).catch(() => {});
+  }
   const pdfName = basename(pptxPath).replace(/\.pptx$/i, ".pdf");
   const pdfPath = join(outDir, pdfName);
   if (!existsSync(pdfPath)) throw new Error("LibreOffice did not produce a PDF.");

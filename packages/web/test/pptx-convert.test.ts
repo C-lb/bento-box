@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { sofficeCandidates, resolveSofficePath, readSlides } from "../lib/pptx-convert";
+import { sofficeCandidates, resolveSofficePath, readSlides, sofficeConvertArgs } from "../lib/pptx-convert";
 import JSZip from "jszip";
 import { writeFile, mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -22,6 +22,22 @@ describe("resolveSofficePath", () => {
   });
   it("returns null when none exist", () => {
     expect(resolveSofficePath(["/a"], () => false)).toBe(null);
+  });
+});
+
+describe("sofficeConvertArgs", () => {
+  it("puts an isolated UserInstallation profile first so concurrent runs don't share an instance", () => {
+    const args = sofficeConvertArgs("/tmp/run/deck.pptx", "/tmp/run", "/tmp/prof");
+    // The -env: switch MUST precede --headless or soffice ignores it and falls
+    // back to the shared default profile, which is the whole bug.
+    expect(args[0]).toBe("-env:UserInstallation=file:///tmp/prof");
+    expect(args.indexOf("--headless")).toBeGreaterThan(0);
+  });
+  it("passes convert-to pdf, the outdir, and the source deck", () => {
+    const args = sofficeConvertArgs("/tmp/run/deck.pptx", "/tmp/out", "/tmp/prof");
+    expect(args).toContain("pdf");
+    expect(args[args.indexOf("--outdir") + 1]).toBe("/tmp/out");
+    expect(args[args.length - 1]).toBe("/tmp/run/deck.pptx");
   });
 });
 
