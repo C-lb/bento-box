@@ -106,3 +106,15 @@ export const sliceRuns = sqliteTable("slice_runs", {
   status: text("status").notNull(), // converted|sliced
   createdAt: integer("created_at").notNull().default(0),
 });
+
+// One row per converted HEIC photo. batch_id groups the files from a single
+// "Convert all" run so history can bundle a batch and show singles on their own.
+export const heicConversions = sqliteTable("heic_conversions", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  batchId: text("batch_id").notNull(),
+  jobId: text("job_id").notNull(),
+  sourceFilename: text("source_filename").notNull(),
+  outFilename: text("out_filename").notNull(),
+  outFormat: text("out_format").notNull(),
+  createdAt: integer("created_at").notNull().default(0),
+});

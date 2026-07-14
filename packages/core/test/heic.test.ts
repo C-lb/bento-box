@@ -2,8 +2,13 @@ import { describe, it, expect } from "vitest";
 import { normalizeHeicOpts, heicOutName } from "../src/heic.js";
 
 describe("normalizeHeicOpts", () => {
-  it("defaults to jpg at quality 82", () => {
-    expect(normalizeHeicOpts({})).toEqual({ format: "jpg", quality: 82 });
+  it("defaults to jpg at quality 82 with neutral filters", () => {
+    expect(normalizeHeicOpts({})).toEqual({ format: "jpg", quality: 82, saturation: 1, brightness: 1, haze: 0 });
+  });
+  it("clamps filter params into range", () => {
+    expect(normalizeHeicOpts({ saturation: 5 }).saturation).toBe(2);
+    expect(normalizeHeicOpts({ brightness: -1 }).brightness).toBe(0);
+    expect(normalizeHeicOpts({ haze: 100 }).haze).toBe(20);
   });
   it("clamps quality into 1..100", () => {
     expect(normalizeHeicOpts({ quality: 0 }).quality).toBe(1);

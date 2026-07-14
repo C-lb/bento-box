@@ -3,6 +3,8 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { newJobId, jobDir, cleanupJob, sweepOldJobs } from "@/lib/jobs";
 import { normalizeHeicOpts, heicOutName } from "@event-editor/core/heic";
+import { recordHeicConversion } from "@event-editor/core/heic-history";
+import { getDb } from "@/lib/db";
 import { heicToImage } from "@/lib/heic";
 
 export const runtime = "nodejs";
@@ -22,6 +24,7 @@ export async function POST(request: Request) {
     haze: num("haze"),
   });
   const filename = heicOutName(file.name || "image", opts.format);
+  const batchId = typeof form.get("batchId") === "string" ? String(form.get("batchId")) : newJobId();
 
   const id = newJobId();
   const dir = jobDir("heic", id);
@@ -31,6 +34,15 @@ export async function POST(request: Request) {
     const buf = Buffer.from(await file.arrayBuffer());
     const out = await heicToImage(buf, opts);
     await writeFile(resolve(dir, `out.${opts.format}`), out);
+    try {
+      recordHeicConversion(getDb(), {
+        batchId,
+        jobId: id,
+        sourceFilename: file.name || "image",
+        outFilename: filename,
+        outFormat: opts.format,
+      });
+    } catch { /* history is best-effort; never fail the conversion over it */ }
     return NextResponse.json({ id, filename, format: opts.format });
   } catch (err) {
     try { await cleanupJob("heic", id); } catch { /* best-effort */ }

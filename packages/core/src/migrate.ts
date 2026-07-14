@@ -102,6 +102,15 @@ const DDL = [
     status TEXT NOT NULL,
     created_at INTEGER NOT NULL DEFAULT 0
   )`,
+  `CREATE TABLE IF NOT EXISTS heic_conversions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    batch_id TEXT NOT NULL,
+    job_id TEXT NOT NULL,
+    source_filename TEXT NOT NULL,
+    out_filename TEXT NOT NULL,
+    out_format TEXT NOT NULL,
+    created_at INTEGER NOT NULL DEFAULT 0
+  )`,
 ];
 
 // Legacy DBs created before 4a have a Canva-only headshots table (NOT NULL

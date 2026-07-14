@@ -31,6 +31,7 @@
     "./convert-formats": "./dist/convert-formats.js",
     "./names": "./dist/names.js",
     "./heic": "./dist/heic.js",
+    "./heic-history": "./dist/heic-history.js",
     "./resize": "./dist/resize.js",
     "./pdf": "./dist/pdf.js",
     "./video": "./dist/video.js",

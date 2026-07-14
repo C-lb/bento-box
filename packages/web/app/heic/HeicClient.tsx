@@ -4,6 +4,7 @@ import { Download, Loader2 } from "lucide-react";
 import { Segmented } from "@/components/Segmented";
 import { FileDrop } from "@/components/FileDrop";
 import { SnapSlider } from "@/components/SnapSlider";
+import { PastHeic } from "./PastHeic";
 import { uploadWithProgress } from "@/lib/upload";
 
 type Status = "idle" | "busy" | "done" | "error";
@@ -53,13 +54,14 @@ export function HeicClient() {
     setRows(next);
   }
 
-  async function convertRow(key: string) {
+  async function convertRow(key: string, batchId: string) {
     const row = rows.find((r) => r.key === key);
     if (!row) return;
     setRows((prev) => prev.map((r) => (r.key === key ? { ...r, status: "busy", progress: 0, error: undefined } : r)));
     try {
       const fd = new FormData();
       fd.append("file", row.file);
+      fd.append("batchId", batchId);
       fd.append("format", format);
       fd.append("quality", String(quality));
       fd.append("saturation", String(saturation));
@@ -84,9 +86,11 @@ export function HeicClient() {
   }
 
   async function convertAll() {
+    // One batch id for the whole run, so history bundles these files together.
+    const batchId = crypto.randomUUID();
     for (const row of rows) {
       if (row.status === "done") continue;
-      await convertRow(row.key);
+      await convertRow(row.key, batchId);
     }
   }
 
@@ -168,10 +172,11 @@ export function HeicClient() {
           </div>
         </div>
 
-        <div className="mt-4 flex items-center gap-3">
+        <div className="mt-4 flex flex-col sm:flex-row sm:items-center gap-3">
           <button type="button" className="btn btn-accent min-h-[44px] sm:min-h-0 w-full sm:w-auto justify-center" onClick={convertAll} disabled={!canConvert}>
             {anyBusy ? <><Loader2 className="w-4 h-4 animate-spin" strokeWidth={1.75} /> Converting…</> : "Convert all"}
           </button>
+          <PastHeic />
         </div>
       </div>
 
@@ -209,7 +214,7 @@ export function HeicClient() {
                   <button
                     type="button"
                     className="btn min-h-[44px] sm:min-h-0 w-full sm:w-auto justify-center"
-                    onClick={() => convertRow(row.key)}
+                    onClick={() => convertRow(row.key, crypto.randomUUID())}
                   >
                     Retry
                   </button>
