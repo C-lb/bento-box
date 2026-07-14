@@ -12,8 +12,19 @@ declare module "text-to-svg" {
     anchor?: string;
     attributes?: Record<string, string>;
   }
+  interface Metrics {
+    x: number;
+    y: number;
+    baseline: number;
+    width: number;
+    height: number;
+    ascender: number;
+    descender: number;
+  }
   export default class TextToSVG {
     static loadSync(file?: string): TextToSVG;
     getPath(text: string, options?: GetPathOptions): string;
+    getWidth(text: string, options?: GetPathOptions): number;
+    getMetrics(text: string, options?: GetPathOptions): Metrics;
   }
 }

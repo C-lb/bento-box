@@ -1,25 +1,42 @@
 // packages/web/lib/headshot-render.ts
 import sharp from "sharp";
-import type { FrameSpec, TextLine, HeadshotStyle } from "@event-editor/core/frames";
+import type { FrameSpec, HeadshotStyle } from "@event-editor/core/frames";
 import { glyphPath } from "./text-render";
+import { photoCrop, rimGeometry, textLines, type ResolvedLine, type RimGeometry } from "./headshot-layout";
 
-function textSvg(line: TextLine, text: string, style?: HeadshotStyle): string {
-  // text-to-svg anchors at the box top; nudge baseline to roughly center the cap height.
-  return glyphPath(text, {
+function lineSvg(line: ResolvedLine, fontId?: string): string {
+  return glyphPath(line.text, {
     x: line.x,
-    y: line.y,
+    y: line.yTop,
     fontSize: line.size,
     anchor: line.anchor,
-    color: style?.color || line.color,
-    bold: style?.bold,
-    italic: style?.italic,
+    color: line.color,
+    bold: line.bold,
+    italic: line.italic,
+    fontId,
+    tracking: line.tracking,
   });
+}
+
+function rimSvg(g: RimGeometry): { defs: string; part: string } {
+  const common = `cx="${g.cx}" cy="${g.cy}" r="${g.ringRadius}" fill="none" stroke-width="${g.width}"`;
+  if (g.mode === "gradient" && g.gradient) {
+    const id = "rimGrad";
+    const defs =
+      `<linearGradient id="${id}" gradientUnits="userSpaceOnUse" ` +
+      `x1="${g.gradient.x1}" y1="${g.gradient.y1}" x2="${g.gradient.x2}" y2="${g.gradient.y2}">` +
+      `<stop offset="0" stop-color="${g.from ?? "#000000"}"/>` +
+      `<stop offset="1" stop-color="${g.to ?? "#000000"}"/></linearGradient>`;
+    return { defs, part: `<circle ${common} stroke="url(#${id})"/>` };
+  }
+  return { defs: "", part: `<circle ${common} stroke="${g.color ?? "#000000"}"/>` };
 }
 
 function buildOverlaySvg(frame: FrameSpec, nameText: string, titleText: string, style?: HeadshotStyle): string {
   const C = frame.canvas;
   const defs: string[] = [];
   const parts: string[] = [];
+
   if (frame.plate) {
     const p = frame.plate;
     defs.push(
@@ -38,9 +55,22 @@ function buildOverlaySvg(frame: FrameSpec, nameText: string, titleText: string, 
     const a = frame.accent;
     parts.push(`<rect x="${a.x}" y="${a.y}" width="${a.w}" height="${a.h}" fill="${a.fill}"/>`);
   }
-  const cap = (s: string) => (style?.uppercase ? s.toUpperCase() : s);
-  parts.push(textSvg(frame.name, cap(nameText), style));
-  parts.push(textSvg(frame.title, cap(titleText), style));
+
+  // Rim sits on the circle's edge, drawn over the composited photo.
+  const rim = rimGeometry(frame, style?.rim);
+  if (rim) {
+    const r = rimSvg(rim);
+    if (r.defs) defs.push(r.defs);
+    parts.push(r.part);
+  }
+
+  const lines = textLines(frame, style, {
+    name: nameText,
+    title: titleText,
+    company: style?.companyText ?? "",
+  });
+  for (const line of lines) parts.push(lineSvg(line, style?.fontId));
+
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${C}" height="${C}"><defs>${defs.join("")}</defs>${parts.join("")}</svg>`;
 }
 
@@ -54,16 +84,14 @@ export async function renderHeadshot(
   const C = frame.canvas;
   const layers: sharp.OverlayOptions[] = [];
 
-  // Zoom by resizing the crop larger, then extracting the centre back down to
-  // the frame's slot, so the face fills more of the box.
-  const zoom = Math.min(3, Math.max(1, style?.zoom ?? 1));
-  const zw = Math.round(frame.photo.w * zoom);
-  const zh = Math.round(frame.photo.h * zoom);
-  let photoLayer = sharp(photo).resize(zw, zh, { fit: "cover", position: "centre" });
-  if (zoom > 1) {
+  // Zoom + pan via the shared layout helper: resize the source larger, then
+  // extract the frame-sized window at the (clamped) pan offset.
+  const crop = photoCrop(frame.photo.w, frame.photo.h, style?.zoom ?? 1, style?.offsetX ?? 0, style?.offsetY ?? 0);
+  let photoLayer = sharp(photo).resize(crop.zw, crop.zh, { fit: "cover", position: "centre" });
+  if (crop.zw !== frame.photo.w || crop.zh !== frame.photo.h) {
     photoLayer = photoLayer.extract({
-      left: Math.round((zw - frame.photo.w) / 2),
-      top: Math.round((zh - frame.photo.h) / 2),
+      left: crop.extractLeft,
+      top: crop.extractTop,
       width: frame.photo.w,
       height: frame.photo.h,
     });
@@ -80,7 +108,8 @@ export async function renderHeadshot(
   layers.push({ input: photoBuf, left: frame.photo.x, top: frame.photo.y });
   layers.push({ input: Buffer.from(buildOverlaySvg(frame, nameText, titleText, style)), left: 0, top: 0 });
 
-  return sharp({ create: { width: C, height: C, channels: 4, background: frame.bg } })
+  const background = style?.transparentBg ? { r: 0, g: 0, b: 0, alpha: 0 } : frame.bg;
+  return sharp({ create: { width: C, height: C, channels: 4, background } })
     .composite(layers)
     .png()
     .toBuffer();
