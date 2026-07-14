@@ -23,6 +23,11 @@ export function StudioClient() {
   const [frameId, setFrameId] = useState(FRAME_LIST[0]?.id ?? "");
   const [nameText, setNameText] = useState("");
   const [titleText, setTitleText] = useState("");
+  const [bold, setBold] = useState(false);
+  const [italic, setItalic] = useState(false);
+  const [uppercase, setUppercase] = useState(false);
+  const [textColor, setTextColor] = useState(""); // "" keeps the frame's own colours
+  const [zoom, setZoom] = useState(1);
   const [busy, setBusy] = useState(false);
   const [hsId, setHsId] = useState<number | null>(null);
   const [hs, setHs] = useState<Headshot | null>(null);
@@ -157,9 +162,10 @@ export function StudioClient() {
     setErr(null);
     try {
       const src = source === "upload" ? { uploadId } : { driveFileId: fileId };
+      const style = { bold, italic, uppercase, zoom, ...(textColor ? { color: textColor } : {}) };
       const payload = renderer === "canva"
         ? { renderer, ...src, templateId, nameText, titleText }
-        : { renderer, ...src, frameId, nameText, titleText };
+        : { renderer, ...src, frameId, nameText, titleText, style };
       const r = await fetch("/api/studio/headshots", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -185,6 +191,11 @@ export function StudioClient() {
     setUploadPreview((prev) => { if (prev) URL.revokeObjectURL(prev); return null; });
     setNameText("");
     setTitleText("");
+    setBold(false);
+    setItalic(false);
+    setUppercase(false);
+    setTextColor("");
+    setZoom(1);
     setTemplateId("");
     setHsId(null);
     setHs(null);
@@ -345,6 +356,69 @@ export function StudioClient() {
           <input className="field min-h-[44px] sm:min-h-0" placeholder="Title"
             value={titleText} onChange={(e) => setTitleText(e.target.value)} />
         </div>
+
+        {renderer === "local" && (
+          <div className="mt-4 flex flex-col gap-4 sm:max-w-md">
+            <div>
+              <span className="mb-1.5 block text-sm text-muted">Text style</span>
+              <div className="flex flex-wrap gap-2">
+                {([
+                  { on: bold, set: setBold, label: "Bold", cls: "font-bold" },
+                  { on: italic, set: setItalic, label: "Italic", cls: "italic" },
+                  { on: uppercase, set: setUppercase, label: "Uppercase", cls: "uppercase" },
+                ] as const).map((t) => (
+                  <button
+                    key={t.label}
+                    type="button"
+                    aria-pressed={t.on}
+                    onClick={() => t.set((v) => !v)}
+                    className={`btn min-h-[44px] sm:min-h-0 text-sm ${t.cls} ${t.on ? "btn-accent" : ""}`}
+                  >
+                    {t.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <span className="mb-1.5 block text-sm text-muted">Text colour</span>
+              <div className="flex items-center gap-3">
+                <label className="inline-flex h-11 w-11 cursor-pointer items-center justify-center overflow-hidden rounded-lg border border-line sm:h-9 sm:w-9" data-tip="Pick a colour">
+                  <input
+                    type="color"
+                    value={textColor || "#000000"}
+                    onChange={(e) => setTextColor(e.target.value)}
+                    className="h-14 w-14 cursor-pointer border-0 bg-transparent p-0"
+                    aria-label="Text colour"
+                  />
+                </label>
+                <span className="text-sm text-muted">{textColor ? textColor.toUpperCase() : "Frame default"}</span>
+                {textColor && (
+                  <button type="button" className="text-sm text-ink underline underline-offset-2" onClick={() => setTextColor("")}>
+                    Reset
+                  </button>
+                )}
+              </div>
+            </div>
+
+            <div>
+              <label className="mb-1.5 flex items-center justify-between text-sm text-muted">
+                <span>Zoom on face</span>
+                <span className="text-ink">{zoom.toFixed(1)}x</span>
+              </label>
+              <input
+                type="range"
+                min={1}
+                max={3}
+                step={0.1}
+                value={zoom}
+                onChange={(e) => setZoom(Number(e.target.value))}
+                className="w-full accent-[var(--accent)]"
+                aria-label="Zoom on face"
+              />
+            </div>
+          </div>
+        )}
         <button
           className="btn btn-accent mt-4 min-h-[44px] sm:min-h-0 w-full sm:w-auto justify-center"
           onClick={generate}

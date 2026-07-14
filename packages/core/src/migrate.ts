@@ -47,6 +47,7 @@ const DDL = [
     template_id TEXT,
     name_text TEXT,
     title_text TEXT,
+    style_json TEXT,
     autofill_job_id TEXT,
     design_id TEXT,
     status TEXT NOT NULL DEFAULT 'rendering',
@@ -189,6 +190,7 @@ export function runMigrations(db: BetterSQLite3Database<any>): void {
   }
   migrateHeadshots(db);
   addColumnIfMissing(db, "headshots", "batch_id", "TEXT");
+  addColumnIfMissing(db, "headshots", "style_json", "TEXT");
   addColumnIfMissing(db, "transcriptions", "context_file_path", "TEXT");
   addColumnIfMissing(db, "transcriptions", "context_text", "TEXT");
   addColumnIfMissing(db, "transcriptions", "event_details", "TEXT");

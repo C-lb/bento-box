@@ -45,6 +45,7 @@ export const headshots = sqliteTable("headshots", {
   templateId: text("template_id"), // generic frame id, e.g. clean-band
   nameText: text("name_text"),
   titleText: text("title_text"),
+  styleJson: text("style_json"), // JSON HeadshotStyle for the local renderer
   autofillJobId: text("autofill_job_id"),
   designId: text("design_id"),
   status: text("status").notNull().default("rendering"), // rendering|autofilling|exporting|done|error

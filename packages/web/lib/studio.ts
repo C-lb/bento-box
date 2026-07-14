@@ -21,7 +21,7 @@ export function startHeadshot(db: Db, drive: DriveClient | null, id: number): vo
   void runHeadshotRender(db, id, {
     loadPhoto: (fileId) => (drive ? drive.downloadFile(fileId) : noDrive()),
     loadUpload: (path) => readFile(resolve(path)),
-    render: (photo, frame, name, title) => renderHeadshot(photo, frame, name, title),
+    render: (photo, frame, name, title, style) => renderHeadshot(photo, frame, name, title, style),
     save: async (hid, png) => {
       await mkdir(resolve(HEADSHOT_DIR), { recursive: true });
       const rel = `${HEADSHOT_DIR}/${hid}.png`;

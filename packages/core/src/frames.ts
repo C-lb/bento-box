@@ -21,6 +21,18 @@ export interface FrameSpec {
   title: TextLine;
 }
 
+/** Per-headshot caption + crop options chosen at generate time. All optional;
+ *  an absent field keeps the frame's own default. */
+export interface HeadshotStyle {
+  bold?: boolean;
+  italic?: boolean;
+  uppercase?: boolean;
+  /** Overrides both name and title colour when set. */
+  color?: string | null;
+  /** Head crop scale, 1 = frame default, up to 3 = tighter on the face. */
+  zoom?: number;
+}
+
 const ACCENT = "#2563eb";
 
 export const FRAMES: Record<string, FrameSpec> = {
@@ -41,7 +53,6 @@ export const FRAMES: Record<string, FrameSpec> = {
     canvas: 1080,
     bg: "#f5f5f4",
     photo: { x: 230, y: 120, w: 620, h: 620, shape: "circle" },
-    accent: { x: 490, y: 800, w: 100, h: 3, fill: ACCENT },
     name: { x: 540, y: 832, size: 52, color: "#18181b", anchor: "center" },
     title: { x: 540, y: 904, size: 30, color: "#71717a", anchor: "center" },
   },

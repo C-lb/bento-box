@@ -1,20 +1,22 @@
 // packages/web/lib/headshot-render.ts
 import sharp from "sharp";
-import type { FrameSpec, TextLine } from "@event-editor/core/frames";
+import type { FrameSpec, TextLine, HeadshotStyle } from "@event-editor/core/frames";
 import { glyphPath } from "./text-render";
 
-function textSvg(line: TextLine, text: string): string {
+function textSvg(line: TextLine, text: string, style?: HeadshotStyle): string {
   // text-to-svg anchors at the box top; nudge baseline to roughly center the cap height.
   return glyphPath(text, {
     x: line.x,
     y: line.y,
     fontSize: line.size,
     anchor: line.anchor,
-    color: line.color,
+    color: style?.color || line.color,
+    bold: style?.bold,
+    italic: style?.italic,
   });
 }
 
-function buildOverlaySvg(frame: FrameSpec, nameText: string, titleText: string): string {
+function buildOverlaySvg(frame: FrameSpec, nameText: string, titleText: string, style?: HeadshotStyle): string {
   const C = frame.canvas;
   const defs: string[] = [];
   const parts: string[] = [];
@@ -36,8 +38,9 @@ function buildOverlaySvg(frame: FrameSpec, nameText: string, titleText: string):
     const a = frame.accent;
     parts.push(`<rect x="${a.x}" y="${a.y}" width="${a.w}" height="${a.h}" fill="${a.fill}"/>`);
   }
-  parts.push(textSvg(frame.name, nameText));
-  parts.push(textSvg(frame.title, titleText));
+  const cap = (s: string) => (style?.uppercase ? s.toUpperCase() : s);
+  parts.push(textSvg(frame.name, cap(nameText), style));
+  parts.push(textSvg(frame.title, cap(titleText), style));
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${C}" height="${C}"><defs>${defs.join("")}</defs>${parts.join("")}</svg>`;
 }
 
@@ -46,11 +49,25 @@ export async function renderHeadshot(
   frame: FrameSpec,
   nameText: string,
   titleText: string,
+  style?: HeadshotStyle,
 ): Promise<Buffer> {
   const C = frame.canvas;
   const layers: sharp.OverlayOptions[] = [];
 
-  let photoLayer = sharp(photo).resize(frame.photo.w, frame.photo.h, { fit: "cover", position: "centre" });
+  // Zoom by resizing the crop larger, then extracting the centre back down to
+  // the frame's slot, so the face fills more of the box.
+  const zoom = Math.min(3, Math.max(1, style?.zoom ?? 1));
+  const zw = Math.round(frame.photo.w * zoom);
+  const zh = Math.round(frame.photo.h * zoom);
+  let photoLayer = sharp(photo).resize(zw, zh, { fit: "cover", position: "centre" });
+  if (zoom > 1) {
+    photoLayer = photoLayer.extract({
+      left: Math.round((zw - frame.photo.w) / 2),
+      top: Math.round((zh - frame.photo.h) / 2),
+      width: frame.photo.w,
+      height: frame.photo.h,
+    });
+  }
   if (frame.photo.shape === "circle") {
     const r = Math.min(frame.photo.w, frame.photo.h) / 2;
     const mask = Buffer.from(
@@ -61,7 +78,7 @@ export async function renderHeadshot(
   }
   const photoBuf = await photoLayer.png().toBuffer();
   layers.push({ input: photoBuf, left: frame.photo.x, top: frame.photo.y });
-  layers.push({ input: Buffer.from(buildOverlaySvg(frame, nameText, titleText)), left: 0, top: 0 });
+  layers.push({ input: Buffer.from(buildOverlaySvg(frame, nameText, titleText, style)), left: 0, top: 0 });
 
   return sharp({ create: { width: C, height: C, channels: 4, background: frame.bg } })
     .composite(layers)
