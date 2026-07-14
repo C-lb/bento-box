@@ -1,4 +1,4 @@
-import { getConnections, ENV_KEYS } from "@event-editor/core/settings";
+import { getConnections, ENV_KEYS, readEnvValues, maskSecret } from "@event-editor/core/settings";
 import { getToken } from "@event-editor/core/tokens";
 import { getDb } from "@/lib/db";
 import { DRIVE_FILE_SCOPE, SHEETS_SCOPE } from "@/lib/google/oauth";
@@ -29,8 +29,13 @@ async function SettingsBody({ searchParams }: { searchParams: Promise<{ google?:
   const needsReauth = googleToken !== null && (!scope.includes(DRIVE_FILE_SCOPE) || !scope.includes(SHEETS_SCOPE));
   const canvaConfigured = !!process.env.CANVA_CLIENT_ID;
   const canvaToken = getToken(getDb(), "canva");
-  // Only whether each key is set (never the value) crosses to the client.
-  const present = Object.fromEntries(ENV_KEYS.map((k) => [k, !!process.env[k]?.trim()]));
+  // Prefer the saved config file (source of truth right after a save, before a
+  // restart reloads process.env) and fall back to the live env. Only a masked
+  // preview crosses to the client, never the real secret.
+  const fileValues = readEnvValues(envFilePath(), ENV_KEYS);
+  const masked = Object.fromEntries(
+    ENV_KEYS.map((k) => [k, maskSecret(fileValues[k] ?? process.env[k])]),
+  );
 
   const deps = await dependencyStatuses();
 
@@ -49,7 +54,7 @@ async function SettingsBody({ searchParams }: { searchParams: Promise<{ google?:
       <ConnectionPills items={pills} />
 
       <h2 id="api-keys" className="mt-8 scroll-mt-6 text-lg font-semibold">API keys</h2>
-      <KeyForm present={present} configPath={envFilePath()} />
+      <KeyForm masked={masked} configPath={envFilePath()} />
       <UnlockCode />
 
       <h2 id="dependencies" className="mt-8 scroll-mt-6 text-lg font-semibold">Dependencies</h2>

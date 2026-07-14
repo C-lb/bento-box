@@ -29,4 +29,13 @@ export const KEY_GUIDES: Record<string, Guide> = {
       "Copy the Client ID, generate a Client secret, and paste both below.",
     ],
   },
+  Spotify: {
+    steps: [
+      "Go to developer.spotify.com/dashboard and log in with any Spotify account.",
+      "Click Create app. Name it anything, and for Redirect URI put http://127.0.0.1:4571/callback (required but unused here).",
+      "Under Which API/SDKs, tick Web API, then save.",
+      "Open Settings, copy the Client ID, click View client secret, and paste both below.",
+      "Only public track details are read (title and artist). No login, no audio access.",
+    ],
+  },
 };

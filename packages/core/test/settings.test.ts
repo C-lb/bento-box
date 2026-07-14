@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { readFileSync, writeFileSync, existsSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { getConnections, upsertEnvKeys, readEnvValues, ENV_KEYS } from "../src/settings.js";
+import { getConnections, upsertEnvKeys, readEnvValues, ENV_KEYS, maskSecret } from "../src/settings.js";
 
 function tmpEnv() {
   return join(tmpdir(), `ee-env-${Math.random().toString(36).slice(2)}.env`);
@@ -30,8 +30,22 @@ describe("getConnections", () => {
   });
 });
 
+describe("maskSecret", () => {
+  it("returns empty for a missing value", () => {
+    expect(maskSecret(undefined)).toBe("");
+    expect(maskSecret("")).toBe("");
+    expect(maskSecret("   ")).toBe("");
+  });
+  it("fully masks short values", () => {
+    expect(maskSecret("abcd")).toBe("••••");
+  });
+  it("shows first and last four for longer values", () => {
+    expect(maskSecret("1234567890abcdef")).toBe("1234••••••cdef");
+  });
+});
+
 describe("ENV_KEYS", () => {
-  it("lists exactly the six settable keys", () => {
+  it("lists exactly the settable keys", () => {
     expect([...ENV_KEYS].sort()).toEqual(
       [
         "ANTHROPIC_API_KEY",
@@ -40,6 +54,8 @@ describe("ENV_KEYS", () => {
         "GOOGLE_CLIENT_ID",
         "GOOGLE_CLIENT_SECRET",
         "GROQ_API_KEY",
+        "SPOTIFY_CLIENT_ID",
+        "SPOTIFY_CLIENT_SECRET",
       ].sort(),
     );
   });

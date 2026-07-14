@@ -32,9 +32,21 @@ export const ENV_KEYS = [
   "ANTHROPIC_API_KEY",
   "CANVA_CLIENT_ID",
   "CANVA_CLIENT_SECRET",
+  "SPOTIFY_CLIENT_ID",
+  "SPOTIFY_CLIENT_SECRET",
 ] as const;
 
 export type EnvKey = (typeof ENV_KEYS)[number];
+
+// A censored preview of a stored secret so the UI can prove it's really set
+// without revealing it: first and last few characters, dots between. Short
+// values are fully masked so nothing meaningful leaks.
+export function maskSecret(value: string | undefined | null): string {
+  const v = (value ?? "").trim();
+  if (!v) return "";
+  if (v.length <= 8) return "•".repeat(v.length);
+  return `${v.slice(0, 4)}${"•".repeat(6)}${v.slice(-4)}`;
+}
 
 // Read the given keys out of a dotenv-style file. Missing file, comments,
 // malformed lines, and blank values are all skipped; surrounding quotes are

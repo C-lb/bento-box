@@ -28,9 +28,16 @@ const GROUPS: { title: string; fields: Field[] }[] = [
       { name: "CANVA_CLIENT_SECRET", label: "Client secret" },
     ],
   },
+  {
+    title: "Spotify",
+    fields: [
+      { name: "SPOTIFY_CLIENT_ID", label: "Client ID" },
+      { name: "SPOTIFY_CLIENT_SECRET", label: "Client secret" },
+    ],
+  },
 ];
 
-export function KeyForm({ present, configPath }: { present: Record<string, boolean>; configPath: string }) {
+export function KeyForm({ masked, configPath }: { masked: Record<string, string>; configPath: string }) {
   const [state, formAction, pending] = useActionState<SaveState, FormData>(saveKeys, null);
   const [canRelaunch, setCanRelaunch] = useState(false);
   useEffect(() => setCanRelaunch(!!window.ee?.relaunch), []);
@@ -65,27 +72,33 @@ export function KeyForm({ present, configPath }: { present: Record<string, boole
               );
             })()}
             <div className="mt-3 grid gap-3 sm:grid-cols-2">
-              {g.fields.map((f) => (
-                <label key={f.name} className="block">
-                  <span className="mb-1 flex items-center gap-2 text-sm text-muted">
-                    {f.label}
-                    {present[f.name] ? (
-                      <span className="text-success">saved</span>
-                    ) : (
-                      <span className="text-muted/70">not set</span>
+              {g.fields.map((f) => {
+                const isSet = !!masked[f.name];
+                return (
+                  <label key={f.name} className="block">
+                    <span className="mb-1 flex items-center gap-2 text-sm text-muted">
+                      {f.label}
+                      {isSet ? (
+                        <span className="text-success">saved</span>
+                      ) : (
+                        <span className="text-muted/70">not set</span>
+                      )}
+                    </span>
+                    {isSet && (
+                      <span className="mb-1 block font-mono text-xs text-muted">{masked[f.name]}</span>
                     )}
-                  </span>
-                  <input
-                    className="field min-h-[44px] sm:min-h-0"
-                    type="password"
-                    name={f.name}
-                    autoComplete="off"
-                    spellCheck={false}
-                    disabled={pending}
-                    placeholder={present[f.name] ? "Leave blank to keep" : "Paste key"}
-                  />
-                </label>
-              ))}
+                    <input
+                      className="field min-h-[44px] sm:min-h-0"
+                      type="password"
+                      name={f.name}
+                      autoComplete="off"
+                      spellCheck={false}
+                      disabled={pending}
+                      placeholder={isSet ? "Leave blank to keep" : "Paste key"}
+                    />
+                  </label>
+                );
+              })}
             </div>
           </fieldset>
         ))}
