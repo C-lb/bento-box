@@ -613,7 +613,7 @@ export function StudioClient() {
                 onPan={(x, y) => { setOffsetX(x); setOffsetY(y); }}
               />
               <p className="text-sm text-muted">
-                {photoUrl ? "Live preview. Drag the photo to reposition." : "Pick a photo to preview."}
+                {photoUrl ? "Live preview. Drag the photo to reposition after zooming." : "Pick a photo to preview."}
               </p>
             </div>
           </div>
