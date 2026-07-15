@@ -93,7 +93,7 @@ describe("tool-runs", () => {
   });
 
   it("exposes the tool whitelist", () => {
-    expect(TOOL_RUN_TOOLS).toEqual(["pdf", "resize", "video", "splice", "convert"]);
+    expect(TOOL_RUN_TOOLS).toEqual(["pdf", "resize", "video", "splice", "convert", "audio"]);
     expect(isToolRunTool("pdf")).toBe(true);
     expect(isToolRunTool("heic")).toBe(false);
   });

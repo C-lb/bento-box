@@ -4,7 +4,7 @@ import type { BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
 import { toolRuns } from "./schema/index.js";
 
 // Tools whose runs live in the shared tool_runs table ("See past …" panels).
-export const TOOL_RUN_TOOLS = ["pdf", "resize", "video", "splice", "convert"] as const;
+export const TOOL_RUN_TOOLS = ["pdf", "resize", "video", "splice", "convert", "audio"] as const;
 export type ToolRunTool = (typeof TOOL_RUN_TOOLS)[number];
 
 export function isToolRunTool(tool: string): tool is ToolRunTool {

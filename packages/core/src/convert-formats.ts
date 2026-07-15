@@ -33,6 +33,12 @@ export function categoryForFile(filename: string): ConvertCategory | null {
   return EXT_CATEGORY[extname(filename)] ?? null;
 }
 
+// Every extension the file-conversion path recognizes, in declaration order
+// (used to build the file picker's `accept` list).
+export function inputExtensions(): string[] {
+  return Object.keys(EXT_CATEGORY);
+}
+
 export function outputsFor(category: ConvertCategory): OutputFormat[] {
   return OUTPUTS[category];
 }

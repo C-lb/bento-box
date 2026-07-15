@@ -2,6 +2,7 @@
 import { describe, it, expect } from "vitest";
 import {
   sanitizeMp3Filename,
+  sanitizeAudioFilename,
   defaultNameFromSource,
   ytDlpTitleArgs,
   ytDlpExtractArgs,
@@ -32,6 +33,23 @@ describe("sanitizeMp3Filename", () => {
   });
 });
 
+describe("sanitizeAudioFilename", () => {
+  it("adds the requested extension", () => {
+    expect(sanitizeAudioFilename("talk", "wav")).toBe("talk.wav");
+    expect(sanitizeAudioFilename("talk", "m4a")).toBe("talk.m4a");
+    expect(sanitizeAudioFilename("talk", "mp3")).toBe("talk.mp3");
+  });
+  it("does not double an existing matching extension", () => {
+    expect(sanitizeAudioFilename("talk.wav", "wav")).toBe("talk.wav");
+  });
+  it("swaps a mismatched extension for the requested one", () => {
+    expect(sanitizeAudioFilename("talk.mp3", "wav")).toBe("talk.wav");
+  });
+  it("falls back to audio when empty after sanitize", () => {
+    expect(sanitizeAudioFilename("///", "m4a")).toBe("audio.m4a");
+  });
+});
+
 describe("defaultNameFromSource", () => {
   it("strips a trailing extension", () => {
     expect(defaultNameFromSource("keynote.mov")).toBe("keynote");
@@ -53,9 +71,16 @@ describe("ytDlpTitleArgs", () => {
 });
 
 describe("ytDlpExtractArgs", () => {
-  it("extracts a 192k mp3 to the given stem using the bundled ffmpeg", () => {
+  it("extracts a 192k mp3 to the given stem using the bundled ffmpeg, defaulting to mp3", () => {
     expect(ytDlpExtractArgs("https://x/y", "/tmp/abc/out", "/opt/ff/bin")).toEqual([
       "--no-playlist", "-x", "--audio-format", "mp3", "--audio-quality", "192K",
+      "--ffmpeg-location", "/opt/ff/bin",
+      "-o", "/tmp/abc/out.%(ext)s", "https://x/y",
+    ]);
+  });
+  it("extracts to a requested format", () => {
+    expect(ytDlpExtractArgs("https://x/y", "/tmp/abc/out", "/opt/ff/bin", "wav")).toEqual([
+      "--no-playlist", "-x", "--audio-format", "wav", "--audio-quality", "192K",
       "--ffmpeg-location", "/opt/ff/bin",
       "-o", "/tmp/abc/out.%(ext)s", "https://x/y",
     ]);

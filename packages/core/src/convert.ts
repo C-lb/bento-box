@@ -16,6 +16,13 @@ export function sanitizeMp3Filename(raw: string): string {
   return `${base || "audio"}.mp3`;
 }
 
+// Same as sanitizeMp3Filename but for any of the link-flow's audio outputs.
+export function sanitizeAudioFilename(raw: string, ext: "mp3" | "wav" | "m4a"): string {
+  const withoutExt = raw.replace(/\.(mp3|wav|m4a)$/i, "");
+  const base = safeBase(withoutExt);
+  return `${base || "audio"}.${ext}`;
+}
+
 export function defaultNameFromSource(name: string): string {
   const withoutExt = name.replace(/\.[a-z0-9]{1,5}$/i, "");
   const base = safeBase(withoutExt);
@@ -33,9 +40,11 @@ export function ytDlpSearchArgs(query: string): string[] {
   return ["--no-playlist", "--print", "%(id)s\t%(title)s", `ytsearch1:${query}`];
 }
 
-export function ytDlpExtractArgs(url: string, outStem: string, ffmpegLocation: string): string[] {
+export function ytDlpExtractArgs(
+  url: string, outStem: string, ffmpegLocation: string, format: "mp3" | "wav" | "m4a" = "mp3",
+): string[] {
   return [
-    "--no-playlist", "-x", "--audio-format", "mp3", "--audio-quality", "192K",
+    "--no-playlist", "-x", "--audio-format", format, "--audio-quality", "192K",
     "--ffmpeg-location", ffmpegLocation,
     "-o", `${outStem}.%(ext)s`, url,
   ];

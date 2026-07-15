@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
-  categoryForFile, outputsFor, isValidConversion, extFor, convertOutName, isAudioOutput,
+  categoryForFile, outputsFor, isValidConversion, extFor, convertOutName, isAudioOutput, inputExtensions,
 } from "./convert-formats";
 
 describe("categoryForFile", () => {
@@ -50,6 +50,16 @@ describe("extFor / isAudioOutput", () => {
     expect(isAudioOutput("mp3")).toBe(true);
     expect(isAudioOutput("wav")).toBe(true);
     expect(isAudioOutput("png")).toBe(false);
+  });
+});
+
+describe("inputExtensions", () => {
+  it("lists every recognized extension for the file picker's accept list", () => {
+    expect(inputExtensions()).toEqual([
+      "png", "jpg", "jpeg", "webp", "heic", "heif", "pdf",
+      "mp3", "wav", "m4a", "aac", "flac", "ogg", "opus",
+      "mp4", "mov", "mkv", "webm", "avi", "m4v",
+    ]);
   });
 });
 
