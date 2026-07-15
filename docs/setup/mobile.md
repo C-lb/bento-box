@@ -52,6 +52,23 @@ npx cap open ios
   is expected and not a config bug.
 - `cap open ios` opens the generated project in Xcode.
 
+## Cleartext (http) dev server — ATS exception
+
+When `server.url` is a plain-http LAN address (dev against a Mac on the same Wi-Fi), iOS App
+Transport Security blocks the load and the shell shows only the offline page. `cleartext: true` in
+`capacitor.config.ts` is not enough on iOS — add to `ios/App/App/Info.plist` (top of the main dict):
+
+```xml
+<key>NSAppTransportSecurity</key>
+<dict>
+	<key>NSAllowsArbitraryLoads</key>
+	<true/>
+</dict>
+```
+
+`ios/` is untracked, so re-apply this after every `cap add ios`. Remove it (and `cleartext`) when
+pointing at the real https tunnel host.
+
 ## Signing and device run
 
 1. In Xcode, select the `App` target > Signing & Capabilities.
