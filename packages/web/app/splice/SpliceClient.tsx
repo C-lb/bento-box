@@ -2,6 +2,8 @@
 import { useEffect, useRef, useState } from "react";
 import { ArrowDown, ArrowUp, Download, Loader2, Volume2, VolumeX, X } from "lucide-react";
 import { Segmented } from "@/components/Segmented";
+import { PastRuns } from "@/components/PastRuns";
+import { runFileUrl } from "@/lib/past-runs";
 import { uploadWithProgress } from "@/lib/upload";
 
 type Kind = "video" | "audio";
@@ -182,6 +184,16 @@ export function SpliceClient() {
             </div>
           </div>
         )}
+
+        <div className="mt-4 flex flex-col sm:flex-row sm:items-center gap-3">
+          <PastRuns
+            tool="splice"
+            buttonLabel="See past splices"
+            panelTitle="Recent splices"
+            emptyLabel="No splices yet."
+            fileUrl={(o) => runFileUrl("splice", o)}
+          />
+        </div>
 
         {error && <p className="mt-3 text-sm text-danger">{error}</p>}
       </div>

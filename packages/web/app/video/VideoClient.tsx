@@ -3,6 +3,8 @@ import { useRef, useState } from "react";
 import { Download, Loader2 } from "lucide-react";
 import { Segmented } from "@/components/Segmented";
 import { FileDrop } from "@/components/FileDrop";
+import { PastRuns } from "@/components/PastRuns";
+import { runFileUrl } from "@/lib/past-runs";
 import { uploadWithProgress } from "@/lib/upload";
 
 interface Result { id: string; filename: string; bytesIn: number; bytesOut: number }
@@ -108,6 +110,13 @@ export function VideoClient() {
           >
             {busy ? <><Loader2 className="w-4 h-4 animate-spin" strokeWidth={1.75} /> Compressing…</> : "Compress"}
           </button>
+          <PastRuns
+            tool="video"
+            buttonLabel="See past compressions"
+            panelTitle="Recent compressions"
+            emptyLabel="No compressions yet."
+            fileUrl={(o) => runFileUrl("video", o)}
+          />
           {busy && <span className="text-sm text-muted">This can take a while for long videos.</span>}
         </div>
 

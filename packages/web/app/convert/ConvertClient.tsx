@@ -4,6 +4,8 @@ import { Download, Loader2, UploadCloud } from "lucide-react";
 import { Segmented } from "@/components/Segmented";
 import { defaultNameFromSource } from "@event-editor/core/convert";
 import { categoryForFile, outputsFor, type OutputFormat } from "@event-editor/core/convert-formats";
+import { PastRuns } from "@/components/PastRuns";
+import { runFileUrl } from "@/lib/past-runs";
 import { uploadWithProgress } from "@/lib/upload";
 
 interface Result { id: string; filename: string; ext?: string }
@@ -309,6 +311,13 @@ export function ConvertClient({ ytDlp }: { ytDlp: boolean }) {
           >
             {busy ? <><Loader2 className="w-4 h-4 animate-spin" strokeWidth={1.75} /> Converting…</> : "Convert"}
           </button>
+          <PastRuns
+            tool="convert"
+            buttonLabel="See past conversions"
+            panelTitle="Recent conversions"
+            emptyLabel="No conversions yet."
+            fileUrl={(o) => runFileUrl("convert", o)}
+          />
           {busy && mode === "file" && (
             <span className="text-sm text-muted">Uploading {Math.round(progress * 100)}%</span>
           )}

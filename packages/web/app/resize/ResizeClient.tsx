@@ -4,6 +4,8 @@ import { Download, Loader2 } from "lucide-react";
 import { Segmented } from "@/components/Segmented";
 import { FileDrop } from "@/components/FileDrop";
 import { SnapSlider } from "@/components/SnapSlider";
+import { PastRuns } from "@/components/PastRuns";
+import { runFileUrl } from "@/lib/past-runs";
 import { uploadWithProgress } from "@/lib/upload";
 
 type Status = "idle" | "busy" | "done" | "error";
@@ -211,10 +213,17 @@ export function ResizeClient() {
           />
         </div>
 
-        <div className="mt-4 flex items-center gap-3">
+        <div className="mt-4 flex flex-col sm:flex-row sm:items-center gap-3">
           <button type="button" className="btn btn-accent min-h-[44px] sm:min-h-0 w-full sm:w-auto justify-center" onClick={resizeAll} disabled={!canResize}>
             {anyBusy ? <><Loader2 className="w-4 h-4 animate-spin" strokeWidth={1.75} /> Working…</> : "Resize all"}
           </button>
+          <PastRuns
+            tool="resize"
+            buttonLabel="See past resizes"
+            panelTitle="Recent resizes"
+            emptyLabel="No resizes yet."
+            fileUrl={(o) => runFileUrl("resize", o)}
+          />
         </div>
       </div>
 

@@ -18,6 +18,7 @@ export function HistoryPanel<T extends HistoryItem>({
   renderRow,
   renderActions,
   deleteItem,
+  footer,
 }: {
   buttonLabel: string;
   panelTitle: string;
@@ -26,6 +27,7 @@ export function HistoryPanel<T extends HistoryItem>({
   renderRow: (item: T) => ReactNode;
   renderActions?: (item: T) => ReactNode;
   deleteItem?: (item: T) => Promise<void>;
+  footer?: ReactNode;
 }) {
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState<T[] | null>(null);
@@ -131,6 +133,7 @@ export function HistoryPanel<T extends HistoryItem>({
                 })}
               </ul>
             )}
+            {footer && <p className="mt-3 text-xs text-muted">{footer}</p>}
           </div>
         </>
       )}

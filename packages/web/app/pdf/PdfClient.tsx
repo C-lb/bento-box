@@ -2,6 +2,8 @@
 import { useRef, useState } from "react";
 import { ArrowDown, ArrowUp, Download, Loader2, X } from "lucide-react";
 import { Segmented } from "@/components/Segmented";
+import { PastRuns } from "@/components/PastRuns";
+import { runFileUrl } from "@/lib/past-runs";
 import { uploadWithProgress } from "@/lib/upload";
 
 type Mode = "merge" | "split" | "compress";
@@ -223,6 +225,13 @@ export function PdfClient() {
           <button type="button" className="btn btn-accent min-h-[44px] sm:min-h-0 w-full sm:w-auto justify-center" onClick={submit} disabled={!canSubmit}>
             {busy ? <><Loader2 className="w-4 h-4 animate-spin" strokeWidth={1.75} /> Working…</> : "Run"}
           </button>
+          <PastRuns
+            tool="pdf"
+            buttonLabel="See past PDFs"
+            panelTitle="Recent PDFs"
+            emptyLabel="No PDFs yet."
+            fileUrl={(o) => runFileUrl("pdf", o)}
+          />
           {busy && <span className="text-sm text-muted">Uploading {Math.round(progress * 100)}%</span>}
         </div>
 
