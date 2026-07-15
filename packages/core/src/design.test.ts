@@ -1,5 +1,14 @@
 import { describe, it, expect } from "vitest";
-import { applyDesign, MM_TO_PT, type DesignOverrides } from "./design.js";
+import {
+  applyDesign,
+  withBackground,
+  sanitizeDesignOverrides,
+  MM_TO_PT,
+  LINE_TIE_TOLERANCE_PT,
+  LINE_GAP_MIN,
+  LINE_GAP_MAX,
+  type DesignOverrides,
+} from "./design.js";
 import type { DocumentSpec } from "./merge.js";
 import { certificateSpec, CERTIFICATE_LAYOUTS } from "./certificate.js";
 import { badgeSpec, BADGE_LAYOUTS } from "./badge.js";
@@ -244,6 +253,219 @@ describe("applyDesign — dividers", () => {
     expect(l && l.kind === "line" && l.y1).toBe(150);
     expect(l && l.kind === "line" && l.x1).toBe(0);
     expect(l && l.kind === "line" && l.x2).toBe(400);
+  });
+});
+
+describe("applyDesign — line spacing (lineGap)", () => {
+  // Three stacked lines, top->bottom (PDF y-up: larger y = higher on page).
+  const stacked: DocumentSpec = {
+    page: { width: 200, height: 100 },
+    elements: [
+      { kind: "text", template: "Top", x: 100, y: 80, size: 12, font: "heading", align: "center", color: "#111111", slot: "title" },
+      { kind: "text", template: "Mid", x: 100, y: 50, size: 12, font: "body", align: "center", color: "#111111", slot: "body" },
+      { kind: "text", template: "Bottom", x: 100, y: 20, size: 12, font: "body", align: "center", color: "#111111", slot: "date" },
+    ],
+  };
+
+  function ys(spec: DocumentSpec): number[] {
+    return spec.elements.filter((e) => e.kind === "text").map((e) => (e.kind === "text" ? e.y : NaN));
+  }
+
+  it("keeps the top line fixed and shifts each subsequent line down cumulatively (positive gap)", () => {
+    const out = applyDesign(stacked, { v: 1, lineGap: 10 });
+    // Down in PDF y-up = y decreases: 80, 50-10, 20-20
+    expect(ys(out)).toEqual([80, 40, 0]);
+  });
+
+  it("negative gap pulls subsequent lines up (tighter)", () => {
+    const out = applyDesign(stacked, { v: 1, lineGap: -5 });
+    expect(ys(out)).toEqual([80, 55, 30]);
+  });
+
+  it("lineGap 0 and undefined produce byte-identical output to no lineGap", () => {
+    const base = applyDesign(stacked, { v: 1 });
+    expect(JSON.stringify(applyDesign(stacked, { v: 1, lineGap: 0 }))).toBe(JSON.stringify(base));
+    expect(JSON.stringify(applyDesign(stacked, { v: 1, lineGap: undefined }))).toBe(JSON.stringify(base));
+  });
+
+  it("derives line order from y, not array order, and preserves array order in the output", () => {
+    const shuffled: DocumentSpec = {
+      ...stacked,
+      elements: [stacked.elements[2], stacked.elements[0], stacked.elements[1]],
+    };
+    const out = applyDesign(shuffled, { v: 1, lineGap: 10 });
+    // Array order preserved (Bottom, Top, Mid) but shifts follow visual order.
+    expect(ys(out)).toEqual([0, 80, 40]);
+  });
+
+  it("elements within the tie tolerance form one visual line: same shift, no extra gap", () => {
+    const withTie: DocumentSpec = {
+      ...stacked,
+      elements: [
+        ...stacked.elements,
+        // Within LINE_TIE_TOLERANCE_PT of the y=50 line -> same visual line.
+        { kind: "text", template: "MidTwin", x: 160, y: 50 - LINE_TIE_TOLERANCE_PT / 2, size: 12, font: "body", align: "left", color: "#111111", slot: "detail" },
+      ],
+    };
+    const out = applyDesign(withTie, { v: 1, lineGap: 10 });
+    // Lines: 80 (shift 0), {50, 49.5} (shift 10), 20 (shift 20 — tie adds no line).
+    expect(ys(out)).toEqual([80, 40, 0, 50 - LINE_TIE_TOLERANCE_PT / 2 - 10]);
+  });
+
+  it("does not shift non-text elements", () => {
+    const mixed: DocumentSpec = {
+      ...stacked,
+      elements: [...stacked.elements, { kind: "qr", value: "{Name}", x: 150, y: 10, size: 30 }],
+    };
+    const out = applyDesign(mixed, { v: 1, lineGap: 10 });
+    const qr = out.elements.find((e) => e.kind === "qr");
+    expect(qr && qr.kind === "qr" && qr.y).toBe(10);
+  });
+
+  it("composes with pageSize: gap applies in final page coordinates after scaling", () => {
+    // sy = 300/100 = 3 -> scaled ys 240/150/60, then gap 10 per line on top.
+    const out = applyDesign(stacked, { v: 1, pageSize: { width: 400, height: 300 }, lineGap: 10 });
+    expect(ys(out)).toEqual([240, 140, 40]);
+  });
+
+  it("shifts text before border/divider appending: injected rects and lines are unaffected", () => {
+    const out = applyDesign(stacked, {
+      v: 1,
+      lineGap: 10,
+      border: { style: "single", color: "#000000", width: 1, inset: 10 },
+      dividers: [{ y: 0.5, widthFrac: 0.5, color: "#000000", thickness: 1 }],
+    });
+    const rect = out.elements.find((e) => e.kind === "rect");
+    const line = out.elements.find((e) => e.kind === "line");
+    expect(rect && rect.kind === "rect" && rect.y).toBe(10);
+    expect(line && line.kind === "line" && line.y1).toBe(50);
+  });
+});
+
+describe("withBackground", () => {
+  const bg = { kind: "pdf" as const, src: "data:application/pdf;base64,AAAA" };
+
+  it("returns a copy with the background set, without mutating the input", () => {
+    const out = withBackground(baseSpec, bg);
+    expect(out.background).toEqual(bg);
+    expect(out).not.toBe(baseSpec);
+    expect(baseSpec.background).toBeUndefined();
+  });
+
+  it("returns the spec unchanged for null", () => {
+    const out = withBackground(baseSpec, null);
+    expect(out).toBe(baseSpec);
+    expect(out.background).toBeUndefined();
+  });
+
+  it("returns the spec unchanged for undefined", () => {
+    const out = withBackground(baseSpec, undefined);
+    expect(out).toBe(baseSpec);
+  });
+
+  it("does not clear an existing background when passed null", () => {
+    const specWithBg: DocumentSpec = { ...baseSpec, background: bg };
+    expect(withBackground(specWithBg, null).background).toEqual(bg);
+  });
+});
+
+describe("applyDesign — background id is inert (purity)", () => {
+  it("carries the spec background through and ignores overrides.background", () => {
+    const out = applyDesign(baseSpec, { v: 1, background: { id: "classic-navy" } });
+    expect(out.background).toBeUndefined();
+    const bg = { kind: "png" as const, src: "data:image/png;base64,AAAA" };
+    const out2 = applyDesign({ ...baseSpec, background: bg }, { v: 1, background: null });
+    expect(out2.background).toEqual(bg);
+  });
+});
+
+describe("sanitizeDesignOverrides", () => {
+  it("rejects non-objects and wrong versions", () => {
+    expect(sanitizeDesignOverrides(undefined)).toBeUndefined();
+    expect(sanitizeDesignOverrides(null)).toBeUndefined();
+    expect(sanitizeDesignOverrides("x")).toBeUndefined();
+    expect(sanitizeDesignOverrides(42)).toBeUndefined();
+    expect(sanitizeDesignOverrides({})).toBeUndefined();
+    expect(sanitizeDesignOverrides({ v: 2 })).toBeUndefined();
+  });
+
+  it("passes a fully valid overrides object through intact", () => {
+    const o: DesignOverrides = {
+      v: 1,
+      pageSize: { width: 400, height: 300 },
+      border: { style: "double", color: "#aabbcc", width: 2, inset: 24 },
+      dividers: [{ y: 0.5, widthFrac: 0.8, color: "#112233", thickness: 1 }],
+      text: { recipient: { fontId: "playfair", size: 30, letterSpacing: 1.5, color: "#00ff00", stroke: { color: "#000000", width: 1 } } },
+      lineGap: 12,
+      background: { id: "classic-navy" },
+    };
+    expect(sanitizeDesignOverrides(o)).toEqual(o);
+  });
+
+  it("clamps lineGap to [LINE_GAP_MIN, LINE_GAP_MAX] and drops 0/non-numeric", () => {
+    expect(sanitizeDesignOverrides({ v: 1, lineGap: 999 })?.lineGap).toBe(LINE_GAP_MAX);
+    expect(sanitizeDesignOverrides({ v: 1, lineGap: -999 })?.lineGap).toBe(LINE_GAP_MIN);
+    expect(sanitizeDesignOverrides({ v: 1, lineGap: 0 })?.lineGap).toBeUndefined();
+    expect(sanitizeDesignOverrides({ v: 1, lineGap: "big" })?.lineGap).toBeUndefined();
+    expect(sanitizeDesignOverrides({ v: 1, lineGap: NaN })?.lineGap).toBeUndefined();
+  });
+
+  it("clamps pageSize to sane pt bounds and drops half-formed sizes", () => {
+    const minPt = 20 * MM_TO_PT;
+    const maxPt = 2000 * MM_TO_PT;
+    const tiny = sanitizeDesignOverrides({ v: 1, pageSize: { width: 1, height: 1 } });
+    expect(tiny?.pageSize).toEqual({ width: minPt, height: minPt });
+    const huge = sanitizeDesignOverrides({ v: 1, pageSize: { width: 1e9, height: 1e9 } });
+    expect(huge?.pageSize).toEqual({ width: maxPt, height: maxPt });
+    expect(sanitizeDesignOverrides({ v: 1, pageSize: { width: 400 } })?.pageSize).toBeUndefined();
+    expect(sanitizeDesignOverrides({ v: 1, pageSize: { width: 400, height: "x" } })?.pageSize).toBeUndefined();
+  });
+
+  it("clamps border width/inset and drops borders with bad style or colour", () => {
+    const o = sanitizeDesignOverrides({ v: 1, border: { style: "single", color: "#123456", width: 100, inset: -5 } });
+    expect(o?.border).toEqual({ style: "single", color: "#123456", width: 20, inset: 0 });
+    expect(sanitizeDesignOverrides({ v: 1, border: { style: "wavy", color: "#123456", width: 1, inset: 0 } })?.border).toBeUndefined();
+    expect(sanitizeDesignOverrides({ v: 1, border: { style: "single", color: "red", width: 1, inset: 0 } })?.border).toBeUndefined();
+  });
+
+  it("clamps divider fields and drops malformed entries", () => {
+    const o = sanitizeDesignOverrides({
+      v: 1,
+      dividers: [
+        { y: 5, widthFrac: 0, color: "#000000", thickness: 100 },
+        { y: 0.5, widthFrac: 0.5, color: "javascript:alert(1)", thickness: 1 },
+        "junk",
+      ],
+    });
+    expect(o?.dividers).toEqual([{ y: 1, widthFrac: 0.01, color: "#000000", thickness: 20 }]);
+  });
+
+  it("clamps text size/tracking/stroke width, keeps stroke:null, drops bad colours and empty styles", () => {
+    const o = sanitizeDesignOverrides({
+      v: 1,
+      text: {
+        a: { size: 1000, letterSpacing: -100, color: "#abcdef", stroke: { color: "#000000", width: 50 } },
+        b: { stroke: null },
+        c: { color: "not-a-colour" },
+        d: "junk",
+      },
+    });
+    expect(o?.text?.a).toEqual({ size: 300, letterSpacing: -20, color: "#abcdef", stroke: { color: "#000000", width: 20 } });
+    expect(o?.text?.b).toEqual({ stroke: null });
+    expect(o?.text?.c).toBeUndefined();
+    expect(o?.text?.d).toBeUndefined();
+  });
+
+  it("keeps background {id} and explicit null, drops junk ids", () => {
+    expect(sanitizeDesignOverrides({ v: 1, background: { id: "classic-navy" } })?.background).toEqual({ id: "classic-navy" });
+    expect(sanitizeDesignOverrides({ v: 1, background: null })?.background).toBeNull();
+    expect(sanitizeDesignOverrides({ v: 1, background: { id: "" } })?.background).toBeUndefined();
+    expect(sanitizeDesignOverrides({ v: 1, background: { id: 7 } })?.background).toBeUndefined();
+    expect(sanitizeDesignOverrides({ v: 1, background: "x" })?.background).toBeUndefined();
+  });
+
+  it("always yields a v:1 object for valid input, even when every field is dropped", () => {
+    expect(sanitizeDesignOverrides({ v: 1, pageSize: "junk", text: [] })).toEqual({ v: 1 });
   });
 });
 
