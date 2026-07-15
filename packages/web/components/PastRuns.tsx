@@ -72,6 +72,7 @@ export function PastRuns({
         </div>
       )}
       footer="Output files expire about 6 hours after a run. The rows here stay."
+      align="left"
     />
   );
 }

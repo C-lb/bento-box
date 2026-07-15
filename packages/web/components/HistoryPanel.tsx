@@ -19,6 +19,7 @@ export function HistoryPanel<T extends HistoryItem>({
   renderActions,
   deleteItem,
   footer,
+  align = "right",
 }: {
   buttonLabel: string;
   panelTitle: string;
@@ -28,6 +29,12 @@ export function HistoryPanel<T extends HistoryItem>({
   renderActions?: (item: T) => ReactNode;
   deleteItem?: (item: T) => Promise<void>;
   footer?: ReactNode;
+  /**
+   * Which button edge the dropdown hugs. Use "left" when the trigger sits
+   * near the left side of the page so the 420px panel opens rightward
+   * instead of hanging off the viewport.
+   */
+  align?: "left" | "right";
 }) {
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState<T[] | null>(null);
@@ -80,7 +87,9 @@ export function HistoryPanel<T extends HistoryItem>({
             className="fixed inset-0 z-10 cursor-default"
             onClick={() => setOpen(false)}
           />
-          <div className="card absolute right-0 z-20 mt-2 w-[calc(100vw-2.5rem)] max-w-[420px] sm:w-[420px]">
+          <div
+            className={`card absolute z-20 mt-2 w-[calc(100vw-2.5rem)] max-w-[420px] sm:w-[420px] ${align === "left" ? "left-0" : "right-0"}`}
+          >
             <p className="eyebrow">{panelTitle}</p>
             {loading && <p className="mt-3 text-sm text-muted">Loading…</p>}
             {!loading && items && items.length === 0 && <p className="mt-3 text-sm text-muted">{emptyLabel}</p>}
