@@ -40,8 +40,9 @@ Web plumbing:
 - Each tool's process route records a run **after success only** (best-effort try/catch like
   slice's history write — recording must never fail the conversion). Outputs reference the
   existing file-id GET routes (`/api/pdf/file/[id]`, `/api/resize/[id]`, `/api/video/[id]`,
-  `/api/splice/[id]`, `/api/convert/[id]`). Resize is a batch tool: one run row per submitted
-  batch with all output ids in `outputs`.
+  `/api/splice/[id]`, `/api/convert/[id]`). Resize: the batch exists only client-side (the API
+  takes one file per request), so history is one row per file — accepted deviation from the
+  original one-row-per-batch idea.
 - Shared client component `components/PastRuns.tsx` wrapping `HistoryPanel` with per-tool props
   (label, noun, mode badge). Download links hit the file-id routes; a 404/expired file renders
   the row's actions as an "Expired" `StatusBadge` (same UX as slice/heic; probe lazily on click,
