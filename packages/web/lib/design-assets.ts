@@ -63,6 +63,7 @@ export async function deleteAsset(id: string): Promise<void> {
 
 const CUSTOM_DESIGN_PREFIX = "ee.customDesign.";
 const DESIGN_PRESETS_PREFIX = "ee.designPresets.";
+const DESIGN_PREFIX = "ee.design.";
 
 /** Recursively scans an arbitrary parsed-JSON value for any `assetId` field
  * equal to `id`. Deliberately structure-agnostic (rather than typed against
@@ -81,15 +82,15 @@ function referencesAssetId(value: unknown, id: string): boolean {
 /**
  * Pure localStorage scan (no IndexedDB access, so it's testable under jsdom
  * without fake-indexeddb): true if `assetId` is still referenced by any
- * saved design preset or persisted custom design. SSR-safe. A key with
- * malformed JSON is skipped (treated as no reference) rather than throwing.
+ * saved design preset, persisted custom design, or built-in layout design override.
+ * SSR-safe. A key with malformed JSON is skipped (treated as no reference) rather than throwing.
  */
 export function isAssetReferenced(assetId: string): boolean {
   if (typeof localStorage === "undefined") return false;
   for (let i = 0; i < localStorage.length; i++) {
     const key = localStorage.key(i);
     if (!key) continue;
-    if (!key.startsWith(CUSTOM_DESIGN_PREFIX) && !key.startsWith(DESIGN_PRESETS_PREFIX)) continue;
+    if (!key.startsWith(CUSTOM_DESIGN_PREFIX) && !key.startsWith(DESIGN_PRESETS_PREFIX) && !key.startsWith(DESIGN_PREFIX)) continue;
     const raw = localStorage.getItem(key);
     if (!raw) continue;
     try {

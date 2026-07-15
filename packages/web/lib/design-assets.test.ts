@@ -85,7 +85,14 @@ describe("isAssetReferenced", () => {
     expect(isAssetReferenced("does-not-exist")).toBe(false);
   });
 
-  it("ignores keys outside the two known prefixes", () => {
+  it("finds a reference via a built-in layout design override (ee.design.* prefix)", () => {
+    store.set("ee.design.certificate", JSON.stringify({
+      v: 1, background: { assetId: "bg-7", kind: "png" },
+    }));
+    expect(isAssetReferenced("bg-7")).toBe(true);
+  });
+
+  it("ignores keys outside the three known prefixes", () => {
     store.set("ee.someOtherThing.certificate", JSON.stringify({ assetId: "bg-6" }));
     expect(isAssetReferenced("bg-6")).toBe(false);
   });
