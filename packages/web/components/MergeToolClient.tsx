@@ -19,6 +19,7 @@ import { renderCombined, renderZip, renderSheet, type FontBytes } from "@/lib/me
 import { triggerDownload } from "@/lib/merge-download";
 import { designSlots, specFontIds, withDesignFonts, EMPTY_ROW } from "@/lib/design-tools";
 import { addUploadedFont, listUploadedFonts } from "@/lib/designer-fonts";
+import { PastMergeOutputs, usePastMergeOutputs } from "@/components/PastMergeOutputs";
 
 export const CUSTOM_LAYOUT_ID = "__custom";
 
@@ -39,6 +40,8 @@ export interface MergeToolConfig {
   recipientDefault: string;
   sheet: boolean;
   fileBase: string;
+  /** Plural noun for the history panel, e.g. "badges", "place cards". */
+  historyNoun: string;
   sizePresets: SizePreset[];
   buildSpec: (v: { layout: string; text: Record<string, string>; toggles: Record<string, boolean>; recipientField: string }) => DocumentSpec;
 }
@@ -157,6 +160,9 @@ export function MergeToolClient(config: MergeToolConfig) {
   const columnOk = rows.headers.length === 0 || rows.headers.includes(recipientColumn);
   const ready = mergedRows.length > 0 && columnOk;
 
+  // "See past …" history: recorded best-effort at the moment a download fires.
+  const past = usePastMergeOutputs(config.toolId);
+
   async function download(kind: "combined" | "zip" | "sheet") {
     setBusy(true); setError(null);
     try {
@@ -167,14 +173,17 @@ export function MergeToolClient(config: MergeToolConfig) {
         : finalSpec;
       const fonts = await withDesignFonts(renderSpec);
       if (kind === "combined") {
-        const bytes = await renderCombined(renderSpec, mergedRows, fonts);
-        triggerDownload(new Blob([bytes as BlobPart], { type: "application/pdf" }), `${config.fileBase}.pdf`);
+        const blob = new Blob([(await renderCombined(renderSpec, mergedRows, fonts)) as BlobPart], { type: "application/pdf" });
+        triggerDownload(blob, `${config.fileBase}.pdf`);
+        past.record(`${config.fileBase}.pdf`, blob);
       } else if (kind === "sheet") {
-        const bytes = await renderSheet(renderSpec, mergedRows, fonts);
-        triggerDownload(new Blob([bytes as BlobPart], { type: "application/pdf" }), `${config.fileBase}-sheet.pdf`);
+        const blob = new Blob([(await renderSheet(renderSpec, mergedRows, fonts)) as BlobPart], { type: "application/pdf" });
+        triggerDownload(blob, `${config.fileBase}-sheet.pdf`);
+        past.record(`${config.fileBase}-sheet.pdf`, blob);
       } else {
         const blob = await renderZip(renderSpec, mergedRows, recipientField, fonts);
         triggerDownload(blob, `${config.fileBase}.zip`);
+        past.record(`${config.fileBase}.zip`, blob);
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -275,6 +284,8 @@ export function MergeToolClient(config: MergeToolConfig) {
           </button>
         )}
       </div>
+
+      <PastMergeOutputs noun={config.historyNoun} items={past.items} onRemove={past.remove} onClear={past.clear} />
     </div>
   );
 }

@@ -24,6 +24,7 @@ import type { DesignPreset } from "@/lib/design-presets";
 import { customDesignToSpec, type CustomDesign } from "@event-editor/core/custom-design";
 import { addUploadedFont, listUploadedFonts } from "@/lib/designer-fonts";
 import { designSlots, specFontIds, withDesignFonts, EMPTY_ROW } from "@/lib/design-tools";
+import { PastMergeOutputs, usePastMergeOutputs } from "@/components/PastMergeOutputs";
 
 type Source = "paste" | "upload" | "sheet";
 
@@ -194,6 +195,9 @@ export function CertificateClient() {
     setUploadedFonts(listUploadedFonts());
   }
 
+  // "See past …" history: recorded best-effort at the moment a download fires.
+  const past = usePastMergeOutputs(TOOL_ID);
+
   async function download(kind: "combined" | "zip") {
     setBusy(true); setError(null);
     try {
@@ -204,11 +208,13 @@ export function CertificateClient() {
         : finalSpec;
       const fonts = await withDesignFonts(renderSpec);
       if (kind === "combined") {
-        const bytes = await renderCombined(renderSpec, mergedRows, fonts);
-        triggerDownload(new Blob([bytes as BlobPart], { type: "application/pdf" }), "certificates.pdf");
+        const blob = new Blob([(await renderCombined(renderSpec, mergedRows, fonts)) as BlobPart], { type: "application/pdf" });
+        triggerDownload(blob, "certificates.pdf");
+        past.record("certificates.pdf", blob);
       } else {
         const blob = await renderZip(renderSpec, mergedRows, recipientField, fonts);
         triggerDownload(blob, "certificates.zip");
+        past.record("certificates.zip", blob);
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -366,6 +372,8 @@ export function CertificateClient() {
           <Download className="w-4 h-4" strokeWidth={1.75} /> Zip of files
         </button>
       </div>
+
+      <PastMergeOutputs noun="certificates" items={past.items} onRemove={past.remove} onClear={past.clear} />
     </div>
   );
 }

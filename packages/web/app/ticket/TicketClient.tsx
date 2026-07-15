@@ -17,6 +17,7 @@ const config: MergeToolConfig = {
   recipientDefault: "Name",
   sheet: true,
   fileBase: "tickets",
+  historyNoun: "tickets",
   buildSpec: ({ layout, text, toggles, recipientField }) =>
     ticketSpec({
       layout: layout as "classic" | "minimal",

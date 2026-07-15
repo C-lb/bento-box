@@ -18,6 +18,7 @@ const config: MergeToolConfig = {
   recipientDefault: "Name",
   sheet: true,
   fileBase: "badges",
+  historyNoun: "badges",
   buildSpec: ({ layout, text, toggles, recipientField }) =>
     badgeSpec({
       layout: layout as "centered" | "leftQr",

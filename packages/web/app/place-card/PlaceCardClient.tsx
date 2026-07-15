@@ -13,6 +13,7 @@ const config: MergeToolConfig = {
   recipientDefault: "Name",
   sheet: true,
   fileBase: "place-cards",
+  historyNoun: "place cards",
   buildSpec: ({ layout, text, recipientField }) =>
     placecardSpec({
       layout: layout as "classic" | "withTable",
