@@ -464,6 +464,28 @@ describe("sanitizeDesignOverrides", () => {
     expect(sanitizeDesignOverrides({ v: 1, background: "x" })?.background).toBeUndefined();
   });
 
+  it("round-trips an uploaded-asset background ({assetId, kind})", () => {
+    expect(sanitizeDesignOverrides({ v: 1, background: { assetId: "abc-123", kind: "png" } })?.background)
+      .toEqual({ assetId: "abc-123", kind: "png" });
+    expect(sanitizeDesignOverrides({ v: 1, background: { assetId: "abc-123", kind: "jpg" } })?.background)
+      .toEqual({ assetId: "abc-123", kind: "jpg" });
+    expect(sanitizeDesignOverrides({ v: 1, background: { assetId: "abc-123", kind: "pdf" } })?.background)
+      .toEqual({ assetId: "abc-123", kind: "pdf" });
+  });
+
+  it("drops an uploaded-asset background with a bad kind", () => {
+    expect(sanitizeDesignOverrides({ v: 1, background: { assetId: "abc-123", kind: "gif" } })?.background).toBeUndefined();
+    expect(sanitizeDesignOverrides({ v: 1, background: { assetId: "abc-123" } })?.background).toBeUndefined();
+  });
+
+  it("drops an uploaded-asset background with an empty or overlong assetId", () => {
+    expect(sanitizeDesignOverrides({ v: 1, background: { assetId: "", kind: "png" } })?.background).toBeUndefined();
+    const long = "a".repeat(201);
+    expect(sanitizeDesignOverrides({ v: 1, background: { assetId: long, kind: "png" } })?.background).toBeUndefined();
+    const max = "a".repeat(200);
+    expect(sanitizeDesignOverrides({ v: 1, background: { assetId: max, kind: "png" } })?.background).toEqual({ assetId: max, kind: "png" });
+  });
+
   it("always yields a v:1 object for valid input, even when every field is dropped", () => {
     expect(sanitizeDesignOverrides({ v: 1, pageSize: "junk", text: [] })).toEqual({ v: 1 });
   });

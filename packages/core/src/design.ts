@@ -39,14 +39,16 @@ export interface DesignOverrides {
    */
   lineGap?: number;
   /**
-   * Bundled background selection by id. `applyDesign` deliberately ignores
-   * this (it stays pure — no fetching): the caller resolves the id to bytes
-   * and injects them via `withBackground`. `null`/absent both mean "no
-   * bundled background selected". Note `withBackground(spec, null)` leaves
-   * an existing `spec.background` in place rather than clearing it; it is
-   * an injection seam, not a removal API.
+   * Background selection: a bundled registry id, or a user-uploaded asset
+   * (assetId into the shared `ee-design-assets` IndexedDB store, same
+   * convention as `CustomDesign.background`). `applyDesign` deliberately
+   * ignores this (it stays pure — no fetching): the caller resolves the
+   * selection to bytes and injects them via `withBackground`. `null`/absent
+   * both mean "no background selected". Note `withBackground(spec, null)`
+   * leaves an existing `spec.background` in place rather than clearing it;
+   * it is an injection seam, not a removal API.
    */
-  background?: { id: string } | null;
+  background?: { id: string } | { assetId: string; kind: "png" | "jpg" | "pdf" } | null;
 }
 
 /**
@@ -299,8 +301,13 @@ export function sanitizeDesignOverrides(value: unknown): DesignOverrides | undef
   if (s.background === null) {
     out.background = null;
   } else if (s.background && typeof s.background === "object") {
-    const id = (s.background as Record<string, unknown>).id;
-    if (typeof id === "string" && id && id.length <= 200) out.background = { id };
+    const b = s.background as Record<string, unknown>;
+    if (typeof b.id === "string" && b.id && b.id.length <= 200) {
+      out.background = { id: b.id };
+    } else if (typeof b.assetId === "string" && b.assetId && b.assetId.length <= 200) {
+      const kind = b.kind === "png" || b.kind === "jpg" || b.kind === "pdf" ? b.kind : undefined;
+      if (kind) out.background = { assetId: b.assetId, kind };
+    }
   }
 
   return out;
