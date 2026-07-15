@@ -76,11 +76,11 @@ export const TOOLS: Tool[] = [
   {
     id: "convert",
     href: "/convert",
-    title: "Convert file/link to audio",
-    body: "Change a file's format. Images to png, jpg, webp, or pdf; pdf to images; audio and video to mp3, wav, or m4a. Or paste a link for audio.",
+    title: "Convert files",
+    body: "Change a file's format. Audio from a file or link to mp3, wav, or m4a; images to png, jpg, or webp (heic in); pdf to images; images to pdf.",
     Icon: ArrowRightLeft,
     defaultGroups: ["media"],
-    tags: ["convert", "image", "png", "jpg", "webp", "pdf", "audio", "mp3", "video", "youtube", "heic"],
+    tags: ["convert", "image", "png", "jpg", "webp", "pdf", "audio", "mp3", "video", "youtube", "heic", "pdf to png", "png to pdf", "image converter", "file converter"],
   },
   {
     id: "heic",

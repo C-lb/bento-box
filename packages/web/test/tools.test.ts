@@ -53,6 +53,12 @@ describe("searchTools", () => {
   it("matches a tag", () => {
     expect(ids(searchTools(TOOLS, "mp3"))).toContain("convert");
   });
+  it("surfaces /convert for format-conversion searches", () => {
+    expect(toolById("convert")?.title).toBe("Convert files");
+    for (const q of ["pdf to png", "png to pdf", "jpg", "webp", "image converter", "file converter"]) {
+      expect(ids(searchTools(TOOLS, q))).toContain("convert");
+    }
+  });
   it("matches the title", () => {
     expect(ids(searchTools(TOOLS, "headshot"))).toContain("studio");
   });

@@ -9,7 +9,8 @@ export default function ConvertPage() {
     <div>
       <div className="flex items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold">Convert file/link to audio</h1>
+          <h1 className="text-2xl font-semibold">Convert files</h1>
+          <p className="mt-1 text-sm text-muted">Audio from a file or link, images, pdf to images, images to pdf.</p>
         </div>
       </div>
       <ConvertClient ytDlp={hasYtDlp()} />

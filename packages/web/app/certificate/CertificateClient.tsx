@@ -302,9 +302,8 @@ export function CertificateClient() {
           fonts={previewFonts}
           onApply={applyPreset}
         />
-        <div className="space-y-3 lg:grid lg:grid-cols-2 lg:gap-6 lg:space-y-0">
-          {isCustom ? (
-          <div className="lg:col-span-2">
+        {isCustom ? (
+          <div>
             <CustomDesignEditor
               design={customDesign}
               onChange={changeCustomDesign}
@@ -320,23 +319,25 @@ export function CertificateClient() {
               <input className="field mt-1 w-full min-h-[44px] sm:min-h-0" value={recipientField} onChange={(e) => setRecipientField(e.target.value)} />
             </label>
           </div>
-          ) : (
+        ) : (
           <>
-          <div className="order-first mb-3 lg:order-last lg:mb-0">
-            <MergePreview spec={finalSpec} row={mergedRows[0] ?? EMPTY_ROW} fonts={previewFonts} className="lg:sticky lg:top-4" />
-          </div>
-          <div className="space-y-3">
-            <LabeledInput label="Title" value={title} onChange={setTitle} />
-            <LabeledInput label="Body line" value={bodyLine} onChange={setBodyLine} />
-            <LabeledInput label="Detail line" value={detailLine} onChange={setDetailLine} />
-            <LabeledInput label="Date" value={dateText} onChange={setDateText} />
-            <LabeledInput label="Signature" value={signatureName} onChange={setSignatureName} />
-            <LabeledInput label="Recipient column" value={recipientField} onChange={setRecipientField} />
-            {rows.headers.length > 0 && !rows.headers.includes(recipientColumn) && (
-              <p className="text-sm text-amber-600">
-                No "{recipientField}" column found. Available: {rows.headers.join(", ")}.
-              </p>
-            )}
+          {/* Full-width preview row: the aspect-ratio container fills the card
+              width, so the wider page = a visibly larger preview. */}
+          <MergePreview spec={finalSpec} row={mergedRows[0] ?? EMPTY_ROW} fonts={previewFonts} />
+          <div className="space-y-3 lg:grid lg:grid-cols-2 lg:gap-6 lg:space-y-0 lg:items-start">
+            <div className="space-y-3">
+              <LabeledInput label="Title" value={title} onChange={setTitle} />
+              <LabeledInput label="Body line" value={bodyLine} onChange={setBodyLine} />
+              <LabeledInput label="Detail line" value={detailLine} onChange={setDetailLine} />
+              <LabeledInput label="Date" value={dateText} onChange={setDateText} />
+              <LabeledInput label="Signature" value={signatureName} onChange={setSignatureName} />
+              <LabeledInput label="Recipient column" value={recipientField} onChange={setRecipientField} />
+              {rows.headers.length > 0 && !rows.headers.includes(recipientColumn) && (
+                <p className="text-sm text-amber-600">
+                  No "{recipientField}" column found. Available: {rows.headers.join(", ")}.
+                </p>
+              )}
+            </div>
             <DesignPanel
               key={TOOL_ID}
               toolId={TOOL_ID}
@@ -349,8 +350,7 @@ export function CertificateClient() {
             />
           </div>
           </>
-          )}
-        </div>
+        )}
       </div>
 
       {error && <p className="text-sm text-danger">{error}</p>}

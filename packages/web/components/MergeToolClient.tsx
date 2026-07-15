@@ -203,9 +203,8 @@ export function MergeToolClient(config: MergeToolConfig) {
           fonts={previewFonts}
           onApply={applyPreset}
         />
-        <div className="space-y-3 lg:grid lg:grid-cols-2 lg:gap-6 lg:space-y-0">
-          {isCustom ? (
-          <div className="lg:col-span-2">
+        {isCustom ? (
+          <div>
             <CustomDesignEditor
               design={customDesign}
               onChange={changeCustomDesign}
@@ -221,26 +220,28 @@ export function MergeToolClient(config: MergeToolConfig) {
               <input className="field mt-1 w-full min-h-[44px] sm:min-h-0" value={recipientField} onChange={(e) => setRecipientField(e.target.value)} />
             </label>
           </div>
-          ) : (
+        ) : (
           <>
-          <div className="lg:order-2">
-            <MergePreview spec={finalSpec} row={mergedRows[0] ?? EMPTY_ROW} fonts={previewFonts} className="lg:sticky lg:top-4" />
-          </div>
-          <div className="space-y-3 lg:order-1">
-            {config.copyFields.map((f) => (
-              <label key={f.key} className="block text-sm font-medium">{f.label}
-                <input className="field mt-1 w-full min-h-[44px] sm:min-h-0" value={text[f.key] ?? ""} onChange={(e) => setText((s) => ({ ...s, [f.key]: e.target.value }))} />
+          {/* Full-width preview row: the aspect-ratio container fills the card
+              width, so the wider page = a visibly larger preview. */}
+          <MergePreview spec={finalSpec} row={mergedRows[0] ?? EMPTY_ROW} fonts={previewFonts} />
+          <div className="space-y-3 lg:grid lg:grid-cols-2 lg:gap-6 lg:space-y-0 lg:items-start">
+            <div className="space-y-3">
+              {config.copyFields.map((f) => (
+                <label key={f.key} className="block text-sm font-medium">{f.label}
+                  <input className="field mt-1 w-full min-h-[44px] sm:min-h-0" value={text[f.key] ?? ""} onChange={(e) => setText((s) => ({ ...s, [f.key]: e.target.value }))} />
+                </label>
+              ))}
+              <label className="block text-sm font-medium">{config.recipientLabel}
+                <input className="field mt-1 w-full min-h-[44px] sm:min-h-0" value={recipientField} onChange={(e) => setRecipientField(e.target.value)} />
               </label>
-            ))}
-            <label className="block text-sm font-medium">{config.recipientLabel}
-              <input className="field mt-1 w-full min-h-[44px] sm:min-h-0" value={recipientField} onChange={(e) => setRecipientField(e.target.value)} />
-            </label>
-            {(config.toggles ?? []).map((t) => (
-              <label key={t.key} className="flex items-center gap-2 text-sm font-medium">
-                <input type="checkbox" checked={!!toggles[t.key]} onChange={(e) => setToggles((s) => ({ ...s, [t.key]: e.target.checked }))} />
-                {t.label}
-              </label>
-            ))}
+              {(config.toggles ?? []).map((t) => (
+                <label key={t.key} className="flex items-center gap-2 text-sm font-medium">
+                  <input type="checkbox" checked={!!toggles[t.key]} onChange={(e) => setToggles((s) => ({ ...s, [t.key]: e.target.checked }))} />
+                  {t.label}
+                </label>
+              ))}
+            </div>
             <DesignPanel
               key={config.toolId}
               toolId={config.toolId}
@@ -253,8 +254,7 @@ export function MergeToolClient(config: MergeToolConfig) {
             />
           </div>
           </>
-          )}
-        </div>
+        )}
         {rows.headers.length > 0 && !columnOk && (
           <p className="text-sm text-amber-600">No "{recipientColumn}" column found. Available: {rows.headers.join(", ")}.</p>
         )}

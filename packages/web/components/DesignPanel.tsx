@@ -126,7 +126,7 @@ export function DesignPanel({
   const selectedBackground = value.background?.id;
 
   return (
-    <details className="mt-3">
+    <details className="mt-3 lg:mt-0">
       <summary className="cursor-pointer text-sm font-medium text-ink hover:text-accent">Customise</summary>
       <div className="mt-4 space-y-5">
         {/* Size */}
