@@ -1,5 +1,7 @@
 import { getConnections } from "@event-editor/core/settings";
+import { getToken } from "@event-editor/core/tokens";
 import { findSoffice } from "@/lib/pptx-convert";
+import { getDb } from "@/lib/db";
 import { SliceClient } from "./SliceClient";
 import { PastSlices } from "./PastSlices";
 
@@ -9,6 +11,8 @@ export default function SlicePage() {
   const conns = getConnections();
   const anthropic = conns.find((c) => c.id === "anthropic");
   const soffice = !!findSoffice();
+  const google = getToken(getDb(), "google") !== null;
+  const canConvert = soffice || google;
 
   return (
     <div>
@@ -19,14 +23,16 @@ export default function SlicePage() {
         <PastSlices />
       </div>
 
-      {!soffice ? (
+      {!canConvert ? (
         <div className="card mt-8">
-          <p className="font-medium">LibreOffice is required</p>
+          <p className="font-medium">LibreOffice or Google required</p>
           <p className="mt-2 text-muted">
             This tool converts PowerPoint to PDF locally with LibreOffice so confidential decks never leave your machine.
+            Without LibreOffice, it falls back to converting via your Google account.
           </p>
           <p className="mt-2 text-muted">
-            Install it from libreoffice.org (or `brew install --cask libreoffice` on macOS), then restart this app.
+            Install LibreOffice from libreoffice.org (or `brew install --cask libreoffice` on macOS) and restart this app,
+            or <a className="underline" href="/settings">connect Google in settings</a>.
           </p>
         </div>
       ) : !anthropic?.configured ? (

@@ -2,8 +2,10 @@ import { mkdir, writeFile, chmod } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import { spawn } from "node:child_process";
 import ffmpegPath from "ffmpeg-static";
+import { getToken } from "@event-editor/core/tokens";
 import { binDir, managedYtDlpPath, ytDlpBin, hasYtDlp } from "./convert";
 import { findSoffice } from "./pptx-convert";
+import { getDb } from "./db";
 
 export function ytDlpAsset(platform: NodeJS.Platform): string {
   if (platform === "win32") return "yt-dlp.exe";
@@ -85,8 +87,13 @@ export interface Dep {
 
 export type DepId = Dep["id"];
 
+function googleConnected(): boolean {
+  try { return getToken(getDb(), "google") !== null; } catch { return false; }
+}
+
 export async function dependencyStatuses(): Promise<Dep[]> {
   const ytVersion = await ytDlpVersion();
+  const sofficeReady = findSoffice() !== null;
   return [
     {
       id: "ffmpeg",
@@ -105,10 +112,14 @@ export async function dependencyStatuses(): Promise<Dep[]> {
     {
       id: "libreoffice",
       label: "LibreOffice",
-      ready: findSoffice() !== null,
+      ready: sofficeReady,
       managed: false,
       installUrl: "https://www.libreoffice.org/download/download-libreoffice/",
-      hint: "On Mac: brew install --cask libreoffice",
+      // ready stays an honest binary; the hint just tells the user the slicer
+      // still works via their connected Google account in the meantime.
+      hint: !sofficeReady && googleConnected()
+        ? "On Mac: brew install --cask libreoffice. Until then the slicer falls back to Google Slides via your connected Google account."
+        : "On Mac: brew install --cask libreoffice",
     },
   ];
 }

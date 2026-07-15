@@ -8,6 +8,8 @@ import { convertToPdf, readSlides, findSoffice } from "@/lib/pptx-convert";
 import { pdfPageCount } from "@/lib/pdf-slice";
 import { getDb } from "@/lib/db";
 import { createSliceRun } from "@event-editor/core/slice-runs";
+import { getToken } from "@event-editor/core/tokens";
+import { convertViaGoogleSlides, converterPlan } from "@/lib/slides-convert";
 import { authedDriveClient } from "@/lib/google/oauth";
 import { makeDriveClient } from "@/lib/google/drive";
 import { guardUpload } from "@/lib/upload-guard";
@@ -23,8 +25,15 @@ export async function POST(request: Request) {
   const blocked = await guardUpload(request);
   if (blocked) return blocked;
 
-  if (!findSoffice()) {
-    return NextResponse.json({ error: "LibreOffice is not installed. See the tool page for install steps." }, { status: 400 });
+  // Provider chain: LibreOffice first (local, no upload), Google Slides as
+  // fallback. Only 400 up front when NEITHER converter is available.
+  const soffice = findSoffice();
+  const googleConnected = getToken(getDb(), "google") !== null;
+  if (converterPlan(soffice !== null, googleConnected).length === 0) {
+    return NextResponse.json(
+      { error: "Slicing needs LibreOffice or a connected Google account. Install LibreOffice, or connect Google in Settings." },
+      { status: 400 },
+    );
   }
 
   // Validate everything cheap BEFORE creating the run dir, so early 400s never leak a dir.
@@ -63,11 +72,41 @@ export async function POST(request: Request) {
       await pipeline(Readable.fromWeb(request.body as any), createWriteStream(pptx));
     }
 
-    await convertToPdf(pptx, dir);
+    const warnings: string[] = [];
+    let sofficeError: string | null = null;
+    let converted = false;
+    if (soffice) {
+      try {
+        await convertToPdf(pptx, dir);
+        converted = true;
+      } catch (err) {
+        sofficeError = err instanceof Error ? err.message : String(err);
+      }
+    }
+    if (!converted) {
+      if (!googleConnected) {
+        // LibreOffice was present (the up-front gate guarantees it) and failed,
+        // with no fallback to try — surface its error via the catch below.
+        throw new Error(sofficeError ?? "LibreOffice conversion failed.");
+      }
+      const outcome = await convertViaGoogleSlides(pptx, getDb());
+      if (!outcome.ok) {
+        // Both providers are out. Not a server bug — tell the user what Google
+        // said, and keep the LibreOffice failure visible if there was one.
+        try { await cleanupRun(runId); } catch { /* best-effort */ }
+        const detail = sofficeError ? ` (LibreOffice also failed: ${sofficeError})` : "";
+        return NextResponse.json({ error: `${outcome.error}${detail}` }, { status: 400 });
+      }
+      await writeFile(masterPdfPath(runId), outcome.pdf);
+      warnings.push("Converted with Google Slides, so layout fidelity may differ slightly.");
+      if (sofficeError) {
+        warnings.push(`LibreOffice is installed but failed to convert this deck (${sofficeError}); Google Slides was used instead.`);
+      }
+    }
+
     const slides = await readSlides(pptx);
     const pageCount = await pdfPageCount(await readFile(masterPdfPath(runId)));
 
-    const warnings: string[] = [];
     if (slides.length !== pageCount) {
       warnings.push(`This deck has ${slides.length} slides but the PDF has ${pageCount} pages, so slide numbers may not line up with page numbers. Double-check your ranges.`);
     }
