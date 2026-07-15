@@ -250,49 +250,53 @@ export function QrClient() {
         )}
       </div>
 
-      {history.length > 0 && (
-        <div className="card">
-          <div className="flex items-center justify-between">
-            <p className="text-sm font-medium">See past QR codes</p>
-            <button
-              type="button"
-              className="btn min-h-[44px] sm:min-h-0"
-              onClick={handleClearHistory}
-            >
-              Clear all
-            </button>
-          </div>
-          <ul className="mt-3 space-y-3">
-            {history.map((item) => (
-              <li
-                key={item.id}
-                className="flex items-center justify-between gap-3 border-t border-black/5 pt-3 first:border-t-0 first:pt-0"
+      <div className="card">
+        {history.length > 0 ? (
+          <>
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-medium">See past QR codes</p>
+              <button
+                type="button"
+                className="btn min-h-[44px] sm:min-h-0"
+                onClick={handleClearHistory}
               >
-                <button
-                  type="button"
-                  className="min-w-0 flex-1 text-left"
-                  onClick={() => applyHistoryItem(item)}
-                  title="Fill the form with this code"
+                Clear all
+              </button>
+            </div>
+            <ul className="mt-3 space-y-3">
+              {history.map((item) => (
+                <li
+                  key={item.id}
+                  className="flex items-center justify-between gap-3 border-t border-black/5 pt-3 first:border-t-0 first:pt-0"
                 >
-                  <span className="block truncate text-sm font-medium text-ink">
-                    {truncateText(item.text)}
-                  </span>
-                  <span className="block truncate text-xs text-muted">
-                    {historyWhen(item.at)} · {item.size}px · {item.format.toUpperCase()}
-                  </span>
-                </button>
-                <button
-                  type="button"
-                  className="p-2 -m-2 min-h-[44px] sm:min-h-0 sm:p-0 sm:m-0 text-xs text-danger underline underline-offset-2"
-                  onClick={() => removeHistoryItem(item.id)}
-                >
-                  Remove
-                </button>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
+                  <button
+                    type="button"
+                    className="min-w-0 flex-1 text-left"
+                    onClick={() => applyHistoryItem(item)}
+                    title="Fill the form with this code"
+                  >
+                    <span className="block truncate text-sm font-medium text-ink">
+                      {truncateText(item.text)}
+                    </span>
+                    <span className="block truncate text-xs text-muted">
+                      {historyWhen(item.at)} · {item.size}px · {item.format.toUpperCase()}
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    className="p-2 -m-2 min-h-[44px] sm:min-h-0 sm:p-0 sm:m-0 text-xs text-danger underline underline-offset-2"
+                    onClick={() => removeHistoryItem(item.id)}
+                  >
+                    Remove
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </>
+        ) : (
+          <p className="text-sm text-muted">Past QR codes appear here after you download.</p>
+        )}
+      </div>
     </div>
   );
 }

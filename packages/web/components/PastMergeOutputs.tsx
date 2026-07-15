@@ -71,49 +71,53 @@ export function PastMergeOutputs({
     return () => { for (const u of Object.values(map)) URL.revokeObjectURL(u); };
   }, [items]);
 
-  if (items.length === 0) return null;
-
   return (
     <div className="card">
-      <div className="flex items-center justify-between">
-        <p className="text-sm font-medium">See past {noun}</p>
-        <button type="button" className="btn min-h-[44px] sm:min-h-0" onClick={onClear}>
-          Clear all
-        </button>
-      </div>
-      <ul className="mt-3 space-y-3">
-        {items.map((item) => (
-          <li
-            key={item.id}
-            className="flex items-center justify-between gap-3 border-t border-black/5 pt-3 first:border-t-0 first:pt-0"
-          >
-            <div className="min-w-0">
-              <p className="truncate text-sm font-medium">{item.filename}</p>
-              <p className="truncate text-sm text-muted">{new Date(item.at).toLocaleString()}</p>
-            </div>
-            <div className="flex shrink-0 gap-2">
-              {urls[item.id] && (
-                <a
-                  className="btn inline-flex items-center justify-center gap-2 min-h-[44px] sm:min-h-0"
-                  href={urls[item.id]}
-                  download={item.filename}
-                >
-                  <Download className="w-4 h-4" strokeWidth={1.75} /> Save
-                </a>
-              )}
-              <button
-                type="button"
-                className="btn min-h-[44px] sm:min-h-0"
-                onClick={() => onRemove(item.id)}
-                aria-label={`Remove ${item.filename} from history`}
-                data-tip="Remove"
+      {items.length > 0 ? (
+        <>
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-medium">See past {noun}</p>
+            <button type="button" className="btn min-h-[44px] sm:min-h-0" onClick={onClear}>
+              Clear all
+            </button>
+          </div>
+          <ul className="mt-3 space-y-3">
+            {items.map((item) => (
+              <li
+                key={item.id}
+                className="flex items-center justify-between gap-3 border-t border-black/5 pt-3 first:border-t-0 first:pt-0"
               >
-                <Trash2 className="w-4 h-4" strokeWidth={1.75} />
-              </button>
-            </div>
-          </li>
-        ))}
-      </ul>
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium">{item.filename}</p>
+                  <p className="truncate text-sm text-muted">{new Date(item.at).toLocaleString()}</p>
+                </div>
+                <div className="flex shrink-0 gap-2">
+                  {urls[item.id] && (
+                    <a
+                      className="btn inline-flex items-center justify-center gap-2 min-h-[44px] sm:min-h-0"
+                      href={urls[item.id]}
+                      download={item.filename}
+                    >
+                      <Download className="w-4 h-4" strokeWidth={1.75} /> Save
+                    </a>
+                  )}
+                  <button
+                    type="button"
+                    className="btn min-h-[44px] sm:min-h-0"
+                    onClick={() => onRemove(item.id)}
+                    aria-label={`Remove ${item.filename} from history`}
+                    data-tip="Remove"
+                  >
+                    <Trash2 className="w-4 h-4" strokeWidth={1.75} />
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </>
+      ) : (
+        <p className="text-sm text-muted">Past {noun} appear here after you download.</p>
+      )}
     </div>
   );
 }
