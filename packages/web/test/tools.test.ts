@@ -4,13 +4,14 @@ import { TOOLS, toolById, searchTools } from "@/components/tools";
 const ids = (ts: { id: string }[]) => ts.map((t) => t.id);
 
 describe("TOOLS registry", () => {
-  it("has the seventeen current tools with unique ids and hrefs", () => {
+  it("has the eighteen current tools with unique ids and hrefs", () => {
     expect(ids(TOOLS)).toEqual([
       "sorter",
       "studio",
       "transcribe",
       "slice",
       "convert",
+      "audio",
       "heic",
       "resize",
       "pdf",

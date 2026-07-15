@@ -16,6 +16,7 @@ import {
   Tent,
   Ticket,
   Link,
+  Music,
   type LucideIcon,
 } from "lucide-react";
 import type { ConnectionId } from "@event-editor/core/settings";
@@ -77,10 +78,20 @@ export const TOOLS: Tool[] = [
     id: "convert",
     href: "/convert",
     title: "Convert files",
-    body: "Change a file's format. Audio from a file or link to mp3, wav, or m4a; images to png, jpg, or webp (heic in); pdf to images; images to pdf.",
+    body: "Change a file's format. Images to png, jpg, webp, or pdf (heic in); pdf to images; audio and video files to mp3, wav, or m4a.",
     Icon: ArrowRightLeft,
     defaultGroups: ["media"],
-    tags: ["convert", "image", "png", "jpg", "webp", "pdf", "audio", "mp3", "video", "youtube", "heic", "pdf to png", "png to pdf", "image converter", "file converter"],
+    tags: ["convert", "image", "png", "jpg", "webp", "pdf", "audio", "mp3", "heic", "pdf to png", "png to pdf", "image converter", "file converter"],
+  },
+  {
+    id: "audio",
+    href: "/audio",
+    title: "Audio from a link",
+    body: "Paste a link, get the audio. Save a talk or video's sound as mp3, wav, or m4a.",
+    Icon: Music,
+    defaultGroups: ["media"],
+    tags: ["audio", "mp3", "wav", "m4a", "youtube", "link", "video", "download", "extract audio"],
+    requires: { deps: ["ytdlp"] },
   },
   {
     id: "heic",

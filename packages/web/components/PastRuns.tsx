@@ -11,9 +11,10 @@ interface Run {
   createdAt: number;
 }
 
-// Shared "See past …" panel for the jobDir tools, backed by the generic
-// /api/runs/[tool] routes. Rows outlive the on-disk files (swept ~6h after
-// conversion), so the footer discloses that download links expire.
+// Shared "See past …" panel for the jobDir tools (pdf, resize, video, splice,
+// convert, audio), backed by the generic /api/runs/[tool] routes. Rows outlive
+// the on-disk files (swept ~6h after conversion), so the footer discloses that
+// download links expire.
 export function PastRuns({
   tool,
   buttonLabel,

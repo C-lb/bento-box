@@ -52,6 +52,7 @@ describe("toolsInGroup", () => {
     expect(ids(toolsInGroup(s, TOOLS, "media"))).toEqual([
       "transcribe",
       "convert",
+      "audio",
       "video",
       "splice",
     ]);
@@ -74,7 +75,7 @@ describe("visibleTools", () => {
   });
   it("a live query overrides the active group and searches all tools", () => {
     const s = seedState();
-    expect(ids(visibleTools(s, TOOLS, "documents", "mp3"))).toEqual(["convert"]);
+    expect(ids(visibleTools(s, TOOLS, "documents", "mp3"))).toEqual(["convert", "audio"]);
   });
 });
 

@@ -68,6 +68,15 @@ describe("runFileUrl", () => {
       "/api/convert/c1?ext=mp3&name=weird.xyz",
     );
   });
+
+  it("audio shares convert's file route since it stores in the same convert dir", () => {
+    expect(runFileUrl("audio", { id: "a1", filename: "talk.wav" })).toBe(
+      "/api/convert/a1?ext=wav&name=talk.wav",
+    );
+    expect(runFileUrl("audio", { id: "a1", filename: "talk.m4a" })).toBe(
+      "/api/convert/a1?ext=m4a&name=talk.m4a",
+    );
+  });
 });
 
 describe("modeLabel", () => {

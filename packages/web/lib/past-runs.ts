@@ -1,12 +1,12 @@
 // Pure helpers for the shared "See past …" panels on the jobDir tools
-// (pdf, resize, video, splice, convert). Kept UI-free so they can be unit tested.
+// (pdf, resize, video, splice, convert, audio). Kept UI-free so they can be unit tested.
 
 export interface ToolRunOutput {
   id: string;
   filename: string;
 }
 
-export type PastRunTool = "pdf" | "resize" | "video" | "splice" | "convert";
+export type PastRunTool = "pdf" | "resize" | "video" | "splice" | "convert" | "audio";
 
 // Extensions each file route serves directly; anything else falls back to the
 // route's own default so the link still resolves to a real file.
@@ -35,6 +35,7 @@ export function runFileUrl(tool: PastRunTool, output: ToolRunOutput): string {
     case "splice":
       return `/api/splice/${id}?name=${name}${ext === "m4a" ? "&kind=audio" : ""}`;
     case "convert":
+    case "audio":
       return `/api/convert/${id}?ext=${CONVERT_EXTS.has(ext) ? ext : "mp3"}&name=${name}`;
   }
 }

@@ -35,6 +35,12 @@ describe("GET /api/runs/[tool]", () => {
     expect(await res.json()).toEqual({ runs: [] });
   });
 
+  it("accepts audio as a valid tool", async () => {
+    const res = await GET(req, params({ tool: "audio" }));
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ runs: [] });
+  });
+
   it("lists recorded runs newest first with parsed outputs", async () => {
     const db = getDb();
     const a = createToolRun(db, { tool: "pdf", label: "a.pdf", mode: "merge", outputs: [{ id: "j1", filename: "a-merged.pdf" }] });

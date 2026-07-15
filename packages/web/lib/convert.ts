@@ -58,7 +58,10 @@ export function convertDir(id: string): string {
   return resolve(dataRoot(), "convert", sanitizeConvertId(id));
 }
 export function mp3Path(id: string): string {
-  return resolve(convertDir(id), "out.mp3");
+  return audioOutPath(id, "mp3");
+}
+export function audioOutPath(id: string, format: "mp3" | "wav" | "m4a" = "mp3"): string {
+  return resolve(convertDir(id), `out.${format}`);
 }
 export async function cleanupConvert(id: string): Promise<void> {
   await rm(convertDir(id), { recursive: true, force: true });
@@ -109,12 +112,14 @@ export async function searchYouTube(query: string): Promise<{ id: string; title:
   return { id: vid, title: title || vid };
 }
 
-export async function extractFromUrl(url: string, id: string): Promise<void> {
+export async function extractFromUrl(
+  url: string, id: string, format: "mp3" | "wav" | "m4a" = "mp3",
+): Promise<void> {
   const bin = ytDlpBin();
   if (!bin) throw new Error("yt-dlp is not installed");
-  // yt-dlp writes <stem>.mp3; stem is the mp3 path without the extension.
-  const stem = mp3Path(id).replace(/\.mp3$/, "");
-  await run(bin, ytDlpExtractArgs(url, stem, ffmpegDir()));
+  // yt-dlp writes <stem>.<format>; stem is the output path without the extension.
+  const stem = audioOutPath(id, format).replace(new RegExp(`\\.${format}$`), "");
+  await run(bin, ytDlpExtractArgs(url, stem, ffmpegDir(), format));
 }
 
 export async function transcodeToMp3(inPath: string, id: string): Promise<void> {
