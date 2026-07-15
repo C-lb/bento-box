@@ -112,6 +112,14 @@ const DDL = [
     out_format TEXT NOT NULL,
     created_at INTEGER NOT NULL DEFAULT 0
   )`,
+  `CREATE TABLE IF NOT EXISTS tool_runs (
+    id TEXT PRIMARY KEY,
+    tool TEXT NOT NULL,
+    label TEXT NOT NULL,
+    mode TEXT,
+    outputs TEXT NOT NULL,
+    created_at INTEGER NOT NULL DEFAULT 0
+  )`,
 ];
 
 // Legacy DBs created before 4a have a Canva-only headshots table (NOT NULL

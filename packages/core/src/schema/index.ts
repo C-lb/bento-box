@@ -108,6 +108,19 @@ export const sliceRuns = sqliteTable("slice_runs", {
   createdAt: integer("created_at").notNull().default(0),
 });
 
+// One row per completed run of a jobDir-output tool (pdf|resize|video|splice|
+// convert) so "See past …" panels can list re-download links. `outputs` is a
+// JSON array of {id, filename}; the files themselves still die at the 6h sweep,
+// history rows outlive them (capped at 50 per tool on insert).
+export const toolRuns = sqliteTable("tool_runs", {
+  id: text("id").primaryKey(),
+  tool: text("tool").notNull(), // pdf|resize|video|splice|convert
+  label: text("label").notNull(), // source filename(s) or short description
+  mode: text("mode"), // pdf: merge|split|compress; splice: trim|join; convert: url|file
+  outputs: text("outputs").notNull(), // JSON [{id, filename}]
+  createdAt: integer("created_at").notNull().default(0),
+});
+
 // One row per converted HEIC photo. batch_id groups the files from a single
 // "Convert all" run so history can bundle a batch and show singles on their own.
 export const heicConversions = sqliteTable("heic_conversions", {

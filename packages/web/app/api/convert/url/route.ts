@@ -3,6 +3,8 @@ import { mkdir } from "node:fs/promises";
 import { hasYtDlp, newConvertId, convertDir, extractFromUrl, searchYouTube, cleanupConvert, sweepOldConverts } from "@/lib/convert";
 import { sanitizeMp3Filename } from "@event-editor/core/convert";
 import { isSpotifyTrackUrl, resolveSpotifyTrack, spotifyConfigured } from "@/lib/spotify";
+import { createToolRun } from "@event-editor/core/tool-runs";
+import { getDb } from "@/lib/db";
 
 export const runtime = "nodejs";
 
@@ -46,6 +48,10 @@ export async function POST(request: Request) {
 
         send({ type: "status", message: "Downloading and converting to mp3" });
         await extractFromUrl(target, id);
+        // Best-effort "See past conversions" history write; must never fail the conversion.
+        try {
+          createToolRun(getDb(), { tool: "convert", label: url, mode: "url", outputs: [{ id, filename: name }] });
+        } catch { /* history is non-critical */ }
         send({ type: "done", id, filename: name, ext: "mp3" });
       } catch (err) {
         try { await cleanupConvert(id); } catch { /* best-effort */ }

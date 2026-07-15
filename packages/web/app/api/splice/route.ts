@@ -4,6 +4,8 @@ import { resolve } from "node:path";
 import { newJobId, jobDir, cleanupJob, sweepOldJobs } from "@/lib/jobs";
 import { validateClips, spliceOutName, type Clip, type SpliceKind, type SpliceScale } from "@event-editor/core/splice";
 import { spliceClips } from "@/lib/splice";
+import { createToolRun } from "@event-editor/core/tool-runs";
+import { getDb } from "@/lib/db";
 import { guardUpload } from "@/lib/upload-guard";
 
 export const runtime = "nodejs";
@@ -40,7 +42,17 @@ export async function POST(request: Request) {
       inPaths.push(p);
     }
     await spliceClips(inPaths, resolve(dir, `out.${ext}`), manifest.clips, { kind, scale });
-    return NextResponse.json({ id, filename: spliceOutName(kind), kind });
+    const filename = spliceOutName(kind);
+    // Best-effort "See past splices" history write; must never fail the splice.
+    try {
+      createToolRun(getDb(), {
+        tool: "splice",
+        label: files.map((f) => f.name || "clip").join(", "),
+        mode: files.length > 1 ? "join" : "trim",
+        outputs: [{ id, filename }],
+      });
+    } catch { /* history is non-critical */ }
+    return NextResponse.json({ id, filename, kind });
   } catch (err) {
     try { await cleanupJob("splice", id); } catch { /* best-effort */ }
     return NextResponse.json({ error: err instanceof Error ? err.message : String(err) }, { status: 500 });

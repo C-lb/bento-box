@@ -4,6 +4,8 @@ import { resolve } from "node:path";
 import { newJobId, jobDir, cleanupJob, sweepOldJobs } from "@/lib/jobs";
 import { normalizeResizeOpts, resizeOutName } from "@event-editor/core/resize";
 import { resizeImage } from "@/lib/resize";
+import { createToolRun } from "@event-editor/core/tool-runs";
+import { getDb } from "@/lib/db";
 import { guardUpload } from "@/lib/upload-guard";
 
 export const runtime = "nodejs";
@@ -32,9 +34,14 @@ export async function POST(request: Request) {
     const inBuf = Buffer.from(await file.arrayBuffer());
     const { data, ext } = await resizeImage(inBuf, opts, file.name || "image");
     await writeFile(resolve(dir, `out.${ext}`), data);
+    const filename = resizeOutName(file.name || "image", opts.format, ext);
+    // Best-effort "See past resizes" history write; must never fail the resize.
+    try {
+      createToolRun(getDb(), { tool: "resize", label: file.name || "image", outputs: [{ id, filename }] });
+    } catch { /* history is non-critical */ }
     return NextResponse.json({
       id,
-      filename: resizeOutName(file.name || "image", opts.format, ext),
+      filename,
       ext,
       bytesIn: inBuf.length,
       bytesOut: data.length,

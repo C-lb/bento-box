@@ -4,6 +4,8 @@ import { resolve } from "node:path";
 import { newJobId, jobDir, cleanupJob, sweepOldJobs } from "@/lib/jobs";
 import { crfForPreset, videoOutName, type VideoPreset, type VideoScale } from "@event-editor/core/video";
 import { compressVideo } from "@/lib/video";
+import { createToolRun } from "@event-editor/core/tool-runs";
+import { getDb } from "@/lib/db";
 import { guardUpload } from "@/lib/upload-guard";
 
 export const runtime = "nodejs";
@@ -36,9 +38,14 @@ export async function POST(request: Request) {
     const outPath = resolve(dir, "out.mp4");
     await compressVideo(source, outPath, { crf: crfForPreset(preset), scale });
     const outStat = await stat(outPath);
+    const filename = videoOutName(file.name || "video");
+    // Best-effort "See past compressions" history write; must never fail the compression.
+    try {
+      createToolRun(getDb(), { tool: "video", label: file.name || "video", outputs: [{ id, filename }] });
+    } catch { /* history is non-critical */ }
     return NextResponse.json({
       id,
-      filename: videoOutName(file.name || "video"),
+      filename,
       bytesIn: inBuf.length,
       bytesOut: outStat.size,
     });

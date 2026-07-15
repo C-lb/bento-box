@@ -5,9 +5,18 @@ import { newConvertId, convertDir, transcodeToMp3, cleanupConvert, sweepOldConve
 import { convertUploaded } from "@/lib/convert-file";
 import { sanitizeMp3Filename, defaultNameFromSource } from "@event-editor/core/convert";
 import { isValidConversion, convertOutName, type OutputFormat } from "@event-editor/core/convert-formats";
+import { createToolRun } from "@event-editor/core/tool-runs";
+import { getDb } from "@/lib/db";
 import { guardUpload } from "@/lib/upload-guard";
 
 export const runtime = "nodejs";
+
+// Best-effort "See past conversions" history write; must never fail the conversion.
+function recordRun(label: string, id: string, filename: string): void {
+  try {
+    createToolRun(getDb(), { tool: "convert", label, mode: "file", outputs: [{ id, filename }] });
+  } catch { /* history is non-critical */ }
+}
 
 const OUTPUTS = ["png", "jpg", "webp", "pdf", "mp3", "wav", "m4a"];
 
@@ -41,11 +50,15 @@ export async function POST(request: Request) {
       const nameField = typeof rawName === "string" ? rawName.trim() : undefined;
       const name = sanitizeMp3Filename(nameField || defaultNameFromSource(file.name) || "audio");
       await transcodeToMp3(inPath, id);
-      return NextResponse.json({ id, filename: name.endsWith(".mp3") ? name : `${name}.mp3`, ext: "mp3" });
+      const mp3Name = name.endsWith(".mp3") ? name : `${name}.mp3`;
+      recordRun(file.name || "audio", id, mp3Name);
+      return NextResponse.json({ id, filename: mp3Name, ext: "mp3" });
     }
 
     const { ext, zip } = await convertUploaded(inPath, file.name, id, output);
-    return NextResponse.json({ id, filename: convertOutName(file.name, output, zip), ext });
+    const outName = convertOutName(file.name, output, zip);
+    recordRun(file.name || "file", id, outName);
+    return NextResponse.json({ id, filename: outName, ext });
   } catch (err) {
     try { await cleanupConvert(id); } catch { /* best-effort */ }
     const msg = err instanceof Error ? err.message : String(err);
