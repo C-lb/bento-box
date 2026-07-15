@@ -41,13 +41,14 @@ const PINNED_DATE = new Date("2026-01-01T00:00:00.000Z");
 
 /** @typedef {{ type: "rect", x: number, y: number, w: number, h: number, fill?: string, stroke?: string, strokeWidth?: number, dash?: number[] }} RectShape */
 /** @typedef {{ type: "line", x1: number, y1: number, x2: number, y2: number, color: string, width: number, dash?: number[] }} LineShape */
-/** @typedef {RectShape | LineShape} Shape */
+/** @typedef {{ type: "circle", cx: number, cy: number, r: number, stroke: string, strokeWidth: number, dash?: number[] }} CircleShape */
+/** @typedef {RectShape | LineShape | CircleShape} Shape */
 
 function field(page, fill = IVORY) {
   return { type: "rect", x: 0, y: 0, w: page.width, h: page.height, fill };
 }
 
-function borderRect(page, inset, stroke, strokeWidth) {
+function borderRect(page, inset, stroke, strokeWidth, dash) {
   return {
     type: "rect",
     x: inset,
@@ -56,23 +57,37 @@ function borderRect(page, inset, stroke, strokeWidth) {
     h: page.height - 2 * inset,
     stroke,
     strokeWidth,
+    ...(dash ? { dash } : {}),
   };
 }
 
-/** Two lines forming an L at each corner, legs pointing inward. */
-function cornerAngles(page, inset, leg, color, width) {
+/**
+ * Two lines forming an L at each corner, legs pointing inward. `corners`
+ * restricts which of the four to draw ("top" | "bottom" | omitted = all).
+ */
+function cornerAngles(page, inset, leg, color, width, corners) {
   const { width: W, height: H } = page;
   const shapes = [];
-  for (const [cx, cy, dx, dy] of [
-    [inset, H - inset, 1, -1], // top left
-    [W - inset, H - inset, -1, -1], // top right
-    [inset, inset, 1, 1], // bottom left
-    [W - inset, inset, -1, 1], // bottom right
-  ]) {
+  const all = [
+    ["top", inset, H - inset, 1, -1], // top left
+    ["top", W - inset, H - inset, -1, -1], // top right
+    ["bottom", inset, inset, 1, 1], // bottom left
+    ["bottom", W - inset, inset, -1, 1], // bottom right
+  ];
+  for (const [pos, cx, cy, dx, dy] of all) {
+    if (corners && pos !== corners) continue;
     shapes.push({ type: "line", x1: cx, y1: cy, x2: cx + dx * leg, y2: cy, color, width });
     shapes.push({ type: "line", x1: cx, y1: cy, x2: cx, y2: cy + dy * leg, color, width });
   }
   return shapes;
+}
+
+/** Two concentric thin circles (a seal placeholder), no fill. */
+function doubleCircle(cx, cy, rOuter, rInner, color, width) {
+  return [
+    { type: "circle", cx, cy, r: rOuter, stroke: color, strokeWidth: width },
+    { type: "circle", cx, cy, r: rInner, stroke: color, strokeWidth: width },
+  ];
 }
 
 /** @type {{ tool: string, page: { width: number, height: number }, designs: { id: string, label: string, shapes: Shape[] }[] }[]} */
@@ -117,6 +132,49 @@ const SETS = [
             color: ACCENT,
             width: 1.5,
           },
+        ],
+      },
+      {
+        id: "cert-framed-wash",
+        label: "Framed wash",
+        shapes: [field(CERTIFICATE_PAGE, IVORY), borderRect(CERTIFICATE_PAGE, 48, LINE, 1)],
+      },
+      {
+        id: "cert-corner-flourish",
+        label: "Corner flourishes",
+        shapes: [
+          field(CERTIFICATE_PAGE, "#ffffff"),
+          // Outer + inner nested L at every corner; top pair drawn heavier.
+          ...cornerAngles(CERTIFICATE_PAGE, 28, 88, LINE, 2.2, "top"),
+          ...cornerAngles(CERTIFICATE_PAGE, 40, 62, LINE, 1.2, "top"),
+          ...cornerAngles(CERTIFICATE_PAGE, 28, 80, LINE, 1, "bottom"),
+          ...cornerAngles(CERTIFICATE_PAGE, 40, 58, LINE, 0.6, "bottom"),
+        ],
+      },
+      {
+        id: "cert-side-band",
+        label: "Side band",
+        shapes: [
+          field(CERTIFICATE_PAGE, "#ffffff"),
+          { type: "rect", x: 0, y: 0, w: CERTIFICATE_PAGE.width * 0.18, h: CERTIFICATE_PAGE.height, fill: BAND },
+          {
+            type: "line",
+            x1: CERTIFICATE_PAGE.width * 0.18,
+            y1: 0,
+            x2: CERTIFICATE_PAGE.width * 0.18,
+            y2: CERTIFICATE_PAGE.height,
+            color: LINE,
+            width: 1,
+          },
+        ],
+      },
+      {
+        id: "cert-seal-zone",
+        label: "Seal zone",
+        shapes: [
+          field(CERTIFICATE_PAGE, "#ffffff"),
+          borderRect(CERTIFICATE_PAGE, 22, LINE, 1),
+          ...doubleCircle(CERTIFICATE_PAGE.width - 130, 110, 46, 38, LINE, 0.9),
         ],
       },
     ],
@@ -168,6 +226,54 @@ const SETS = [
         label: "Corner ticks",
         shapes: [field(TICKET_PAGE), ...cornerAngles(TICKET_PAGE, 10, 16, ACCENT, 1.2)],
       },
+      {
+        id: "ticket-duotone",
+        label: "Duotone",
+        shapes: [
+          field(TICKET_PAGE, IVORY),
+          { type: "rect", x: (TICKET_PAGE.width * 2) / 3, y: 0, w: TICKET_PAGE.width / 3, h: TICKET_PAGE.height, fill: ACCENT },
+          {
+            type: "line",
+            x1: (TICKET_PAGE.width * 2) / 3,
+            y1: 0,
+            x2: (TICKET_PAGE.width * 2) / 3,
+            y2: TICKET_PAGE.height,
+            color: LINE,
+            width: 0.75,
+          },
+        ],
+      },
+      {
+        id: "ticket-edge-wash",
+        label: "Edge wash",
+        shapes: [
+          field(TICKET_PAGE, "#ffffff"),
+          { type: "rect", x: 0, y: TICKET_PAGE.height - 18, w: TICKET_PAGE.width, h: 18, fill: BAND },
+          { type: "rect", x: 0, y: 0, w: TICKET_PAGE.width, h: 18, fill: BAND },
+        ],
+      },
+      {
+        id: "ticket-dotted-frame",
+        label: "Dotted frame",
+        shapes: [field(TICKET_PAGE, IVORY), borderRect(TICKET_PAGE, 10, LINE, 1, [3, 3])],
+      },
+      {
+        id: "ticket-banner",
+        label: "Banner band",
+        shapes: [
+          field(TICKET_PAGE, "#ffffff"),
+          { type: "rect", x: 0, y: TICKET_PAGE.height - 40, w: TICKET_PAGE.width, h: 40, fill: ACCENT },
+          {
+            type: "line",
+            x1: 0,
+            y1: TICKET_PAGE.height - 40,
+            x2: TICKET_PAGE.width,
+            y2: TICKET_PAGE.height - 40,
+            color: LINE,
+            width: 1,
+          },
+        ],
+      },
     ],
   },
 ];
@@ -198,13 +304,23 @@ async function renderPdf(page, label, shapes) {
           : {}),
         ...(s.dash ? { borderDashArray: s.dash } : {}),
       });
-    } else {
+    } else if (s.type === "line") {
       p.drawLine({
         start: { x: s.x1, y: s.y1 },
         end: { x: s.x2, y: s.y2 },
         thickness: s.width,
         color: rgb(...hexToRgb01(s.color)),
         ...(s.dash ? { dashArray: s.dash } : {}),
+      });
+    } else {
+      p.drawEllipse({
+        x: s.cx,
+        y: s.cy,
+        xScale: s.r,
+        yScale: s.r,
+        borderColor: rgb(...hexToRgb01(s.stroke)),
+        borderWidth: s.strokeWidth,
+        ...(s.dash ? { borderDashArray: s.dash } : {}),
       });
     }
   }
@@ -234,12 +350,18 @@ function renderThumb(page, shapes) {
         ctx.lineWidth = Math.max((s.strokeWidth ?? 1) * scale, 0.6);
         ctx.strokeRect(x, y, w, h);
       }
-    } else {
+    } else if (s.type === "line") {
       ctx.strokeStyle = s.color;
       ctx.lineWidth = Math.max(s.width * scale, 0.6);
       ctx.beginPath();
       ctx.moveTo(s.x1 * scale, Y(s.y1));
       ctx.lineTo(s.x2 * scale, Y(s.y2));
+      ctx.stroke();
+    } else {
+      ctx.strokeStyle = s.stroke;
+      ctx.lineWidth = Math.max(s.strokeWidth * scale, 0.6);
+      ctx.beginPath();
+      ctx.arc(s.cx * scale, Y(s.cy), s.r * scale, 0, Math.PI * 2);
       ctx.stroke();
     }
   }

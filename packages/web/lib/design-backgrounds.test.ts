@@ -19,9 +19,9 @@ describe("TOOL_BACKGROUNDS registry", () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 
-  it("covers certificate and ticket with four designs each", () => {
-    expect(backgroundsForTool("certificate")).toHaveLength(4);
-    expect(backgroundsForTool("ticket")).toHaveLength(4);
+  it("covers certificate and ticket with eight designs each", () => {
+    expect(backgroundsForTool("certificate")).toHaveLength(8);
+    expect(backgroundsForTool("ticket")).toHaveLength(8);
     expect(backgroundsForTool("badge")).toEqual([]);
   });
 

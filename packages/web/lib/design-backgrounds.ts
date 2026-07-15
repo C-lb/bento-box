@@ -25,6 +25,14 @@ export const TOOL_BACKGROUNDS: ToolBackground[] = [
   { id: "ticket-top-band", label: "Top band", file: "ticket-top-band.pdf", tool: "ticket" },
   { id: "ticket-thin-border", label: "Thin border", file: "ticket-thin-border.pdf", tool: "ticket" },
   { id: "ticket-corner-ticks", label: "Corner ticks", file: "ticket-corner-ticks.pdf", tool: "ticket" },
+  { id: "cert-framed-wash", label: "Framed wash", file: "cert-framed-wash.pdf", tool: "certificate" },
+  { id: "cert-corner-flourish", label: "Corner flourishes", file: "cert-corner-flourish.pdf", tool: "certificate" },
+  { id: "cert-side-band", label: "Side band", file: "cert-side-band.pdf", tool: "certificate" },
+  { id: "cert-seal-zone", label: "Seal zone", file: "cert-seal-zone.pdf", tool: "certificate" },
+  { id: "ticket-duotone", label: "Duotone", file: "ticket-duotone.pdf", tool: "ticket" },
+  { id: "ticket-edge-wash", label: "Edge wash", file: "ticket-edge-wash.pdf", tool: "ticket" },
+  { id: "ticket-dotted-frame", label: "Dotted frame", file: "ticket-dotted-frame.pdf", tool: "ticket" },
+  { id: "ticket-banner", label: "Banner band", file: "ticket-banner.pdf", tool: "ticket" },
 ];
 
 /** Bundled backgrounds available for a tool ([] for tools without any). */
