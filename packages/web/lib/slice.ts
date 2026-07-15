@@ -1,6 +1,7 @@
 import { resolve } from "node:path";
 import { randomBytes } from "node:crypto";
 import { rm, readdir, stat } from "node:fs/promises";
+import { dataRoot } from "./jobs";
 
 export function sanitizeRunId(id: string): string {
   return id.replace(/[^a-zA-Z0-9_-]/g, "");
@@ -11,7 +12,8 @@ export function newRunId(): string {
 }
 
 export function runDir(runId: string): string {
-  return resolve("data/slice", sanitizeRunId(runId));
+  // EE_DATA_DIR-aware: cwd-relative paths write inside the packaged app bundle.
+  return resolve(dataRoot(), "slice", sanitizeRunId(runId));
 }
 
 export function deckPath(runId: string): string {
@@ -32,7 +34,7 @@ export async function cleanupRun(runId: string): Promise<void> {
 
 // Best-effort purge of run dirs whose last modification is older than maxAgeMs.
 export async function sweepOldRuns(maxAgeMs: number): Promise<void> {
-  const root = resolve("data/slice");
+  const root = resolve(dataRoot(), "slice");
   let entries: string[];
   try { entries = await readdir(root); } catch { return; }
   const now = Date.now();

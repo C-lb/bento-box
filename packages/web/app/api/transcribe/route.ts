@@ -11,6 +11,7 @@ import { getDb } from "@/lib/db";
 import { startTranscription } from "@/lib/transcriber";
 import { linkStash } from "@/lib/context";
 import { guardUpload } from "@/lib/upload-guard";
+import { dataRoot } from "@/lib/jobs";
 
 export const runtime = "nodejs";
 
@@ -59,7 +60,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: `Could not start the upload: ${message}` }, { status: 500 });
   }
 
-  const dir = resolve("data/uploads", String(id));
+  // Absolute, EE_DATA_DIR-aware: cwd-relative "data/uploads" wrote inside the
+  // packaged app bundle, where a shipped stale dir 7 contaminated a transcript.
+  const dir = resolve(dataRoot(), "uploads", String(id));
   const path = resolve(dir, filename);
 
   try {
@@ -67,7 +70,7 @@ export async function POST(request: Request) {
     await pipeline(Readable.fromWeb(request.body as any), createWriteStream(path));
 
     db.update(transcriptions)
-      .set({ sourceUploadPath: `data/uploads/${id}/${filename}`, updatedAt: Date.now() })
+      .set({ sourceUploadPath: path, updatedAt: Date.now() })
       .where(eq(transcriptions.id, id))
       .run();
 

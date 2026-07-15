@@ -5,6 +5,7 @@ import { resolve } from "node:path";
 import { transcriptions } from "@event-editor/core/schema";
 import { isLiked } from "@event-editor/core/style-examples";
 import { getDb } from "@/lib/db";
+import { dataRoot } from "@/lib/jobs";
 
 export const runtime = "nodejs";
 
@@ -37,7 +38,10 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
   const nid = Number(id);
   const db = getDb();
   db.delete(transcriptions).where(eq(transcriptions.id, nid)).run();
-  // Best-effort cleanup of the upload dir; ignore if absent.
+  // Best-effort cleanup of the upload dir; ignore if absent. Remove from both
+  // the EE_DATA_DIR root (current rows) and the legacy cwd-relative location
+  // (rows written before uploads honoured EE_DATA_DIR).
+  await rm(resolve(dataRoot(), "uploads", String(nid)), { recursive: true, force: true }).catch(() => {});
   await rm(resolve("data/uploads", String(nid)), { recursive: true, force: true }).catch(() => {});
   return NextResponse.json({ ok: true });
 }

@@ -1,6 +1,6 @@
 import { spawn } from "node:child_process";
-import { mkdir, readdir } from "node:fs/promises";
-import { join } from "node:path";
+import { mkdir, readdir, rm } from "node:fs/promises";
+import { join, resolve } from "node:path";
 import ffmpegPath from "ffmpeg-static";
 import ffprobeStatic from "ffprobe-static";
 
@@ -46,6 +46,13 @@ export async function probeDuration(input: string): Promise<number> {
 
 export async function transcodeAndSegment(input: string, outDir: string, chunkSec: number): Promise<string[]> {
   if (!ffmpegPath) throw new Error("ffmpeg binary not found");
+  // An upload literally named "chunks" would make outDir collide with the
+  // source; the rm below would then delete the upload itself.
+  if (resolve(outDir) === resolve(input)) throw new Error("chunk dir collides with the source file");
+  // Start from an empty dir: the glob below sweeps every chunk_*.mp3, so any
+  // file left by a previous run (retry, or a dir that pre-existed the upload)
+  // would be transcribed into this recording's transcript.
+  await rm(outDir, { recursive: true, force: true });
   await mkdir(outDir, { recursive: true });
   await run(ffmpegPath, segmentArgs(input, join(outDir, "chunk_%03d.mp3"), chunkSec));
   const files = (await readdir(outDir)).filter((f) => f.startsWith("chunk_") && f.endsWith(".mp3")).sort();

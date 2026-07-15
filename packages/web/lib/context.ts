@@ -4,6 +4,7 @@ import { mkdir, writeFile, readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { eq } from "drizzle-orm";
 import { transcriptions } from "@event-editor/core/schema";
+import { dataRoot } from "./jobs";
 
 export type ContextExt = "md" | "markdown" | "html" | "pdf" | "pptx";
 
@@ -41,20 +42,24 @@ export async function parseContextFile(buffer: Buffer, ext: ContextExt): Promise
   return stripMarkup(text);
 }
 
-const STASH_DIR = resolve("data/uploads/context");
+// Function, not a module-level const: EE_DATA_DIR must be honoured at call
+// time (the packaged app sets it; cwd there is inside the app bundle).
+function stashDir(): string {
+  return resolve(dataRoot(), "uploads/context");
+}
 
 export async function stashContext(buffer: Buffer, ext: ContextExt): Promise<string> {
   const id = randomUUID();
-  await mkdir(STASH_DIR, { recursive: true });
+  await mkdir(stashDir(), { recursive: true });
   const text = await parseContextFile(buffer, ext);
-  await writeFile(resolve(STASH_DIR, `${id}.json`), JSON.stringify({ ext, text }), "utf8");
+  await writeFile(resolve(stashDir(), `${id}.json`), JSON.stringify({ ext, text }), "utf8");
   return id;
 }
 
 export async function readStash(contextId: string): Promise<{ ext: ContextExt; text: string } | null> {
   if (!/^[0-9a-f-]{36}$/i.test(contextId)) return null;
   try {
-    const raw = await readFile(resolve(STASH_DIR, `${contextId}.json`), "utf8");
+    const raw = await readFile(resolve(stashDir(), `${contextId}.json`), "utf8");
     const obj = JSON.parse(raw);
     return { ext: obj.ext, text: obj.text };
   } catch {
@@ -66,7 +71,7 @@ export async function linkStash(db: any, id: number, contextId: string): Promise
   const stash = await readStash(contextId);
   if (!stash) return false;
   db.update(transcriptions)
-    .set({ contextText: stash.text, contextFilePath: `data/uploads/context/${contextId}.json`, updatedAt: Date.now() })
+    .set({ contextText: stash.text, contextFilePath: resolve(stashDir(), `${contextId}.json`), updatedAt: Date.now() })
     .where(eq(transcriptions.id, id))
     .run();
   return true;

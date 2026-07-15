@@ -27,6 +27,12 @@ mkdirSync(out, { recursive: true });
 
 // 1. the whole standalone tree (server.js + traced node_modules, incl. @event-editor/core + native deps)
 cpSync(standalone, out, { recursive: true });
+// 1a. NEVER ship runtime data. A dev/test server run against this standalone
+// tree leaves data/ (uploads, slice runs, the db) behind, and cpSync just
+// baked it into the app. Shipped uploads/1..7 collided with a fresh install's
+// autoincrement ids and an old recording's chunks leaked into a user's new
+// transcript (v0.0.26). Privacy + correctness: delete it from the bundle.
+rmSync(resolve(out, "packages/web/data"), { recursive: true, force: true });
 // 1b. Turbopack externalises some packages under hashed aliases in
 // .next/node_modules (e.g. "@anthropic-ai/sdk-8a97726827ff28fc") that are
 // SYMLINKS back into the build machine's tree. ESM `import()` resolves through
