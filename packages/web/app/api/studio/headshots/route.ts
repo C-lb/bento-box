@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
-import { desc } from "drizzle-orm";
+import { desc, isNotNull } from "drizzle-orm";
 import { createHeadshot, createCanvaHeadshot } from "@event-editor/core/headshot";
 import { getFrame } from "@event-editor/core/frames";
 import { headshots } from "@event-editor/core/schema";
@@ -69,7 +69,23 @@ export async function POST(request: Request) {
   return NextResponse.json({ id });
 }
 
-export async function GET() {
+export async function GET(request: Request) {
+  const grouped = new URL(request.url).searchParams.get("grouped") === "1";
+  if (grouped) {
+    // Batch history: one row per batchId, newest batch first.
+    const rows = getDb().select().from(headshots).where(isNotNull(headshots.batchId)).all();
+    const byBatch = new Map<string, { batchId: string; count: number; doneCount: number; createdAt: number }>();
+    for (const r of rows) {
+      const key = r.batchId!;
+      const b = byBatch.get(key) ?? { batchId: key, count: 0, doneCount: 0, createdAt: r.createdAt };
+      b.count += 1;
+      if (r.status === "done") b.doneCount += 1;
+      if (r.createdAt < b.createdAt) b.createdAt = r.createdAt;
+      byBatch.set(key, b);
+    }
+    const batches = [...byBatch.values()].sort((a, b) => b.createdAt - a.createdAt).slice(0, 24);
+    return NextResponse.json({ batches });
+  }
   const rows = getDb().select().from(headshots).orderBy(desc(headshots.id)).limit(24).all();
   return NextResponse.json({ headshots: rows.map(toHeadshotDto) });
 }

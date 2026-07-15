@@ -7,6 +7,7 @@ import { headshotStatusView } from "@/lib/status";
 import { usePollWhileVisible } from "@/lib/use-visible-poll";
 import { FolderPicker, type PickedFolder } from "@/components/FolderPicker";
 import { PresetBar } from "../PresetBar";
+import { PastBatches } from "./PastBatches";
 import type { HeadshotPreset } from "@/lib/headshot-presets";
 
 type MatchStatus = "matched" | "ambiguous" | "unmatched";
@@ -340,6 +341,10 @@ export function StudioBatchClient() {
 
   return (
     <div className="mt-8 space-y-6">
+      <div className="flex justify-end">
+        <PastBatches />
+      </div>
+
       {/* Step 1: Sheet source */}
       <div className="card">
         <p className="eyebrow">Step 1: sheet</p>

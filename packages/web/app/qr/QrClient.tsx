@@ -4,6 +4,20 @@ import { Download } from "lucide-react";
 import { Segmented } from "@/components/Segmented";
 import { SnapSlider } from "@/components/SnapSlider";
 import { normalizeQrOpts, type QrEcc, type QrFormat } from "@event-editor/core/qr";
+import { historyWhen } from "@/components/HistoryPanel";
+import {
+  addQrHistoryItem,
+  clearQrHistory,
+  newQrHistoryId,
+  readQrHistory,
+  removeQrHistoryItem,
+  writeQrHistory,
+  type QrHistoryItem,
+} from "@/lib/qr-history";
+
+function truncateText(text: string, max = 48): string {
+  return text.length > max ? `${text.slice(0, max - 1)}…` : text;
+}
 
 export function QrClient() {
   const [text, setText] = useState("");
@@ -17,6 +31,48 @@ export function QrClient() {
   const [svg, setSvg] = useState<string | null>(null);
   const [svgDownloadUrl, setSvgDownloadUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  const [history, setHistory] = useState<QrHistoryItem[]>([]);
+
+  useEffect(() => {
+    setHistory(readQrHistory().items);
+  }, []);
+
+  // The QR regenerates live on every keystroke, so recording per generate would
+  // fill the history with partial text. Record at the download click instead:
+  // that is the moment a real code left the tool.
+  function recordDownload() {
+    const opts = normalizeQrOpts({ size, ecc, fg, bg, format });
+    const next = addQrHistoryItem(readQrHistory(), {
+      id: newQrHistoryId(),
+      text,
+      at: Date.now(),
+      ...opts,
+    });
+    writeQrHistory(next);
+    setHistory(next.items);
+  }
+
+  function applyHistoryItem(item: QrHistoryItem) {
+    setText(item.text);
+    setSize(item.size);
+    setEcc(item.ecc);
+    setFg(item.fg);
+    setBg(item.bg);
+    setFormat(item.format);
+    // Regeneration happens automatically: the preview effect keys off the form state.
+  }
+
+  function removeHistoryItem(id: string) {
+    const next = removeQrHistoryItem(readQrHistory(), id);
+    writeQrHistory(next);
+    setHistory(next.items);
+  }
+
+  function handleClearHistory() {
+    clearQrHistory();
+    setHistory([]);
+  }
 
   useEffect(() => {
     const opts = normalizeQrOpts({ size, ecc, fg, bg, format });
@@ -180,12 +236,12 @@ export function QrClient() {
 
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
               {format === "png" && dataUrl && (
-                <a className="btn btn-accent inline-flex items-center justify-center gap-2 min-h-[44px] sm:min-h-0 w-full sm:w-auto" href={dataUrl} download="qr.png">
+                <a className="btn btn-accent inline-flex items-center justify-center gap-2 min-h-[44px] sm:min-h-0 w-full sm:w-auto" href={dataUrl} download="qr.png" onClick={recordDownload}>
                   <Download className="w-4 h-4" strokeWidth={1.75} /> Download PNG
                 </a>
               )}
               {format === "svg" && svgDownloadUrl && (
-                <a className="btn btn-accent inline-flex items-center justify-center gap-2 min-h-[44px] sm:min-h-0 w-full sm:w-auto" href={svgDownloadUrl} download="qr.svg">
+                <a className="btn btn-accent inline-flex items-center justify-center gap-2 min-h-[44px] sm:min-h-0 w-full sm:w-auto" href={svgDownloadUrl} download="qr.svg" onClick={recordDownload}>
                   <Download className="w-4 h-4" strokeWidth={1.75} /> Download SVG
                 </a>
               )}
@@ -193,6 +249,50 @@ export function QrClient() {
           </div>
         )}
       </div>
+
+      {history.length > 0 && (
+        <div className="card">
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-medium">See past QR codes</p>
+            <button
+              type="button"
+              className="btn min-h-[44px] sm:min-h-0"
+              onClick={handleClearHistory}
+            >
+              Clear all
+            </button>
+          </div>
+          <ul className="mt-3 space-y-3">
+            {history.map((item) => (
+              <li
+                key={item.id}
+                className="flex items-center justify-between gap-3 border-t border-black/5 pt-3 first:border-t-0 first:pt-0"
+              >
+                <button
+                  type="button"
+                  className="min-w-0 flex-1 text-left"
+                  onClick={() => applyHistoryItem(item)}
+                  title="Fill the form with this code"
+                >
+                  <span className="block truncate text-sm font-medium text-ink">
+                    {truncateText(item.text)}
+                  </span>
+                  <span className="block truncate text-xs text-muted">
+                    {historyWhen(item.at)} · {item.size}px · {item.format.toUpperCase()}
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  className="p-2 -m-2 min-h-[44px] sm:min-h-0 sm:p-0 sm:m-0 text-xs text-danger underline underline-offset-2"
+                  onClick={() => removeHistoryItem(item.id)}
+                >
+                  Remove
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
   );
 }
