@@ -6,6 +6,8 @@
  * static registry, fetch-on-demand, in-memory memo cache.
  */
 import type { DocumentSpec } from "@event-editor/core/merge";
+import { assetSrc } from "@/lib/custom-upload";
+import { getAsset } from "@/lib/design-assets";
 
 export interface ToolBackground {
   id: string;
@@ -67,5 +69,42 @@ export async function loadBackgroundById(id: string): Promise<NonNullable<Docume
   const bytes = new Uint8Array(await res.arrayBuffer());
   const background = { kind: "pdf" as const, src: toBase64(bytes) };
   backgroundCache.set(id, background);
+  return background;
+}
+
+/** The shape `DesignOverrides.background` can hold: a bundled registry id,
+ * or a user-uploaded asset (assetId into the shared ee-design-assets store). */
+export type OverridesBackground = { id: string } | { assetId: string; kind: "png" | "jpg" | "pdf" };
+
+/** Stable identity for an `OverridesBackground`, for effect deps / memo keys. */
+export function overridesBackgroundKey(bg: OverridesBackground): string {
+  return "id" in bg ? `id:${bg.id}` : `asset:${bg.assetId}`;
+}
+
+const uploadedBackgroundCache = new Map<string, NonNullable<DocumentSpec["background"]>>();
+
+/**
+ * Resolves a `DesignOverrides.background` selection (bundled id or uploaded
+ * asset) into the `DocumentSpec.background` shape the renderer expects.
+ * Bundled ids delegate to `loadBackgroundById`. Uploaded assets are read from
+ * the shared `ee-design-assets` IndexedDB store via `getAsset` and converted
+ * with `assetSrc` (same src convention `customDesignToSpec` uses: data URL
+ * for images, plain base64 for pdf). A missing asset throws — callers already
+ * `.catch` this to an undefined background rather than hard-failing.
+ * Memoised per assetId (asset ids are unique per upload, so a plain Map is
+ * safe — a re-upload always gets a fresh id).
+ */
+export async function loadOverridesBackground(bg: OverridesBackground): Promise<NonNullable<DocumentSpec["background"]>> {
+  if ("id" in bg) return loadBackgroundById(bg.id);
+
+  const cached = uploadedBackgroundCache.get(bg.assetId);
+  if (cached) return cached;
+
+  const asset = await getAsset(bg.assetId);
+  if (!asset) {
+    throw new Error(`Missing uploaded background asset: ${bg.assetId}`);
+  }
+  const background = { kind: bg.kind, src: assetSrc(bg.kind, asset.bytes) };
+  uploadedBackgroundCache.set(bg.assetId, background);
   return background;
 }

@@ -8,7 +8,7 @@ import {
 } from "@event-editor/core/merge";
 import { certificateSpec, CERTIFICATE_LAYOUTS, type CertificateLayout } from "@event-editor/core/certificate";
 import { applyDesign, withBackground, type DesignOverrides } from "@event-editor/core/design";
-import { loadBackgroundById } from "@/lib/design-backgrounds";
+import { loadOverridesBackground, overridesBackgroundKey } from "@/lib/design-backgrounds";
 import type { DocumentSpec } from "@event-editor/core/merge";
 import { parseWorkbook } from "@/lib/merge-xlsx";
 import { renderCombined, renderZip, type FontBytes } from "@/lib/merge-render";
@@ -148,24 +148,30 @@ export function CertificateClient() {
     () => (isCustom ? customDesignToSpec(customDesign, customAssets) : layoutSpec),
     [isCustom, customDesign, customAssets, layoutSpec],
   );
-  // Bundled background: resolve the selected id to bytes async (memo-cached
-  // fetch), then inject via withBackground so the preview picks it up on the
-  // next finalSpec change, mirroring the async preview-font loading below.
-  const backgroundId = !isCustom ? overrides.background?.id : undefined;
+  // Background (bundled id or uploaded asset): resolve the selection to
+  // bytes async (memo-cached), then inject via withBackground so the preview
+  // picks it up on the next finalSpec change, mirroring the async
+  // preview-font loading below. A missing uploaded asset (e.g. cleared
+  // browser storage) degrades to no background rather than failing the page.
+  const overridesBg = !isCustom ? (overrides.background ?? undefined) : undefined;
+  const backgroundKey = overridesBg ? overridesBackgroundKey(overridesBg) : undefined;
   const [loadedBackground, setLoadedBackground] = useState<DocumentSpec["background"] | undefined>(undefined);
+  const [backgroundMissing, setBackgroundMissing] = useState(false);
   useEffect(() => {
-    if (!backgroundId) { setLoadedBackground(undefined); return; }
+    if (!overridesBg) { setLoadedBackground(undefined); setBackgroundMissing(false); return; }
     let live = true;
-    loadBackgroundById(backgroundId)
+    setBackgroundMissing(false);
+    loadOverridesBackground(overridesBg)
       .then((b) => { if (live) setLoadedBackground(b); })
-      .catch(() => { if (live) setLoadedBackground(undefined); });
+      .catch(() => { if (live) { setLoadedBackground(undefined); setBackgroundMissing("assetId" in overridesBg); } });
     return () => { live = false; };
-  }, [backgroundId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [backgroundKey]);
 
   // Designer overrides apply to built-in layouts only; a custom design IS the design.
   const finalSpec = useMemo(
-    () => (isCustom ? spec : withBackground(applyDesign(spec, overrides), backgroundId ? loadedBackground : undefined)),
-    [isCustom, spec, overrides, backgroundId, loadedBackground],
+    () => (isCustom ? spec : withBackground(applyDesign(spec, overrides), overridesBg ? loadedBackground : undefined)),
+    [isCustom, spec, overrides, overridesBg, loadedBackground],
   );
   const slots = useMemo(() => designSlots(layoutSpec), [layoutSpec]);
 
@@ -202,9 +208,11 @@ export function CertificateClient() {
     setBusy(true); setError(null);
     try {
       // Re-resolve the background at render time (cached after the preview
-      // fetch) so the final PDF never races the async preview load.
-      const renderSpec = backgroundId
-        ? withBackground(finalSpec, await loadBackgroundById(backgroundId))
+      // fetch) so the final PDF never races the async preview load. A
+      // missing asset falls back to finalSpec as-is rather than failing the
+      // download outright.
+      const renderSpec = overridesBg
+        ? withBackground(finalSpec, await loadOverridesBackground(overridesBg).catch(() => undefined))
         : finalSpec;
       const fonts = await withDesignFonts(renderSpec);
       if (kind === "combined") {
@@ -354,6 +362,7 @@ export function CertificateClient() {
               onChange={changeOverrides}
               onUploadFont={handleUploadFont}
               uploadedFonts={uploadedFonts}
+              backgroundMissing={backgroundMissing}
             />
           </div>
           </>

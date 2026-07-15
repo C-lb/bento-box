@@ -1,5 +1,6 @@
 "use client";
 import { useRef, useState } from "react";
+import { Upload } from "lucide-react";
 import { Segmented } from "@/components/Segmented";
 import { SnapSlider } from "@/components/SnapSlider";
 import {
@@ -9,8 +10,11 @@ import {
   type DesignOverrides,
   type TextStyle,
 } from "@event-editor/core/design";
+import { newElementId } from "@event-editor/core/custom-design";
 import { DESIGNER_FONTS } from "@/lib/designer-fonts";
 import { backgroundsForTool, backgroundThumbUrl } from "@/lib/design-backgrounds";
+import { readBackgroundUpload } from "@/lib/custom-upload";
+import { putAsset, gcAssetIfUnreferenced } from "@/lib/design-assets";
 
 export type SizePreset = { id: string; label: string; width: number; height: number };
 
@@ -39,6 +43,7 @@ export function DesignPanel({
   onChange,
   onUploadFont,
   uploadedFonts,
+  backgroundMissing,
 }: {
   toolId: string;
   presets: SizePreset[];
@@ -47,8 +52,14 @@ export function DesignPanel({
   onChange: (o: DesignOverrides) => void;
   onUploadFont: (name: string, bytes: Uint8Array) => void;
   uploadedFonts: { id: string; label: string }[];
+  /** True when `value.background` is an uploaded asset that failed to
+   * resolve (e.g. cleared browser storage). The client determines this from
+   * its load effect; the panel can't check IndexedDB itself. */
+  backgroundMissing?: boolean;
 }) {
   const fontInputRef = useRef<HTMLInputElement>(null);
+  const backgroundInputRef = useRef<HTMLInputElement>(null);
+  const [backgroundUploadError, setBackgroundUploadError] = useState<string | null>(null);
   // Tracks an explicit "Custom" click so the mm inputs stay revealed even
   // before the user has typed a value that diverges from the current preset
   // match (otherwise the derived selection would snap straight back to that
@@ -113,17 +124,39 @@ export function DesignPanel({
     onChange(next);
   }
 
-  // Selecting "None" removes the key entirely (nothing to persist).
+  // Selecting a bundled background (or "None") replaces whichever shape was
+  // there before. GC any outgoing uploaded asset AFTER onChange has
+  // persisted the replacement, so the reference scan never sees the old
+  // asset id while it's still current (same ordering rationale as T2 /
+  // CustomDesignEditor's setBackground/removeBackground).
   function setBackground(id: string | undefined) {
+    const oldAssetId = value.background && "assetId" in value.background ? value.background.assetId : undefined;
     const next = { ...value };
     if (id) next.background = { id };
     else delete next.background;
     onChange(next);
+    if (oldAssetId) void gcAssetIfUnreferenced(oldAssetId);
+  }
+
+  async function handleBackgroundUpload(file: File) {
+    setBackgroundUploadError(null);
+    try {
+      const { kind, bytes } = await readBackgroundUpload(file);
+      const assetId = newElementId();
+      const mime = kind === "pdf" ? "application/pdf" : `image/${kind === "jpg" ? "jpeg" : "png"}`;
+      await putAsset(assetId, bytes, mime);
+      const oldAssetId = value.background && "assetId" in value.background ? value.background.assetId : undefined;
+      onChange({ ...value, background: { assetId, kind } });
+      if (oldAssetId) void gcAssetIfUnreferenced(oldAssetId);
+    } catch (e) {
+      setBackgroundUploadError(e instanceof Error ? e.message : String(e));
+    }
   }
 
   const border = value.border ?? { style: "none" as const, color: "#1a1a1a", width: 1, inset: 24 };
   const backgrounds = backgroundsForTool(toolId);
-  const selectedBackground = value.background?.id;
+  const selectedBundledBackground = value.background && "id" in value.background ? value.background.id : undefined;
+  const uploadedBackgroundSelected = !!value.background && "assetId" in value.background;
 
   return (
     <details className="mt-3 lg:mt-0">
@@ -441,10 +474,10 @@ export function DesignPanel({
             <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
               <button
                 type="button"
-                aria-pressed={!selectedBackground}
+                aria-pressed={!selectedBundledBackground && !uploadedBackgroundSelected}
                 onClick={() => setBackground(undefined)}
                 className={`flex items-center justify-center rounded-card border p-2 text-sm min-h-[56px] hover:text-accent ${
-                  !selectedBackground ? "border-ink text-ink" : "border-line text-muted"
+                  !selectedBundledBackground && !uploadedBackgroundSelected ? "border-ink text-ink" : "border-line text-muted"
                 }`}
               >
                 None
@@ -453,11 +486,11 @@ export function DesignPanel({
                 <button
                   key={b.id}
                   type="button"
-                  aria-pressed={selectedBackground === b.id}
+                  aria-pressed={selectedBundledBackground === b.id}
                   title={b.label}
                   onClick={() => setBackground(b.id)}
                   className={`overflow-hidden rounded-card border p-1 ${
-                    selectedBackground === b.id ? "border-ink" : "border-line"
+                    selectedBundledBackground === b.id ? "border-ink" : "border-line"
                   }`}
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -469,7 +502,30 @@ export function DesignPanel({
                   <span className="mt-1 block truncate text-center text-xs text-muted">{b.label}</span>
                 </button>
               ))}
+              <label
+                className={`flex cursor-pointer flex-col items-center justify-center gap-1 rounded-card border p-2 text-sm min-h-[56px] hover:text-accent ${
+                  uploadedBackgroundSelected ? "border-ink text-ink" : "border-line text-muted"
+                }`}
+              >
+                <Upload className="w-4 h-4" strokeWidth={1.75} />
+                <span className="truncate text-center text-xs">{uploadedBackgroundSelected ? "Your upload" : "Upload…"}</span>
+                <input
+                  ref={backgroundInputRef}
+                  type="file"
+                  accept="image/png,image/jpeg,application/pdf"
+                  className="sr-only"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) void handleBackgroundUpload(file);
+                    e.target.value = "";
+                  }}
+                />
+              </label>
             </div>
+            {backgroundUploadError && <p className="text-sm text-danger">{backgroundUploadError}</p>}
+            {backgroundMissing && (
+              <p className="text-sm text-amber-600">Background image is no longer stored on this device. Re-upload it.</p>
+            )}
           </section>
         )}
 

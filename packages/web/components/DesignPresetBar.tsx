@@ -112,6 +112,10 @@ export function DesignPresetBar({ toolId, isCustom, layoutId, overrides, customD
         const bg = await getAsset(p.customDesign.background.assetId).catch(() => undefined);
         if (!bg) notes.push("This preset's background image is no longer on this device, so it was skipped.");
       }
+      if (p.kind === "design" && p.overrides.background && "assetId" in p.overrides.background) {
+        const bg = await getAsset(p.overrides.background.assetId).catch(() => undefined);
+        if (!bg) notes.push("This preset's background image is no longer on this device, so it was skipped.");
+      }
       await onApply(p);
       setActiveId(p.id);
       setNote(notes.length ? notes.join(" ") : null);

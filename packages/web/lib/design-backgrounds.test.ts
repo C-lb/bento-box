@@ -6,6 +6,7 @@ import {
   backgroundsForTool,
   backgroundThumbUrl,
   loadBackgroundById,
+  overridesBackgroundKey,
 } from "./design-backgrounds";
 
 function publicPath(rel: string): string {
@@ -88,5 +89,27 @@ describe("loadBackgroundById", () => {
     const bg = await loadBackgroundById("ticket-top-band");
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(bg.src).toBe(btoa(String.fromCharCode(9)));
+  });
+});
+
+// loadOverridesBackground's uploaded-asset branch goes through IndexedDB
+// (via getAsset), which isn't available under this project's plain node/jsdom
+// test setup (no fake-indexeddb, see design-assets.test.ts's own note that it
+// only tests the pure localStorage scan). We test the pure identity helper
+// here instead; the bundled-id branch is exercised by loadBackgroundById
+// above (loadOverridesBackground delegates to it directly for `{id}`).
+describe("overridesBackgroundKey", () => {
+  it("keys a bundled selection by its registry id", () => {
+    expect(overridesBackgroundKey({ id: "cert-double-rule" })).toBe("id:cert-double-rule");
+  });
+
+  it("keys an uploaded selection by its assetId", () => {
+    expect(overridesBackgroundKey({ assetId: "abc-123", kind: "png" })).toBe("asset:abc-123");
+  });
+
+  it("never collides a bundled id with an uploaded assetId of the same string", () => {
+    const a = overridesBackgroundKey({ id: "same" });
+    const b = overridesBackgroundKey({ assetId: "same", kind: "png" });
+    expect(a).not.toBe(b);
   });
 });
