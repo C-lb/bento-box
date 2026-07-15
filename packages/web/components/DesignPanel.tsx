@@ -1,8 +1,16 @@
 "use client";
 import { useRef, useState } from "react";
 import { Segmented } from "@/components/Segmented";
-import { MM_TO_PT, type DesignOverrides, type TextStyle } from "@event-editor/core/design";
+import { SnapSlider } from "@/components/SnapSlider";
+import {
+  LINE_GAP_MAX,
+  LINE_GAP_MIN,
+  MM_TO_PT,
+  type DesignOverrides,
+  type TextStyle,
+} from "@event-editor/core/design";
 import { DESIGNER_FONTS } from "@/lib/designer-fonts";
+import { backgroundsForTool, backgroundThumbUrl } from "@/lib/design-backgrounds";
 
 export type SizePreset = { id: string; label: string; width: number; height: number };
 
@@ -96,7 +104,26 @@ export function DesignPanel({
     onUploadFont(file.name, bytes);
   }
 
+  // 0 means "layout default": the key is removed rather than persisted,
+  // matching the sanitizer's no-persist-default behaviour for lineGap.
+  function setLineGap(n: number) {
+    const next = { ...value };
+    if (n === 0) delete next.lineGap;
+    else next.lineGap = n;
+    onChange(next);
+  }
+
+  // Selecting "None" removes the key entirely (nothing to persist).
+  function setBackground(id: string | undefined) {
+    const next = { ...value };
+    if (id) next.background = { id };
+    else delete next.background;
+    onChange(next);
+  }
+
   const border = value.border ?? { style: "none" as const, color: "#1a1a1a", width: 1, inset: 24 };
+  const backgrounds = backgroundsForTool(toolId);
+  const selectedBackground = value.background?.id;
 
   return (
     <details className="mt-3">
@@ -154,6 +181,16 @@ export function DesignPanel({
         {slots.length > 0 && (
           <section className="space-y-3">
             <p className="text-sm font-medium">Text</p>
+            <SnapSlider
+              label="Line spacing"
+              value={value.lineGap ?? 0}
+              onChange={setLineGap}
+              min={LINE_GAP_MIN}
+              max={LINE_GAP_MAX}
+              step={1}
+              checkpoints={[0]}
+              format={(v) => (v === 0 ? "Default" : `${v > 0 ? "+" : ""}${v} pt`)}
+            />
             {slots.map((slot) => {
               const style = value.text?.[slot.id] ?? {};
               const hasStroke = !!style.stroke;
@@ -396,6 +433,45 @@ export function DesignPanel({
             Add divider
           </button>
         </section>
+
+        {/* Background */}
+        {backgrounds.length > 0 && (
+          <section className="space-y-2">
+            <p className="text-sm font-medium">Background</p>
+            <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
+              <button
+                type="button"
+                aria-pressed={!selectedBackground}
+                onClick={() => setBackground(undefined)}
+                className={`flex items-center justify-center rounded-card border p-2 text-sm min-h-[56px] hover:text-accent ${
+                  !selectedBackground ? "border-ink text-ink" : "border-line text-muted"
+                }`}
+              >
+                None
+              </button>
+              {backgrounds.map((b) => (
+                <button
+                  key={b.id}
+                  type="button"
+                  aria-pressed={selectedBackground === b.id}
+                  title={b.label}
+                  onClick={() => setBackground(b.id)}
+                  className={`overflow-hidden rounded-card border p-1 ${
+                    selectedBackground === b.id ? "border-ink" : "border-line"
+                  }`}
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={backgroundThumbUrl(b)}
+                    alt={b.label}
+                    className="block w-full rounded-[inherit]"
+                  />
+                  <span className="mt-1 block truncate text-center text-xs text-muted">{b.label}</span>
+                </button>
+              ))}
+            </div>
+          </section>
+        )}
 
         {/* Font upload */}
         <section className="space-y-2">

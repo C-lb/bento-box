@@ -7,7 +7,9 @@ import {
   parseDelimited, autoMatchColumns, deriveFields, remapRows, type Rows,
 } from "@event-editor/core/merge";
 import { certificateSpec, CERTIFICATE_LAYOUTS, type CertificateLayout } from "@event-editor/core/certificate";
-import { applyDesign, type DesignOverrides } from "@event-editor/core/design";
+import { applyDesign, withBackground, type DesignOverrides } from "@event-editor/core/design";
+import { loadBackgroundById } from "@/lib/design-backgrounds";
+import type { DocumentSpec } from "@event-editor/core/merge";
 import { parseWorkbook } from "@/lib/merge-xlsx";
 import { renderCombined, renderZip, type FontBytes } from "@/lib/merge-render";
 import { MergePreview } from "@/components/MergePreview";
@@ -140,8 +142,25 @@ export function CertificateClient() {
     () => (isCustom ? customDesignToSpec(customDesign, customAssets) : layoutSpec),
     [isCustom, customDesign, customAssets, layoutSpec],
   );
+  // Bundled background: resolve the selected id to bytes async (memo-cached
+  // fetch), then inject via withBackground so the preview picks it up on the
+  // next finalSpec change, mirroring the async preview-font loading below.
+  const backgroundId = !isCustom ? overrides.background?.id : undefined;
+  const [loadedBackground, setLoadedBackground] = useState<DocumentSpec["background"] | undefined>(undefined);
+  useEffect(() => {
+    if (!backgroundId) { setLoadedBackground(undefined); return; }
+    let live = true;
+    loadBackgroundById(backgroundId)
+      .then((b) => { if (live) setLoadedBackground(b); })
+      .catch(() => { if (live) setLoadedBackground(undefined); });
+    return () => { live = false; };
+  }, [backgroundId]);
+
   // Designer overrides apply to built-in layouts only; a custom design IS the design.
-  const finalSpec = useMemo(() => (isCustom ? spec : applyDesign(spec, overrides)), [isCustom, spec, overrides]);
+  const finalSpec = useMemo(
+    () => (isCustom ? spec : withBackground(applyDesign(spec, overrides), backgroundId ? loadedBackground : undefined)),
+    [isCustom, spec, overrides, backgroundId, loadedBackground],
+  );
   const slots = useMemo(() => designSlots(layoutSpec), [layoutSpec]);
 
   const fields = useMemo(() => deriveFields(spec), [spec]);
@@ -173,12 +192,17 @@ export function CertificateClient() {
   async function download(kind: "combined" | "zip") {
     setBusy(true); setError(null);
     try {
-      const fonts = await withDesignFonts(finalSpec);
+      // Re-resolve the background at render time (cached after the preview
+      // fetch) so the final PDF never races the async preview load.
+      const renderSpec = backgroundId
+        ? withBackground(finalSpec, await loadBackgroundById(backgroundId))
+        : finalSpec;
+      const fonts = await withDesignFonts(renderSpec);
       if (kind === "combined") {
-        const bytes = await renderCombined(finalSpec, mergedRows, fonts);
+        const bytes = await renderCombined(renderSpec, mergedRows, fonts);
         triggerDownload(new Blob([bytes as BlobPart], { type: "application/pdf" }), "certificates.pdf");
       } else {
-        const blob = await renderZip(finalSpec, mergedRows, recipientField, fonts);
+        const blob = await renderZip(renderSpec, mergedRows, recipientField, fonts);
         triggerDownload(blob, "certificates.zip");
       }
     } catch (e) {

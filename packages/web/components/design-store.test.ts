@@ -43,10 +43,10 @@ describe("design-store", () => {
   });
 
   it("keys designs per tool", () => {
-    saveDesign("certificate", { v: 1, pageSize: { width: 1, height: 2 } });
-    saveDesign("badge", { v: 1, pageSize: { width: 3, height: 4 } });
-    expect(loadDesign("certificate")).toEqual({ v: 1, pageSize: { width: 1, height: 2 } });
-    expect(loadDesign("badge")).toEqual({ v: 1, pageSize: { width: 3, height: 4 } });
+    saveDesign("certificate", { v: 1, pageSize: { width: 300, height: 200 } });
+    saveDesign("badge", { v: 1, pageSize: { width: 400, height: 500 } });
+    expect(loadDesign("certificate")).toEqual({ v: 1, pageSize: { width: 300, height: 200 } });
+    expect(loadDesign("badge")).toEqual({ v: 1, pageSize: { width: 400, height: 500 } });
   });
 
   it("returns undefined for garbage JSON", () => {
@@ -67,6 +67,31 @@ describe("design-store", () => {
   it("returns undefined for a missing version", () => {
     window.localStorage.setItem("ee.design.certificate", JSON.stringify({ pageSize: { width: 1, height: 2 } }));
     expect(loadDesign("certificate")).toBeUndefined();
+  });
+
+  it("clamps out-of-range values on load (deep sanitizer)", () => {
+    window.localStorage.setItem(
+      "ee.design.certificate",
+      JSON.stringify({ v: 1, lineGap: 999, text: { recipient: { size: 1 } } }),
+    );
+    expect(loadDesign("certificate")).toEqual({
+      v: 1,
+      lineGap: 60,
+      text: { recipient: { size: 4 } },
+    });
+  });
+
+  it("drops a lineGap of 0 (the no-op default) on load", () => {
+    window.localStorage.setItem("ee.design.certificate", JSON.stringify({ v: 1, lineGap: 0 }));
+    expect(loadDesign("certificate")).toEqual({ v: 1 });
+  });
+
+  it("keeps a background selection and drops junk fields", () => {
+    window.localStorage.setItem(
+      "ee.design.ticket",
+      JSON.stringify({ v: 1, background: { id: "ticket-stub" }, bogus: true, border: "nope" }),
+    );
+    expect(loadDesign("ticket")).toEqual({ v: 1, background: { id: "ticket-stub" } });
   });
 
   it("clear removes the persisted design", () => {
