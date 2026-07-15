@@ -18,7 +18,7 @@ import { loadDesign, saveDesign } from "@/components/design-store";
 import { CUSTOM_LAYOUT_ID } from "@/components/MergeToolClient";
 import { CustomDesignEditor } from "@/components/CustomDesignEditor";
 import { loadCustomDesign, saveCustomDesign } from "@/components/custom-design-store";
-import { hydrateAssetSrcs } from "@/lib/design-assets";
+import { hydrateAssetSrcs, gcAssetIfUnreferenced } from "@/lib/design-assets";
 import { DesignPresetBar } from "@/components/DesignPresetBar";
 import type { DesignPreset } from "@/lib/design-presets";
 import { customDesignToSpec, type CustomDesign } from "@event-editor/core/custom-design";
@@ -319,6 +319,7 @@ export function CertificateClient() {
               previewFonts={previewFonts}
               assets={customAssets}
               onAssetAdded={(id, src) => setCustomAssets((s) => ({ ...s, [id]: src }))}
+              onAssetRemoved={(id) => void gcAssetIfUnreferenced(id).catch(() => {})}
               onError={setError}
             />
             <label className="block text-sm font-medium mt-3">Recipient column

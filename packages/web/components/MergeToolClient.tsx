@@ -8,7 +8,7 @@ import { MergePreview } from "@/components/MergePreview";
 import { loadDesign, saveDesign } from "@/components/design-store";
 import { CustomDesignEditor } from "@/components/CustomDesignEditor";
 import { loadCustomDesign, saveCustomDesign } from "@/components/custom-design-store";
-import { hydrateAssetSrcs } from "@/lib/design-assets";
+import { hydrateAssetSrcs, gcAssetIfUnreferenced } from "@/lib/design-assets";
 import { DesignPresetBar } from "@/components/DesignPresetBar";
 import type { DesignPreset } from "@/lib/design-presets";
 import { autoMatchColumns, deriveFields, remapRows, type Rows, type DocumentSpec } from "@event-editor/core/merge";
@@ -223,6 +223,7 @@ export function MergeToolClient(config: MergeToolConfig) {
               previewFonts={previewFonts}
               assets={customAssets}
               onAssetAdded={(id, src) => setCustomAssets((s) => ({ ...s, [id]: src }))}
+              onAssetRemoved={(id) => void gcAssetIfUnreferenced(id).catch(() => {})}
               onError={setError}
             />
             <label className="block text-sm font-medium mt-3">{config.recipientLabel}

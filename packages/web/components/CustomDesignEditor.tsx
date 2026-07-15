@@ -26,6 +26,10 @@ export interface CustomDesignEditorProps {
   previewFonts: FontBytes | undefined;
   assets: Record<string, string>;
   onAssetAdded: (id: string, src: string) => void;
+  /** Called when a background is removed or replaced, with the assetId that
+   * is no longer referenced by this design. Callers use it to GC the
+   * IndexedDB binary once the design change has been persisted. */
+  onAssetRemoved?: (assetId: string) => void;
   onError: (msg: string) => void;
 }
 
@@ -102,10 +106,18 @@ export function CustomDesignEditor(p: CustomDesignEditorProps) {
       const assetId = newElementId();
       await putAsset(assetId, bytes, kind === "pdf" ? "application/pdf" : `image/${kind === "jpg" ? "jpeg" : "png"}`);
       p.onAssetAdded(assetId, assetSrc(kind, bytes));
+      const oldAssetId = p.design.background?.assetId;
       p.onChange({ ...p.design, page: pg, background: { assetId, kind } });
+      if (oldAssetId) p.onAssetRemoved?.(oldAssetId);
     } catch (e) {
       p.onError(e instanceof Error ? e.message : String(e));
     }
+  }
+
+  function removeBackground() {
+    const oldAssetId = p.design.background?.assetId;
+    p.onChange({ ...p.design, background: null });
+    if (oldAssetId) p.onAssetRemoved?.(oldAssetId);
   }
 
   function onPointerDown(e: React.PointerEvent, el: CustomElement, mode: "move" | "resize") {
@@ -144,6 +156,11 @@ export function CustomDesignEditor(p: CustomDesignEditorProps) {
           <input ref={bgInputRef} type="file" accept="image/png,image/jpeg,application/pdf" className="hidden"
             onChange={(e) => { const f = e.target.files?.[0]; if (f) void setBackground(f); e.target.value = ""; }} />
         </label>
+        {p.design.background && (
+          <button type="button" className="btn inline-flex items-center gap-2" onClick={removeBackground}>
+            <Trash2 className="w-4 h-4" strokeWidth={1.75} /> Remove background
+          </button>
+        )}
         <div className="relative">
           <select className="field" value="" onChange={(e) => { if (e.target.value) addField(e.target.value); }}
             aria-label="Add a merge field">

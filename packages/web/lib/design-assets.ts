@@ -61,6 +61,60 @@ export async function deleteAsset(id: string): Promise<void> {
   await withStore("readwrite", (s) => s.delete(id));
 }
 
+const CUSTOM_DESIGN_PREFIX = "ee.customDesign.";
+const DESIGN_PRESETS_PREFIX = "ee.designPresets.";
+
+/** Recursively scans an arbitrary parsed-JSON value for any `assetId` field
+ * equal to `id`. Deliberately structure-agnostic (rather than typed against
+ * CustomDesign/DesignPreset) so it stays correct as new asset-holding shapes
+ * are added (e.g. a future "design"-kind preset's overrides.background). */
+function referencesAssetId(value: unknown, id: string): boolean {
+  if (Array.isArray(value)) return value.some((v) => referencesAssetId(v, id));
+  if (value && typeof value === "object") {
+    const rec = value as Record<string, unknown>;
+    if (rec.assetId === id) return true;
+    return Object.values(rec).some((v) => referencesAssetId(v, id));
+  }
+  return false;
+}
+
+/**
+ * Pure localStorage scan (no IndexedDB access, so it's testable under jsdom
+ * without fake-indexeddb): true if `assetId` is still referenced by any
+ * saved design preset or persisted custom design. SSR-safe. A key with
+ * malformed JSON is skipped (treated as no reference) rather than throwing.
+ */
+export function isAssetReferenced(assetId: string): boolean {
+  if (typeof localStorage === "undefined") return false;
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (!key) continue;
+    if (!key.startsWith(CUSTOM_DESIGN_PREFIX) && !key.startsWith(DESIGN_PRESETS_PREFIX)) continue;
+    const raw = localStorage.getItem(key);
+    if (!raw) continue;
+    try {
+      const parsed = JSON.parse(raw);
+      if (referencesAssetId(parsed, assetId)) return true;
+    } catch {
+      // malformed JSON: skip this key, treat as no reference
+    }
+  }
+  return false;
+}
+
+/**
+ * Deletes an asset from IndexedDB unless it's still referenced by a saved
+ * preset or a persisted custom design. Returns true iff the asset was
+ * deleted. Callers should invoke this AFTER the design change that dropped
+ * the reference has been persisted, otherwise the scan still finds the old
+ * reference and the asset is (correctly, if prematurely) kept.
+ */
+export async function gcAssetIfUnreferenced(assetId: string): Promise<boolean> {
+  if (isAssetReferenced(assetId)) return false;
+  await deleteAsset(assetId);
+  return true;
+}
+
 /**
  * Resolves every asset a custom design references (background + image
  * elements) into the renderer's src convention (data URL for images, plain
