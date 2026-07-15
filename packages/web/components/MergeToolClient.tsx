@@ -8,8 +8,9 @@ import { MergePreview } from "@/components/MergePreview";
 import { loadDesign, saveDesign } from "@/components/design-store";
 import { CustomDesignEditor } from "@/components/CustomDesignEditor";
 import { loadCustomDesign, saveCustomDesign } from "@/components/custom-design-store";
-import { getAsset } from "@/lib/design-assets";
-import { assetSrc } from "@/lib/custom-upload";
+import { hydrateAssetSrcs } from "@/lib/design-assets";
+import { DesignPresetBar } from "@/components/DesignPresetBar";
+import type { DesignPreset } from "@/lib/design-presets";
 import { autoMatchColumns, deriveFields, remapRows, type Rows, type DocumentSpec } from "@event-editor/core/merge";
 import { applyDesign, withBackground, type DesignOverrides } from "@event-editor/core/design";
 import { loadBackgroundById } from "@/lib/design-backgrounds";
@@ -76,22 +77,25 @@ export function MergeToolClient(config: MergeToolConfig) {
     if (!saved) return;
     setCustomDesign(saved);
     // hydrate every referenced asset from IndexedDB into src strings
-    const ids = new Set<string>();
-    if (saved.background) ids.add(saved.background.assetId);
-    for (const el of saved.elements) if (el.type === "image") ids.add(el.assetId);
-    void Promise.all(Array.from(ids).map(async (id) => {
-      const a = await getAsset(id);
-      if (!a) return null;
-      const kind = a.mime === "application/pdf" ? "pdf" as const : a.mime === "image/jpeg" ? "jpg" as const : "png" as const;
-      return [id, assetSrc(kind, a.bytes)] as const;
-    })).then((pairs) => {
-      setCustomAssets(Object.fromEntries(pairs.filter((p): p is readonly [string, string] => !!p)));
-    });
+    void hydrateAssetSrcs(saved).then(setCustomAssets);
   }, [config.toolId]);
 
   function changeCustomDesign(next: CustomDesign) {
     setCustomDesign(next);
     saveCustomDesign(config.toolId, next);
+  }
+
+  // Preset apply: one shot into the same setters + stores the panel/editor
+  // use, so the applied look persists exactly like a manual edit would.
+  async function applyPreset(p: DesignPreset) {
+    if (p.kind === "custom") {
+      changeCustomDesign(p.customDesign);
+      setCustomAssets(await hydrateAssetSrcs(p.customDesign));
+      setLayout(CUSTOM_LAYOUT_ID);
+    } else {
+      changeOverrides(p.overrides);
+      setLayout(config.layouts.some((l) => l.id === p.layoutId) ? p.layoutId : config.layouts[0].id);
+    }
   }
 
   const [uploadedFonts, setUploadedFonts] = useState<{ id: string; label: string }[]>([]);
@@ -187,6 +191,17 @@ export function MergeToolClient(config: MergeToolConfig) {
           options={[...config.layouts.map((l) => ({ value: l.id, label: l.label })), { value: CUSTOM_LAYOUT_ID, label: "Custom" }]}
           value={layout}
           onChange={setLayout}
+        />
+        <DesignPresetBar
+          toolId={config.toolId}
+          isCustom={isCustom}
+          layoutId={layout}
+          overrides={overrides}
+          customDesign={customDesign}
+          spec={finalSpec}
+          row={mergedRows[0] ?? EMPTY_ROW}
+          fonts={previewFonts}
+          onApply={applyPreset}
         />
         <div className="space-y-3 lg:grid lg:grid-cols-2 lg:gap-6 lg:space-y-0">
           {isCustom ? (

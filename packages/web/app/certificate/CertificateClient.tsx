@@ -18,8 +18,9 @@ import { loadDesign, saveDesign } from "@/components/design-store";
 import { CUSTOM_LAYOUT_ID } from "@/components/MergeToolClient";
 import { CustomDesignEditor } from "@/components/CustomDesignEditor";
 import { loadCustomDesign, saveCustomDesign } from "@/components/custom-design-store";
-import { getAsset } from "@/lib/design-assets";
-import { assetSrc } from "@/lib/custom-upload";
+import { hydrateAssetSrcs } from "@/lib/design-assets";
+import { DesignPresetBar } from "@/components/DesignPresetBar";
+import type { DesignPreset } from "@/lib/design-presets";
 import { customDesignToSpec, type CustomDesign } from "@event-editor/core/custom-design";
 import { addUploadedFont, listUploadedFonts } from "@/lib/designer-fonts";
 import { designSlots, specFontIds, withDesignFonts, EMPTY_ROW } from "@/lib/design-tools";
@@ -109,22 +110,26 @@ export function CertificateClient() {
     if (!saved) return;
     setCustomDesign(saved);
     // hydrate every referenced asset from IndexedDB into src strings
-    const ids = new Set<string>();
-    if (saved.background) ids.add(saved.background.assetId);
-    for (const el of saved.elements) if (el.type === "image") ids.add(el.assetId);
-    void Promise.all(Array.from(ids).map(async (id) => {
-      const a = await getAsset(id);
-      if (!a) return null;
-      const kind = a.mime === "application/pdf" ? "pdf" as const : a.mime === "image/jpeg" ? "jpg" as const : "png" as const;
-      return [id, assetSrc(kind, a.bytes)] as const;
-    })).then((pairs) => {
-      setCustomAssets(Object.fromEntries(pairs.filter((p): p is readonly [string, string] => !!p)));
-    });
+    void hydrateAssetSrcs(saved).then(setCustomAssets);
   }, []);
 
   function changeCustomDesign(next: CustomDesign) {
     setCustomDesign(next);
     saveCustomDesign(TOOL_ID, next);
+  }
+
+  // Preset apply: one shot into the same setters + stores the panel/editor
+  // use, so the applied look persists exactly like a manual edit would.
+  async function applyPreset(p: DesignPreset) {
+    if (p.kind === "custom") {
+      changeCustomDesign(p.customDesign);
+      setCustomAssets(await hydrateAssetSrcs(p.customDesign));
+      setLayout(CUSTOM_LAYOUT_ID);
+    } else {
+      changeOverrides(p.overrides);
+      const known = CERTIFICATE_LAYOUTS.some((l) => l.id === p.layoutId);
+      setLayout(known ? (p.layoutId as CertificateLayout) : "classic");
+    }
   }
 
   // keep pasted rows live
@@ -285,6 +290,17 @@ export function CertificateClient() {
           options={[...CERTIFICATE_LAYOUTS.map((l) => ({ value: l.id, label: l.label })), { value: CUSTOM_LAYOUT_ID, label: "Custom" }]}
           value={layout}
           onChange={(v) => setLayout(v as CertificateLayout | typeof CUSTOM_LAYOUT_ID)}
+        />
+        <DesignPresetBar
+          toolId={TOOL_ID}
+          isCustom={isCustom}
+          layoutId={layout}
+          overrides={overrides}
+          customDesign={customDesign}
+          spec={finalSpec}
+          row={mergedRows[0] ?? EMPTY_ROW}
+          fonts={previewFonts}
+          onApply={applyPreset}
         />
         <div className="space-y-3 lg:grid lg:grid-cols-2 lg:gap-6 lg:space-y-0">
           {isCustom ? (

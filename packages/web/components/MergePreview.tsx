@@ -1,43 +1,18 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { Loader2 } from "lucide-react";
-import { deriveFields, type DocumentSpec } from "@event-editor/core/merge";
+import type { DocumentSpec } from "@event-editor/core/merge";
 import { renderOne, type FontBytes } from "@/lib/merge-render";
+import { effectiveRow } from "@/lib/design-tools";
+import { loadPdfjs } from "@/lib/pdf-raster";
 
 const DEBOUNCE_MS = 300;
-
-// Loaded and configured once (module scope) so every MergePreview instance
-// shares the same worker setup instead of re-resolving it per mount.
-let pdfjsPromise: Promise<typeof import("pdfjs-dist")> | null = null;
-
-function loadPdfjs() {
-  if (!pdfjsPromise) {
-    pdfjsPromise = import("pdfjs-dist").then((pdfjs) => {
-      pdfjs.GlobalWorkerOptions.workerSrc = new URL(
-        "pdfjs-dist/build/pdf.worker.min.mjs",
-        import.meta.url,
-      ).toString();
-      return pdfjs;
-    });
-  }
-  return pdfjsPromise;
-}
 
 interface MergePreviewProps {
   spec: DocumentSpec;
   row: Record<string, string>;
   fonts?: FontBytes;
   className?: string;
-}
-
-/**
- * When no list is loaded (`row` missing or every value blank), preview with a
- * placeholder row built from the spec's own fields, each mapped to its own
- * name, so `{Name}` renders as "Name" instead of vanishing.
- */
-function effectiveRow(spec: DocumentSpec, row: Record<string, string> | undefined): Record<string, string> {
-  if (row && Object.values(row).some((v) => v != null && String(v).trim() !== "")) return row;
-  return Object.fromEntries(deriveFields(spec).map((f) => [f, f]));
 }
 
 /**

@@ -5,7 +5,7 @@
  * from the curated registry or session uploads, on top of the bundled
  * heading/body fallback).
  */
-import type { DocumentSpec } from "@event-editor/core/merge";
+import { deriveFields, type DocumentSpec } from "@event-editor/core/merge";
 import { loadBundledFonts, type FontBytes } from "@/lib/merge-render";
 import { loadFontById, getUploadedFont } from "@/lib/designer-fonts";
 
@@ -13,6 +13,17 @@ import { loadFontById, getUploadedFont } from "@/lib/designer-fonts";
  * doesn't allocate a fresh object identity every render (which would re-fire
  * effects keyed on the row reference). */
 export const EMPTY_ROW: Record<string, string> = {};
+
+/**
+ * When no list is loaded (`row` missing or every value blank), preview with a
+ * placeholder row built from the spec's own fields, each mapped to its own
+ * name, so `{Name}` renders as "Name" instead of vanishing. Shared by
+ * MergePreview and the design preset thumbnail renderer.
+ */
+export function effectiveRow(spec: DocumentSpec, row: Record<string, string> | undefined): Record<string, string> {
+  if (row && Object.values(row).some((v) => v != null && String(v).trim() !== "")) return row;
+  return Object.fromEntries(deriveFields(spec).map((f) => [f, f]));
+}
 
 const SLOT_LABELS: Record<string, string> = {
   title: "Title",

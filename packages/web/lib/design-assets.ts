@@ -1,5 +1,7 @@
 /** IndexedDB store for F3 design binaries (backgrounds, logos). localStorage
  * can't hold multi-MB images; the JSON design references these by assetId. */
+import type { CustomDesign } from "@event-editor/core/custom-design";
+import { assetSrc } from "@/lib/custom-upload";
 
 const DB_NAME = "ee-design-assets";
 const STORE = "assets";
@@ -57,4 +59,24 @@ export async function getAsset(id: string): Promise<{ bytes: Uint8Array; mime: s
 
 export async function deleteAsset(id: string): Promise<void> {
   await withStore("readwrite", (s) => s.delete(id));
+}
+
+/**
+ * Resolves every asset a custom design references (background + image
+ * elements) into the renderer's src convention (data URL for images, plain
+ * base64 for pdf). Missing assets are simply absent from the returned map;
+ * customDesignToSpec drops elements whose asset is missing. Shared by the
+ * merge clients' mount hydration and preset apply.
+ */
+export async function hydrateAssetSrcs(design: CustomDesign): Promise<Record<string, string>> {
+  const ids = new Set<string>();
+  if (design.background) ids.add(design.background.assetId);
+  for (const el of design.elements) if (el.type === "image") ids.add(el.assetId);
+  const pairs = await Promise.all(Array.from(ids).map(async (id) => {
+    const a = await getAsset(id);
+    if (!a) return null;
+    const kind = a.mime === "application/pdf" ? "pdf" as const : a.mime === "image/jpeg" ? "jpg" as const : "png" as const;
+    return [id, assetSrc(kind, a.bytes)] as const;
+  }));
+  return Object.fromEntries(pairs.filter((p): p is readonly [string, string] => !!p));
 }
