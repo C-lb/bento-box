@@ -12,13 +12,13 @@ export function ToolCard({ tool, readiness }: { tool: Tool; readiness?: Readines
   const inner = (
     <>
       {/* Mobile: compact list row (icon tile + title + one-line body). */}
-      <div className="flex min-h-[48px] items-center gap-3 pr-12 sm:hidden">
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#eef0f3]">
-          <Icon size={18} strokeWidth={1.75} className="text-ink" aria-hidden />
+      <div className="flex min-h-10 items-center gap-2.5 pr-10 sm:hidden">
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#eef0f3]">
+          <Icon size={18} strokeWidth={1.75} className="h-4 w-4 text-ink" aria-hidden />
         </span>
         <span className="min-w-0">
-          <h2 className="text-base font-semibold text-ink">{tool.title}</h2>
-          <p className="mt-0.5 line-clamp-1 text-sm text-muted">{tool.body}</p>
+          <h2 className="text-[15px] font-semibold text-ink">{tool.title}</h2>
+          <p className="mt-0 line-clamp-1 text-[13px] text-muted">{tool.body}</p>
         </span>
       </div>
 
@@ -43,18 +43,18 @@ export function ToolCard({ tool, readiness }: { tool: Tool; readiness?: Readines
   );
 
   return (
-    <div className="group relative h-full rounded-[20px] border border-line bg-surface p-3 shadow-soft transition-colors hover:border-muted/40 sm:p-4">
+    <div className="group relative h-full rounded-2xl border border-line bg-surface p-2 shadow-soft transition-colors hover:border-muted/40 sm:rounded-[20px] sm:p-4">
       <CardMenu tool={tool} />
       {blocked && readiness && <RequirementBadge readiness={readiness} />}
       {blocked ? (
         <div
           aria-disabled="true"
-          className="-m-3 block cursor-not-allowed p-3 opacity-45 sm:m-0 sm:p-0"
+          className="-m-2 block cursor-not-allowed p-2 opacity-45 sm:m-0 sm:p-0"
         >
           {inner}
         </div>
       ) : (
-        <Link href={tool.href} className="-m-3 block p-3 sm:m-0 sm:p-0">
+        <Link href={tool.href} className="-m-2 block p-2 sm:m-0 sm:p-0">
           {inner}
         </Link>
       )}

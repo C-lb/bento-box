@@ -88,7 +88,7 @@ export function Nav() {
 
   return (
     <header className="relative border-b border-line">
-      <div className="mx-auto flex max-w-5xl items-center gap-3 px-6 py-3">
+      <div className="mx-auto flex max-w-5xl items-center gap-1.5 px-3 py-1 sm:gap-3 sm:px-6 sm:py-3">
         <Link
           href="/"
           aria-label="Home, show all tools"
@@ -96,7 +96,7 @@ export function Nav() {
           className="flex shrink-0 items-center gap-2 text-sm font-semibold text-ink"
           data-tip={version ? `Version ${version}` : undefined}
         >
-          <svg viewBox="0 0 600 600" width={21} height={21} className="shrink-0" aria-hidden>
+          <svg viewBox="0 0 600 600" className="h-[18px] w-[18px] shrink-0 sm:h-[21px] sm:w-[21px]" aria-hidden>
             {/* Bento home glyph, layout from Caleb's 1.svg with fatter gaps and
                 rounder corners. tray = currentColor (ink), compartments = surface,
                 so it reads and inverts cleanly on a light or dark nav.
@@ -117,11 +117,11 @@ export function Nav() {
             onClick={() => {
               if (canBack) history.back();
             }}
-            className={`flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg px-2 py-2 text-muted hover:text-ink ${
+            className={`flex min-h-9 min-w-9 items-center justify-center rounded-lg px-1.5 py-1.5 text-muted hover:text-ink sm:min-h-[44px] sm:min-w-[44px] sm:px-2 sm:py-2 ${
               canBack ? "" : "cursor-default opacity-40"
             }`}
           >
-            <ArrowLeft size={18} strokeWidth={1.75} aria-hidden />
+            <ArrowLeft size={18} strokeWidth={1.75} className="h-4 w-4 sm:h-[18px] sm:w-[18px]" aria-hidden />
           </button>
           <button
             type="button"
@@ -130,19 +130,19 @@ export function Nav() {
             onClick={() => {
               if (canForward) history.forward();
             }}
-            className={`flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg px-2 py-2 text-muted hover:text-ink ${
+            className={`flex min-h-9 min-w-9 items-center justify-center rounded-lg px-1.5 py-1.5 text-muted hover:text-ink sm:min-h-[44px] sm:min-w-[44px] sm:px-2 sm:py-2 ${
               canForward ? "" : "cursor-default opacity-40"
             }`}
           >
-            <ArrowRight size={18} strokeWidth={1.75} aria-hidden />
+            <ArrowRight size={18} strokeWidth={1.75} className="h-4 w-4 sm:h-[18px] sm:w-[18px]" aria-hidden />
           </button>
           <button
             type="button"
             aria-label="Refresh"
             onClick={() => window.location.reload()}
-            className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg px-2 py-2 text-muted hover:text-ink"
+            className="flex min-h-9 min-w-9 items-center justify-center rounded-lg px-1.5 py-1.5 text-muted hover:text-ink sm:min-h-[44px] sm:min-w-[44px] sm:px-2 sm:py-2"
           >
-            <RotateCw size={18} strokeWidth={1.75} aria-hidden />
+            <RotateCw size={18} strokeWidth={1.75} className="h-4 w-4 sm:h-[18px] sm:w-[18px]" aria-hidden />
           </button>
         </div>
 
@@ -163,7 +163,7 @@ export function Nav() {
                 }}
                 onClick={() => pick(p.id)}
                 aria-pressed={active}
-                className={`relative z-10 inline-flex min-h-[44px] items-center whitespace-nowrap rounded-lg px-3 py-2 text-sm transition-colors ${
+                className={`relative z-10 inline-flex min-h-9 items-center whitespace-nowrap rounded-lg px-2.5 py-1.5 text-[13px] transition-colors sm:min-h-[44px] sm:px-3 sm:py-2 sm:text-sm ${
                   active ? "text-white" : "text-muted hover:text-ink"
                 }`}
               >
@@ -177,9 +177,9 @@ export function Nav() {
           href="/settings"
           aria-label="Settings"
           aria-current={path.startsWith("/settings") ? "page" : undefined}
-          className="flex min-h-[44px] min-w-[44px] shrink-0 items-center justify-center rounded-lg px-2 py-2 text-muted hover:text-ink"
+          className="flex min-h-9 min-w-9 shrink-0 items-center justify-center rounded-lg px-1.5 py-1.5 text-muted hover:text-ink sm:min-h-[44px] sm:min-w-[44px] sm:px-2 sm:py-2"
         >
-          <Settings size={18} strokeWidth={1.75} className="spin-hover" aria-hidden />
+          <Settings size={18} strokeWidth={1.75} className="spin-hover h-4 w-4 sm:h-[18px] sm:w-[18px]" aria-hidden />
         </Link>
       </div>
     </header>

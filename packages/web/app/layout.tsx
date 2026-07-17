@@ -20,7 +20,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <ToolShellProvider>
           <Nav />
           <ToolSearch />
-          <main className="mx-auto max-w-5xl px-4 pt-6 pb-16 sm:px-6 sm:pt-10 sm:pb-24">{children}</main>
+          <main className="mx-auto max-w-5xl px-3 pt-3 pb-16 sm:px-6 sm:pt-10 sm:pb-24">{children}</main>
         </ToolShellProvider>
       </body>
     </html>

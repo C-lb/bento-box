@@ -51,7 +51,7 @@ export function CardMenu({ tool }: { tool: Tool }) {
           e.stopPropagation();
           setOpen((v) => !v);
         }}
-        className="dots-trigger flex min-h-[44px] min-w-[44px] items-center justify-center rounded-full border border-line bg-surface p-1.5 text-muted shadow-soft hover:text-ink"
+        className="dots-trigger flex min-h-8 min-w-8 items-center justify-center rounded-full border border-line bg-surface p-1 text-muted shadow-soft hover:text-ink sm:min-h-[44px] sm:min-w-[44px] sm:p-1.5"
       >
         {/* Inline dots in left-to-right DOM order so the hover wave lifts them in sequence. */}
         <svg viewBox="0 0 24 24" width={16} height={16} className="dots-wave" fill="currentColor" aria-hidden>
