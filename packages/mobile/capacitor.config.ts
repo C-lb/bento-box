@@ -1,7 +1,7 @@
 import type { CapacitorConfig } from "@capacitor/cli";
 
 const config: CapacitorConfig = {
-  appId: "com.spark.bento",
+  appId: "com.wahspark.bento",
   appName: "Bento",
   webDir: "www",
   server: {
