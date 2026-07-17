@@ -26,17 +26,16 @@ export function ToolSearch() {
   }, [sortOpen]);
 
   return (
-    // Outer sticks at the very top and pads down by the safe-area inset so the
-    // search bar clears the Dynamic Island / notch. On a Dynamic Island phone
-    // env(safe-area-inset-top) already equals the bezel-to-island gap, so the
-    // island-to-search-bar gap matches it. The padded zone is opaque canvas so
-    // scrolling cards never peek out beside the island.
+    // Sticks at the safe-area inset (not 0) so when the nav scrolls away the bar
+    // pins just below the Dynamic Island / notch instead of under it. Using the
+    // inset on `top` (not padding) means no dead gap in the resting position,
+    // where the bar already sits below the safe-area-padded nav. The island zone
+    // above it is covered by SafeAreaCap so cards never peek out beside it.
     <div
-      className="sticky top-0 z-30 bg-canvas"
-      style={{ paddingTop: "env(safe-area-inset-top)" }}
+      className="sticky z-30 border-b border-line bg-canvas/90 backdrop-blur"
+      style={{ top: "env(safe-area-inset-top)" }}
     >
-      <div className="border-b border-line bg-canvas/90 backdrop-blur">
-        <div className="mx-auto flex max-w-5xl items-center gap-2 px-3 py-0.5 sm:px-6 sm:py-2">
+      <div className="mx-auto flex max-w-5xl items-center gap-2 px-3 py-0.5 sm:px-6 sm:py-2">
         <Search size={16} strokeWidth={1.75} className="h-3.5 w-3.5 text-muted sm:h-4 sm:w-4" aria-hidden />
         <input
           value={query}
@@ -87,7 +86,6 @@ export function ToolSearch() {
               })}
             </div>
           )}
-        </div>
         </div>
       </div>
     </div>

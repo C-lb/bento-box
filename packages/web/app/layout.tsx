@@ -22,6 +22,14 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     <html lang="en">
       <body>
         <ToolShellProvider>
+          {/* Opaque cap over the Dynamic Island / notch zone so cards scrolling
+              under the sticky search bar never peek out beside the island. Zero
+              height (invisible) on devices with no top inset. */}
+          <div
+            aria-hidden
+            className="fixed inset-x-0 top-0 z-40 bg-canvas"
+            style={{ height: "env(safe-area-inset-top)" }}
+          />
           <Nav />
           <ToolSearch />
           <main className="mx-auto max-w-5xl px-3 pt-3 pb-16 sm:px-6 sm:pt-10 sm:pb-24">{children}</main>
