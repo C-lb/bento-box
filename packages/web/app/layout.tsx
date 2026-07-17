@@ -9,6 +9,10 @@ export const metadata = { title: "Bento", description: "A box of small tools for
 export const viewport = {
   width: "device-width",
   initialScale: 1,
+  // Lock zoom: iOS auto-zooms on focus of sub-16px inputs and leaves the page
+  // cropped off the left edge afterwards (app shell, so pinch-zoom is expendable).
+  maximumScale: 1,
+  userScalable: false,
   viewportFit: "cover" as const,
   themeColor: "#f5f6f8",
 };

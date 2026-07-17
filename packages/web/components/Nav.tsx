@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { ArrowLeft, ArrowRight, RotateCw, Settings } from "lucide-react";
+import { ArrowLeft, ArrowRight, RotateCw, Settings, Star } from "lucide-react";
 import { useToolShell } from "@/components/tool-shell-context";
 import { ALL, FAV } from "@/components/tool-store";
 
@@ -117,11 +117,11 @@ export function Nav() {
             onClick={() => {
               if (canBack) history.back();
             }}
-            className={`flex min-h-9 min-w-9 items-center justify-center rounded-lg px-1.5 py-1.5 text-muted hover:text-ink sm:min-h-[44px] sm:min-w-[44px] sm:px-2 sm:py-2 ${
+            className={`flex min-h-7 min-w-7 items-center justify-center rounded-lg px-1 py-1 text-muted hover:text-ink sm:min-h-[44px] sm:min-w-[44px] sm:px-2 sm:py-2 ${
               canBack ? "" : "cursor-default opacity-40"
             }`}
           >
-            <ArrowLeft size={18} strokeWidth={1.75} className="h-4 w-4 sm:h-[18px] sm:w-[18px]" aria-hidden />
+            <ArrowLeft size={18} strokeWidth={1.75} className="h-3.5 w-3.5 sm:h-[18px] sm:w-[18px]" aria-hidden />
           </button>
           <button
             type="button"
@@ -130,48 +130,68 @@ export function Nav() {
             onClick={() => {
               if (canForward) history.forward();
             }}
-            className={`flex min-h-9 min-w-9 items-center justify-center rounded-lg px-1.5 py-1.5 text-muted hover:text-ink sm:min-h-[44px] sm:min-w-[44px] sm:px-2 sm:py-2 ${
+            className={`flex min-h-7 min-w-7 items-center justify-center rounded-lg px-1 py-1 text-muted hover:text-ink sm:min-h-[44px] sm:min-w-[44px] sm:px-2 sm:py-2 ${
               canForward ? "" : "cursor-default opacity-40"
             }`}
           >
-            <ArrowRight size={18} strokeWidth={1.75} className="h-4 w-4 sm:h-[18px] sm:w-[18px]" aria-hidden />
+            <ArrowRight size={18} strokeWidth={1.75} className="h-3.5 w-3.5 sm:h-[18px] sm:w-[18px]" aria-hidden />
           </button>
           <button
             type="button"
             aria-label="Refresh"
             onClick={() => window.location.reload()}
-            className="flex min-h-9 min-w-9 items-center justify-center rounded-lg px-1.5 py-1.5 text-muted hover:text-ink sm:min-h-[44px] sm:min-w-[44px] sm:px-2 sm:py-2"
+            className="flex min-h-7 min-w-7 items-center justify-center rounded-lg px-1 py-1 text-muted hover:text-ink sm:min-h-[44px] sm:min-w-[44px] sm:px-2 sm:py-2"
           >
-            <RotateCw size={18} strokeWidth={1.75} className="h-4 w-4 sm:h-[18px] sm:w-[18px]" aria-hidden />
+            <RotateCw size={18} strokeWidth={1.75} className="h-3.5 w-3.5 sm:h-[18px] sm:w-[18px]" aria-hidden />
           </button>
         </div>
 
-        <nav className="relative flex flex-1 items-center gap-1 overflow-x-auto overscroll-x-contain">
+        <div className="relative min-w-0 flex-1">
+          <nav className="relative flex items-center gap-1 overflow-x-auto overscroll-x-contain">
+            <span
+              ref={thumbRef}
+              aria-hidden
+              className={`nav-thumb pointer-events-none absolute left-0 top-0 z-0 rounded-lg bg-ink transition-opacity ${searching ? "opacity-40" : ""}`}
+            />
+            {pills.map((p, i) => {
+              const active = i === activeIdx;
+              return (
+                <button
+                  key={p.id}
+                  type="button"
+                  ref={(el) => {
+                    pillRefs.current[i] = el;
+                  }}
+                  onClick={() => pick(p.id)}
+                  aria-pressed={active}
+                  aria-label={p.id === FAV ? "Favourites" : undefined}
+                  className={`relative z-10 inline-flex min-h-9 items-center whitespace-nowrap rounded-lg px-2.5 py-1.5 text-[13px] transition-colors sm:min-h-[44px] sm:px-3 sm:py-2 sm:text-sm ${
+                    active ? "text-white" : "text-muted hover:text-ink"
+                  }`}
+                >
+                  {p.id === FAV ? (
+                    <>
+                      <Star
+                        size={16}
+                        strokeWidth={1.75}
+                        className={`h-4 w-4 sm:hidden ${active ? "fill-current" : ""}`}
+                        aria-hidden
+                      />
+                      <span className="hidden sm:inline">{p.label}</span>
+                    </>
+                  ) : (
+                    p.label
+                  )}
+                </button>
+              );
+            })}
+          </nav>
+          {/* Right-edge fade: hints that the pill row scrolls sideways (mobile only). */}
           <span
-            ref={thumbRef}
             aria-hidden
-            className={`nav-thumb pointer-events-none absolute left-0 top-0 z-0 rounded-lg bg-ink transition-opacity ${searching ? "opacity-40" : ""}`}
+            className="pointer-events-none absolute inset-y-0 right-0 w-6 bg-gradient-to-l from-canvas to-transparent sm:hidden"
           />
-          {pills.map((p, i) => {
-            const active = i === activeIdx;
-            return (
-              <button
-                key={p.id}
-                type="button"
-                ref={(el) => {
-                  pillRefs.current[i] = el;
-                }}
-                onClick={() => pick(p.id)}
-                aria-pressed={active}
-                className={`relative z-10 inline-flex min-h-9 items-center whitespace-nowrap rounded-lg px-2.5 py-1.5 text-[13px] transition-colors sm:min-h-[44px] sm:px-3 sm:py-2 sm:text-sm ${
-                  active ? "text-white" : "text-muted hover:text-ink"
-                }`}
-              >
-                {p.label}
-              </button>
-            );
-          })}
-        </nav>
+        </div>
 
         <Link
           href="/settings"

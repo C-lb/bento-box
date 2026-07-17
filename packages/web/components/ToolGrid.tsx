@@ -44,7 +44,7 @@ export function ToolGrid() {
   ];
 
   return (
-    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-5">
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5">
       {ordered.map(({ tool, readiness }) => (
         <ToolCard key={tool.id} tool={tool} readiness={readiness} />
       ))}

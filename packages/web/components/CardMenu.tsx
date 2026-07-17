@@ -1,7 +1,7 @@
 "use client";
 import type { CSSProperties } from "react";
 import { useEffect, useRef, useState } from "react";
-import { Star } from "lucide-react";
+import { Plus, Star } from "lucide-react";
 import type { Tool } from "@/components/tools";
 import { useToolShell } from "@/components/tool-shell-context";
 import { effectiveGroups } from "@/components/tool-store";
@@ -40,7 +40,47 @@ export function CardMenu({ tool }: { tool: Tool }) {
   }
 
   return (
-    <div ref={ref} className="absolute right-2 top-1/2 z-20 -translate-y-1/2 sm:top-2 sm:translate-y-0">
+    <div
+      ref={ref}
+      className={`absolute right-2 top-1/2 flex -translate-y-1/2 items-center gap-0.5 sm:top-2 sm:translate-y-0 ${
+        open ? "z-50" : "z-20"
+      }`}
+    >
+      {/* Mobile: one-tap favourite star, no bubble. Desktop keeps it inside the menu. */}
+      <button
+        type="button"
+        aria-label={isFav ? "Remove from favourites" : "Add to favourites"}
+        aria-pressed={isFav}
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          if (!isFav) setBurst((n) => n + 1);
+          shell.toggleFavourite(tool.id);
+        }}
+        className="flex min-h-9 min-w-9 items-center justify-center rounded-full text-muted hover:text-ink sm:hidden"
+      >
+        <span key={burst} className="relative inline-flex">
+          <Star
+            size={18}
+            strokeWidth={1.75}
+            className={`${isFav ? "fill-current text-ink" : ""} ${burst > 0 ? "fav-pop" : ""}`}
+            aria-hidden
+          />
+          {burst > 0 && (
+            <span className="fav-spark pointer-events-none" aria-hidden>
+              {Array.from({ length: 6 }).map((_, i) => {
+                const a = (i / 6) * Math.PI * 2;
+                return (
+                  <i
+                    key={i}
+                    style={{ "--tx": `${Math.cos(a) * 13}px`, "--ty": `${Math.sin(a) * 13}px` } as CSSProperties}
+                  />
+                );
+              })}
+            </span>
+          )}
+        </span>
+      </button>
       <button
         type="button"
         aria-label="Card options"
@@ -51,10 +91,11 @@ export function CardMenu({ tool }: { tool: Tool }) {
           e.stopPropagation();
           setOpen((v) => !v);
         }}
-        className="dots-trigger flex min-h-8 min-w-8 items-center justify-center rounded-full border border-line bg-surface p-1 text-muted shadow-soft hover:text-ink sm:min-h-[44px] sm:min-w-[44px] sm:p-1.5"
+        className="dots-trigger flex min-h-9 min-w-9 items-center justify-center rounded-full text-muted hover:text-ink sm:min-h-[44px] sm:min-w-[44px] sm:border sm:border-line sm:bg-surface sm:p-1.5 sm:shadow-soft"
       >
-        {/* Inline dots in left-to-right DOM order so the hover wave lifts them in sequence. */}
-        <svg viewBox="0 0 24 24" width={16} height={16} className="dots-wave" fill="currentColor" aria-hidden>
+        {/* Mobile: plain plus. Desktop: dots in left-to-right DOM order so the hover wave lifts them in sequence. */}
+        <Plus size={18} strokeWidth={1.75} className="sm:hidden" aria-hidden />
+        <svg viewBox="0 0 24 24" width={16} height={16} className="dots-wave hidden sm:block" fill="currentColor" aria-hidden>
           <circle cx="5" cy="12" r="1.7" />
           <circle cx="12" cy="12" r="1.7" />
           <circle cx="19" cy="12" r="1.7" />
@@ -68,7 +109,7 @@ export function CardMenu({ tool }: { tool: Tool }) {
             e.preventDefault();
             e.stopPropagation();
           }}
-          className="absolute right-0 mt-1 w-56 rounded-xl border border-line bg-surface p-2 text-sm shadow-soft"
+          className="absolute right-0 top-full mt-1 w-56 rounded-xl border border-line bg-surface p-2 text-sm shadow-soft"
         >
           <button
             type="button"
@@ -132,7 +173,7 @@ export function CardMenu({ tool }: { tool: Tool }) {
             <button
               type="button"
               onClick={addGroup}
-              className="min-h-[44px] rounded-lg border border-line px-3 py-1 text-muted hover:text-ink"
+              className="self-stretch rounded-lg border border-line px-3 py-1 text-muted hover:text-ink sm:min-h-[44px]"
             >
               Add
             </button>
