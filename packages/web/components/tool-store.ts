@@ -202,3 +202,94 @@ export function nextSearchVisibility(prevY: number, curY: number, threshold: num
   if (curY > prevY) return false; // scrolling down: hide
   return true; // scrolling up or unchanged: show
 }
+
+// --- card sort + usage tracking ---
+
+export type ToolSort = "default" | "alpha" | "category" | "usage";
+export const TOOL_SORT_KEY = "ee.toolSort";
+export const TOOL_USAGE_KEY = "ee.toolUsage";
+
+export const TOOL_SORT_OPTIONS: Array<{ id: ToolSort; label: string }> = [
+  { id: "default", label: "Default order" },
+  { id: "alpha", label: "Alphabetical" },
+  { id: "category", label: "By category" },
+  { id: "usage", label: "Most used" },
+];
+
+export function parseToolSort(raw: string | null): ToolSort {
+  return raw === "alpha" || raw === "category" || raw === "usage" ? raw : "default";
+}
+
+export function readToolSort(): ToolSort {
+  try {
+    return parseToolSort(localStorage.getItem(TOOL_SORT_KEY));
+  } catch {
+    return "default";
+  }
+}
+
+export function writeToolSort(sort: ToolSort): void {
+  try {
+    localStorage.setItem(TOOL_SORT_KEY, sort);
+  } catch {
+    // Sort preference is a nicety; storage failures must not break the shell.
+  }
+}
+
+export function parseToolUsage(raw: string | null): Record<string, number> {
+  try {
+    const parsed: unknown = JSON.parse(raw ?? "{}");
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+      const out: Record<string, number> = {};
+      for (const [k, v] of Object.entries(parsed)) {
+        if (typeof v === "number" && Number.isFinite(v) && v > 0) out[k] = v;
+      }
+      return out;
+    }
+  } catch {
+    // fall through
+  }
+  return {};
+}
+
+export function readToolUsage(): Record<string, number> {
+  try {
+    return parseToolUsage(localStorage.getItem(TOOL_USAGE_KEY));
+  } catch {
+    return {};
+  }
+}
+
+export function recordToolUse(id: string): void {
+  try {
+    const usage = readToolUsage();
+    usage[id] = (usage[id] ?? 0) + 1;
+    localStorage.setItem(TOOL_USAGE_KEY, JSON.stringify(usage));
+  } catch {
+    // Best-effort counter only.
+  }
+}
+
+/** Pure sort over the visible tools; "default" preserves the curated order. */
+export function sortTools(
+  tools: Tool[],
+  sort: ToolSort,
+  state: ToolShellState,
+  usage: Record<string, number>,
+): Tool[] {
+  if (sort === "default") return tools;
+  const out = [...tools];
+  if (sort === "alpha") {
+    out.sort((a, b) => a.title.localeCompare(b.title));
+  } else if (sort === "category") {
+    const rank = (t: Tool) => {
+      const g = effectiveGroups(state, t)[0];
+      const i = g ? state.groups.indexOf(g) : -1;
+      return i === -1 ? state.groups.length : i;
+    };
+    out.sort((a, b) => rank(a) - rank(b) || a.title.localeCompare(b.title));
+  } else {
+    out.sort((a, b) => (usage[b.id] ?? 0) - (usage[a.id] ?? 0) || a.title.localeCompare(b.title));
+  }
+  return out;
+}

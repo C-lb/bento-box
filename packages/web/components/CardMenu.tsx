@@ -5,7 +5,7 @@ import { Plus, Star } from "lucide-react";
 import type { Tool } from "@/components/tools";
 import { useToolShell } from "@/components/tool-shell-context";
 import { effectiveGroups } from "@/components/tool-store";
-import { playFavouriteJingle } from "@/lib/jingle";
+import { playFavouriteJingle, playUnfavouriteJingle } from "@/lib/jingle";
 
 export function CardMenu({ tool }: { tool: Tool }) {
   const shell = useToolShell();
@@ -62,6 +62,8 @@ export function CardMenu({ tool }: { tool: Tool }) {
           if (!isFav) {
             setBurstCard((n) => n + 1);
             playFavouriteJingle();
+          } else {
+            playUnfavouriteJingle();
           }
           shell.toggleFavourite(tool.id);
         }}
@@ -126,6 +128,8 @@ export function CardMenu({ tool }: { tool: Tool }) {
               if (!isFav) {
                 setBurstMenu((n) => n + 1); // celebrate only on add
                 playFavouriteJingle();
+              } else {
+                playUnfavouriteJingle();
               }
               shell.toggleFavourite(tool.id);
             }}

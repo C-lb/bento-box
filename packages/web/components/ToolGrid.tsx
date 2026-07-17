@@ -1,14 +1,20 @@
 "use client";
 import { useEffect, useState } from "react";
 import { TOOLS } from "@/components/tools";
-import { visibleTools } from "@/components/tool-store";
+import { readToolUsage, sortTools, visibleTools } from "@/components/tool-store";
 import { useToolShell } from "@/components/tool-shell-context";
 import { ToolCard } from "@/components/ToolCard";
 import { toolReadiness, type Health } from "@/components/tool-readiness";
 
 export function ToolGrid() {
-  const { state, activeGroup, query } = useToolShell();
-  const tools = visibleTools(state, TOOLS, activeGroup, query);
+  const { state, activeGroup, query, sort } = useToolShell();
+  // Usage counts hydrate after mount (localStorage); "default"/alpha/category
+  // sorts don't need them, so the empty seed only briefly affects "usage".
+  const [usage, setUsage] = useState<Record<string, number>>({});
+  useEffect(() => {
+    if (sort === "usage") setUsage(readToolUsage());
+  }, [sort]);
+  const tools = sortTools(visibleTools(state, TOOLS, activeGroup, query), sort, state, usage);
   const [health, setHealth] = useState<Health | null>(null);
 
   useEffect(() => {

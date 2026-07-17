@@ -13,7 +13,10 @@ import {
   deleteGroup as rDeleteGroup,
   reorderGroups as rReorderGroups,
   seedState,
+  readToolSort,
+  writeToolSort,
   type ToolShellState,
+  type ToolSort,
 } from "@/components/tool-store";
 
 type ShellCtx = {
@@ -22,6 +25,8 @@ type ShellCtx = {
   setActiveGroup: (id: string) => void;
   query: string;
   setQuery: (q: string) => void;
+  sort: ToolSort;
+  setSort: (s: ToolSort) => void;
   toggleFavourite: (id: string) => void;
   setMembership: (tool: Tool, groupId: string, on: boolean) => void;
   createGroup: (label: string, addToolId?: string) => string;
@@ -37,8 +42,10 @@ export function ToolShellProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<ToolShellState>(seedState);
   const [activeGroup, setActiveGroup] = useState<string>(ALL);
   const [query, setQuery] = useState("");
+  const [sort, setSortState] = useState<ToolSort>("default");
 
   useEffect(() => {
+    setSortState(readToolSort());
     setState(readToolShell());
     const onChange = () => setState(readToolShell());
     window.addEventListener(TOOL_SHELL_EVENT, onChange);
@@ -57,6 +64,11 @@ export function ToolShellProvider({ children }: { children: ReactNode }) {
     setActiveGroup,
     query,
     setQuery,
+    sort,
+    setSort: (s) => {
+      writeToolSort(s);
+      setSortState(s);
+    },
     toggleFavourite: (id) => commit(rToggleFavourite(state, id)),
     setMembership: (tool, groupId, on) => commit(rSetMembership(state, tool, groupId, on)),
     createGroup: (label, addToolId) => {

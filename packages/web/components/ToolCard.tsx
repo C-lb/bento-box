@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { Tool } from "@/components/tools";
 import { getIllustration } from "@/components/tool-illustrations";
 import { CardMenu } from "@/components/CardMenu";
+import { recordToolUse } from "@/components/tool-store";
 import { RequirementBadge } from "@/components/RequirementBadge";
 import type { Readiness } from "@/components/tool-readiness";
 
@@ -56,7 +57,7 @@ export function ToolCard({ tool, readiness }: { tool: Tool; readiness?: Readines
           {inner}
         </div>
       ) : (
-        <Link href={tool.href} className="-m-3 block p-3 sm:m-0 sm:p-0">
+        <Link href={tool.href} onClick={() => recordToolUse(tool.id)} className="-m-3 block p-3 sm:m-0 sm:p-0">
           {inner}
         </Link>
       )}

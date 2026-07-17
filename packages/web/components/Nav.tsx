@@ -2,7 +2,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, useTransition } from "react";
 import { ArrowLeft, ArrowRight, RotateCw, Settings, Star } from "lucide-react";
 import { useToolShell } from "@/components/tool-shell-context";
 import { ALL, FAV } from "@/components/tool-store";
@@ -37,6 +37,9 @@ export function Nav() {
   const [motionOK, setMotionOK] = useState(false);
   const [canBack, setCanBack] = useState(true);
   const [canForward, setCanForward] = useState(true);
+  // Soft refresh: re-render server components in place. A full location.reload()
+  // tears the WebView down to a blank frame first (the "black screen" on iOS).
+  const [refreshing, startRefresh] = useTransition();
   // Spin the cog from tap until the settings page actually renders.
   const [settingsLoading, setSettingsLoading] = useState(false);
   useEffect(() => {
@@ -144,10 +147,16 @@ export function Nav() {
           <button
             type="button"
             aria-label="Refresh"
-            onClick={() => window.location.reload()}
+            disabled={refreshing}
+            onClick={() => startRefresh(() => router.refresh())}
             className="flex min-h-7 min-w-7 items-center justify-center rounded-lg px-1 py-1 text-muted hover:text-ink sm:min-h-[44px] sm:min-w-[44px] sm:px-2 sm:py-2"
           >
-            <RotateCw size={18} strokeWidth={1.75} className="h-3.5 w-3.5 sm:h-[18px] sm:w-[18px]" aria-hidden />
+            <RotateCw
+              size={18}
+              strokeWidth={1.75}
+              className={`h-3.5 w-3.5 sm:h-[18px] sm:w-[18px] ${refreshing ? "animate-spin" : ""}`}
+              aria-hidden
+            />
           </button>
         </div>
 

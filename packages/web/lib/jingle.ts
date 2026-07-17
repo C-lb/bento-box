@@ -1,17 +1,12 @@
 // Tiny two-note chime for adding a favourite. Synthesized (no asset), quiet,
 // and fire-and-forget: any AudioContext failure (autoplay policy, no audio
 // device) is swallowed so favouriting never breaks.
-export function playFavouriteJingle(): void {
+function playNotes(notes: Array<{ freq: number; at: number }>): void {
   try {
     const Ctx = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
     if (!Ctx) return;
     const ctx = new Ctx();
     const t0 = ctx.currentTime;
-    // E6 then A6, short triangle plinks with a soft decay.
-    const notes: Array<{ freq: number; at: number }> = [
-      { freq: 1318.51, at: 0 },
-      { freq: 1760.0, at: 0.09 },
-    ];
     for (const { freq, at } of notes) {
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
@@ -30,4 +25,20 @@ export function playFavouriteJingle(): void {
   } catch {
     // Sound is decoration; never let it throw into the click handler.
   }
+}
+
+/** E6 then A6: a short rising plink for adding a favourite. */
+export function playFavouriteJingle(): void {
+  playNotes([
+    { freq: 1318.51, at: 0 },
+    { freq: 1760.0, at: 0.09 },
+  ]);
+}
+
+/** A6 then E6: the same plink descending, for removing a favourite. */
+export function playUnfavouriteJingle(): void {
+  playNotes([
+    { freq: 1760.0, at: 0 },
+    { freq: 1318.51, at: 0.09 },
+  ]);
 }
