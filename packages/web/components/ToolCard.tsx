@@ -17,7 +17,9 @@ export function ToolCard({ tool, readiness }: { tool: Tool; readiness?: Readines
           <Icon size={18} strokeWidth={1.75} className="text-ink" aria-hidden />
         </span>
         <span className="min-w-0">
-          <h2 className="text-base font-semibold text-ink">{tool.title}</h2>
+          {/* text-base is the fixed 13px desktop token; rem classes scale with the
+              17px mobile root, so the body would outsize a text-base title here. */}
+          <h2 className="text-[1rem] font-semibold leading-snug text-ink">{tool.title}</h2>
           <p className="mt-0.5 line-clamp-1 text-sm text-muted">{tool.body}</p>
         </span>
       </div>

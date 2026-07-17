@@ -37,6 +37,11 @@ export function Nav() {
   const [motionOK, setMotionOK] = useState(false);
   const [canBack, setCanBack] = useState(true);
   const [canForward, setCanForward] = useState(true);
+  // Spin the cog from tap until the settings page actually renders.
+  const [settingsLoading, setSettingsLoading] = useState(false);
+  useEffect(() => {
+    if (path.startsWith("/settings")) setSettingsLoading(false);
+  }, [path]);
 
   useEffect(() => {
     setMotionOK(!window.matchMedia("(prefers-reduced-motion: reduce)").matches);
@@ -93,9 +98,9 @@ export function Nav() {
           href="/"
           aria-label="Home, show all tools"
           onClick={() => setActiveGroup(ALL)}
-          className="flex shrink-0 items-center gap-2 text-sm font-semibold text-ink"
+          className="hidden shrink-0 items-center gap-2 text-sm font-semibold text-ink sm:flex"
           data-tip={version ? `Version ${version}` : undefined}
-        >
+>
           <svg viewBox="0 0 600 600" className="h-[18px] w-[18px] shrink-0 sm:h-[21px] sm:w-[21px]" aria-hidden>
             {/* Bento home glyph, layout from Caleb's 1.svg with fatter gaps and
                 rounder corners. tray = currentColor (ink), compartments = surface,
@@ -197,9 +202,17 @@ export function Nav() {
           href="/settings"
           aria-label="Settings"
           aria-current={path.startsWith("/settings") ? "page" : undefined}
+          onClick={() => {
+            if (!path.startsWith("/settings")) setSettingsLoading(true);
+          }}
           className="flex min-h-9 min-w-9 shrink-0 items-center justify-center rounded-lg px-1.5 py-1.5 text-muted hover:text-ink sm:min-h-[44px] sm:min-w-[44px] sm:px-2 sm:py-2"
         >
-          <Settings size={18} strokeWidth={1.75} className="spin-hover h-4 w-4 sm:h-[18px] sm:w-[18px]" aria-hidden />
+          <Settings
+            size={18}
+            strokeWidth={1.75}
+            className={`spin-hover h-4 w-4 sm:h-[18px] sm:w-[18px] ${settingsLoading ? "animate-spin" : ""}`}
+            aria-hidden
+          />
         </Link>
       </div>
     </header>

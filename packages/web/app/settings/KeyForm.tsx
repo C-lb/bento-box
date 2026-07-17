@@ -48,16 +48,16 @@ export function KeyForm({ masked, configPath }: { masked: Record<string, string>
 
   return (
     <form action={formAction} className="card mt-4">
-      <div className="flex items-start justify-between gap-3">
+      <div className="flex flex-col items-start gap-3 sm:flex-row sm:justify-between">
         <p className="text-sm text-muted">
-          Keys are stored on this computer at <code className="text-ink">{configPath}</code>. They take effect after the app
+          Keys are stored on this computer at <code className="break-all text-ink">{configPath}</code>. They take effect after the app
           restarts. Leave a field blank to keep its current value.
         </p>
         <button
           type="button"
           onClick={() => startRefresh(() => router.refresh())}
           disabled={refreshing}
-          className="btn shrink-0 inline-flex items-center gap-2"
+          className="btn inline-flex items-center gap-2 sm:shrink-0"
           title="Re-read the saved keys from disk"
         >
           <RefreshCw className={`w-4 h-4 ${refreshing ? "animate-spin" : ""}`} strokeWidth={1.75} />

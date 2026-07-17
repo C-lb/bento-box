@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { getConnections, ENV_KEYS, readEnvValues, maskSecret } from "@event-editor/core/settings";
 import { getToken } from "@event-editor/core/tokens";
 import { getDb } from "@/lib/db";
@@ -21,6 +22,11 @@ export default function Settings({ searchParams }: { searchParams: Promise<{ goo
   return <SettingsBody searchParams={searchParams} />;
 }
 
+async function DepsSection() {
+  const deps = await dependencyStatuses();
+  return <Dependencies deps={deps} />;
+}
+
 async function SettingsBody({ searchParams }: { searchParams: Promise<{ google?: string; canva?: string }> }) {
   const { google, canva } = await searchParams;
   const connections = getConnections();
@@ -36,8 +42,6 @@ async function SettingsBody({ searchParams }: { searchParams: Promise<{ google?:
   const masked = Object.fromEntries(
     ENV_KEYS.map((k) => [k, maskSecret(fileValues[k] ?? process.env[k])]),
   );
-
-  const deps = await dependencyStatuses();
 
   const byId = Object.fromEntries(connections.map((c) => [c.id, c.configured]));
   // Canva is a secondary connection; it lives in the list below, not the top
@@ -59,7 +63,11 @@ async function SettingsBody({ searchParams }: { searchParams: Promise<{ google?:
       <UnlockCode />
 
       <h2 id="dependencies" className="mt-8 scroll-mt-6 text-lg font-semibold">Dependencies</h2>
-      <Dependencies deps={deps} />
+      {/* Streamed: the version checks exec ffmpeg/yt-dlp/soffice and were the
+          whole page's load time. The rest of Settings paints immediately. */}
+      <Suspense fallback={<p className="card mt-4 text-sm text-muted">Checking ffmpeg, yt-dlp, and LibreOffice…</p>}>
+        <DepsSection />
+      </Suspense>
 
       <h2 className="mt-10 text-lg font-semibold">Connections</h2>
       {google === "connected" && <p className="mt-3 text-success">Google connected.</p>}

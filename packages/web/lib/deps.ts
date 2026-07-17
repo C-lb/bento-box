@@ -91,10 +91,18 @@ function googleConnected(): boolean {
   try { return getToken(getDb(), "google") !== null; } catch { return false; }
 }
 
+// The yt-dlp --version spawn can take double-digit seconds (self-extracting
+// binary), and this runs on /settings and /api/health. A short TTL keeps warm
+// visits instant while a re-check after installing something is at most a
+// minute stale.
+let depsCache: { at: number; value: Dep[] } | null = null;
+const DEPS_CACHE_TTL_MS = 60_000;
+
 export async function dependencyStatuses(): Promise<Dep[]> {
+  if (depsCache && Date.now() - depsCache.at < DEPS_CACHE_TTL_MS) return depsCache.value;
   const ytVersion = await ytDlpVersion();
   const sofficeReady = findSoffice() !== null;
-  return [
+  const value: Dep[] = [
     {
       id: "ffmpeg",
       label: "ffmpeg",
@@ -122,4 +130,6 @@ export async function dependencyStatuses(): Promise<Dep[]> {
         : "On Mac: brew install --cask libreoffice",
     },
   ];
+  depsCache = { at: Date.now(), value };
+  return value;
 }

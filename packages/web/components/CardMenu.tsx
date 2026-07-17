@@ -5,12 +5,17 @@ import { Plus, Star } from "lucide-react";
 import type { Tool } from "@/components/tools";
 import { useToolShell } from "@/components/tool-shell-context";
 import { effectiveGroups } from "@/components/tool-store";
+import { playFavouriteJingle } from "@/lib/jingle";
 
 export function CardMenu({ tool }: { tool: Tool }) {
   const shell = useToolShell();
   const [open, setOpen] = useState(false);
   const [newGroup, setNewGroup] = useState("");
-  const [burst, setBurst] = useState(0);
+  // Separate burst counters so the popover star doesn't replay the card star's
+  // animation (and vice versa); each resets to 0 when its animation finishes,
+  // so a later menu open never re-mounts a star mid-celebration.
+  const [burstCard, setBurstCard] = useState(0);
+  const [burstMenu, setBurstMenu] = useState(0);
   const ref = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -54,19 +59,23 @@ export function CardMenu({ tool }: { tool: Tool }) {
         onClick={(e) => {
           e.preventDefault();
           e.stopPropagation();
-          if (!isFav) setBurst((n) => n + 1);
+          if (!isFav) {
+            setBurstCard((n) => n + 1);
+            playFavouriteJingle();
+          }
           shell.toggleFavourite(tool.id);
         }}
         className="flex min-h-9 min-w-9 items-center justify-center rounded-full text-muted hover:text-ink sm:hidden"
       >
-        <span key={burst} className="relative inline-flex">
+        <span key={burstCard} className="relative inline-flex">
           <Star
             size={18}
             strokeWidth={1.75}
-            className={`${isFav ? "fill-current text-ink" : ""} ${burst > 0 ? "fav-pop" : ""}`}
+            className={`${isFav ? "fill-current text-ink" : ""} ${burstCard > 0 ? "fav-pop" : ""}`}
+            onAnimationEnd={() => setBurstCard(0)}
             aria-hidden
           />
-          {burst > 0 && (
+          {burstCard > 0 && (
             <span className="fav-spark pointer-events-none" aria-hidden>
               {Array.from({ length: 6 }).map((_, i) => {
                 const a = (i / 6) * Math.PI * 2;
@@ -114,19 +123,23 @@ export function CardMenu({ tool }: { tool: Tool }) {
           <button
             type="button"
             onClick={() => {
-              if (!isFav) setBurst((n) => n + 1); // celebrate only on add
+              if (!isFav) {
+                setBurstMenu((n) => n + 1); // celebrate only on add
+                playFavouriteJingle();
+              }
               shell.toggleFavourite(tool.id);
             }}
             className="flex min-h-[44px] w-full items-center gap-2 rounded-lg px-2 py-1.5 text-ink hover:bg-[#eef0f3]"
           >
-            <span key={burst} className="relative inline-flex text-ink">
+            <span key={burstMenu} className="relative inline-flex text-ink">
               <Star
                 size={16}
                 strokeWidth={1.75}
-                className={`${isFav ? "fill-current text-ink" : "text-muted"} ${burst > 0 ? "fav-pop" : ""}`}
+                className={`${isFav ? "fill-current text-ink" : "text-muted"} ${burstMenu > 0 ? "fav-pop" : ""}`}
+                onAnimationEnd={() => setBurstMenu(0)}
                 aria-hidden
               />
-              {burst > 0 && (
+              {burstMenu > 0 && (
                 <span className="fav-spark pointer-events-none" aria-hidden>
                   {Array.from({ length: 6 }).map((_, i) => {
                     const a = (i / 6) * Math.PI * 2;
