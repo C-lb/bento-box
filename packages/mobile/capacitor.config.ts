@@ -2,7 +2,7 @@ import type { CapacitorConfig } from "@capacitor/cli";
 
 const config: CapacitorConfig = {
   appId: "com.wahspark.bento",
-  appName: "Bento",
+  appName: "Bento Box",
   webDir: "www",
   server: {
     // Tailscale Funnel to this Mac's standalone server on :3100 (passcode-gated).
