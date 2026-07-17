@@ -5,11 +5,10 @@ const config: CapacitorConfig = {
   appName: "Bento",
   webDir: "www",
   server: {
-    // Cloudflare quick tunnel to this Mac's standalone server on :3100 (passcode-gated).
-    // NOTE: trycloudflare.com URLs are ephemeral — a cloudflared restart mints a new one;
-    // update this and re-sync, or swap to a named-tunnel hostname (docs/setup/server.md).
+    // Tailscale Funnel to this Mac's standalone server on :3100 (passcode-gated).
+    // Stable hostname — survives reboots/restarts (tailscaled via brew services + funnel --bg).
     // LAN fallback: http://10.130.3.135:3100 (needs cleartext: true, kept below).
-    url: "https://copyright-addresses-guarantee-myth.trycloudflare.com",
+    url: "https://calebs-macbook-pro.tailba0755.ts.net",
     cleartext: true,
     // Without errorPath the offline page is bundled but unreachable (Nexus lesson).
     errorPath: "error.html",
