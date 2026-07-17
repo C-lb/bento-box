@@ -9,7 +9,7 @@ const config: CapacitorConfig = {
     // NOTE: trycloudflare.com URLs are ephemeral — a cloudflared restart mints a new one;
     // update this and re-sync, or swap to a named-tunnel hostname (docs/setup/server.md).
     // LAN fallback: http://10.130.3.135:3100 (needs cleartext: true, kept below).
-    url: "https://cancellation-operate-covering-skiing.trycloudflare.com",
+    url: "https://copyright-addresses-guarantee-myth.trycloudflare.com",
     cleartext: true,
     // Without errorPath the offline page is bundled but unreachable (Nexus lesson).
     errorPath: "error.html",

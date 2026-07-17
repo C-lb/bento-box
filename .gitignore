@@ -13,3 +13,4 @@ dist/
 next-env.d.ts
 .superpowers/
 packages/web/public/mediapipe/
+.env.tunnel
