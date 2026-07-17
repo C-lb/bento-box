@@ -5,9 +5,11 @@ const config: CapacitorConfig = {
   appName: "Bento",
   webDir: "www",
   server: {
-    // Dev: this Mac on the same Wi-Fi, serving `npm -w @event-editor/web run start`.
-    // Swap to the real tunnel hostname from docs/setup/server.md once deployed.
-    url: "http://10.130.3.135:3100",
+    // Cloudflare quick tunnel to this Mac's standalone server on :3100 (passcode-gated).
+    // NOTE: trycloudflare.com URLs are ephemeral — a cloudflared restart mints a new one;
+    // update this and re-sync, or swap to a named-tunnel hostname (docs/setup/server.md).
+    // LAN fallback: http://10.130.3.135:3100 (needs cleartext: true, kept below).
+    url: "https://cancellation-operate-covering-skiing.trycloudflare.com",
     cleartext: true,
     // Without errorPath the offline page is bundled but unreachable (Nexus lesson).
     errorPath: "error.html",
