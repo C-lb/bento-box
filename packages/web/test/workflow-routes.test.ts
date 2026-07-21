@@ -35,6 +35,43 @@ describe("POST /api/workflow/propose", () => {
   });
 });
 
+describe("POST /api/workflow/synthesize", () => {
+  it("returns synthesized params for a known toolId", async () => {
+    const { POST } = await import("../app/api/workflow/synthesize/route.js");
+    const req = new Request("http://x/api/workflow/synthesize", {
+      method: "POST",
+      body: JSON.stringify({ toolId: "resize", instructionText: "make it smaller, keep the aspect ratio" }),
+    });
+    const res = await POST(req);
+    const body = await res.json();
+    expect(body.params).toEqual({ maxW: 800, maxH: null, format: "jpeg", quality: 80 });
+  });
+
+  it("400s on a missing toolId", async () => {
+    const { POST } = await import("../app/api/workflow/synthesize/route.js");
+    const req = new Request("http://x/api/workflow/synthesize", { method: "POST", body: JSON.stringify({ instructionText: "shrink it" }) });
+    const res = await POST(req);
+    expect(res.status).toBe(400);
+  });
+
+  it("400s on a missing instructionText", async () => {
+    const { POST } = await import("../app/api/workflow/synthesize/route.js");
+    const req = new Request("http://x/api/workflow/synthesize", { method: "POST", body: JSON.stringify({ toolId: "resize" }) });
+    const res = await POST(req);
+    expect(res.status).toBe(400);
+  });
+
+  it("400s on an unknown toolId", async () => {
+    const { POST } = await import("../app/api/workflow/synthesize/route.js");
+    const req = new Request("http://x/api/workflow/synthesize", {
+      method: "POST",
+      body: JSON.stringify({ toolId: "not-a-real-tool", instructionText: "do something" }),
+    });
+    const res = await POST(req);
+    expect(res.status).toBe(400);
+  });
+});
+
 describe("workflow CRUD routes", () => {
   it("saves, lists, fetches, updates, and deletes a workflow", async () => {
     const { POST, GET } = await import("../app/api/workflow/route.js");
