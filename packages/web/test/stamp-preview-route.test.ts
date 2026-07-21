@@ -54,4 +54,18 @@ describe("stamp-preview route", () => {
     const res = await GET(req("does-not-exist", { page: "1" }), { params: Promise.resolve({ runId: "does-not-exist" }) });
     expect(res.status).toBe(404);
   });
+
+  it("clamps wildly out-of-range cosmetic params and still returns a PNG", async () => {
+    const runId = "run4";
+    mkdirSync(runDir(runId), { recursive: true });
+    writeFileSync(masterPdfPath(runId), Buffer.from(await makePdf(3)));
+    const res = await GET(
+      req(runId, { page: "2", text: "SECRET", rotationDeg: "999", sizeScale: "999", opacity: "999" }),
+      { params: Promise.resolve({ runId }) },
+    );
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-type")).toBe("image/png");
+    const bytes = Buffer.from(await res.arrayBuffer());
+    expect(bytes.subarray(0, 8).toString("hex")).toBe("89504e470d0a1a0a");
+  }, 30000);
 });

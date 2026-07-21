@@ -34,13 +34,17 @@ export async function GET(request: Request, ctx: { params: Promise<{ runId: stri
     opacity: numOrUndefined(url.searchParams.get("opacity")),
   });
 
-  const single = await extractPages(master, [page]);
-  const stamped = await watermarkPdf(single, text, opts);
-  const [png] = await renderPdfPages(Buffer.from(stamped));
+  try {
+    const single = await extractPages(master, [page]);
+    const stamped = await watermarkPdf(single, text, opts);
+    const [png] = await renderPdfPages(Buffer.from(stamped));
 
-  return new NextResponse(new Uint8Array(png), {
-    headers: { "content-type": "image/png", "cache-control": "no-store" },
-  });
+    return new NextResponse(new Uint8Array(png), {
+      headers: { "content-type": "image/png", "cache-control": "no-store" },
+    });
+  } catch (err) {
+    return NextResponse.json({ error: err instanceof Error ? err.message : String(err) }, { status: 500 });
+  }
 }
 
 function numOrUndefined(v: string | null): number | undefined {

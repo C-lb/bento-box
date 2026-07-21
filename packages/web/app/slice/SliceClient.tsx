@@ -39,6 +39,15 @@ export function SliceClient({ hasAi }: { hasAi: boolean }) {
   const [opacity, setOpacity] = useState(0.22);
   const [previewSrc, setPreviewSrc] = useState<string | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
+  const previewSrcRef = useRef<string | null>(null);
+  useEffect(() => { previewSrcRef.current = previewSrc; }, [previewSrc]);
+  // Revoke whatever blob URL is currently displayed, but only on true unmount
+  // (empty deps) — the debounced preview effect below re-runs on every param
+  // change and must NOT revoke here, or the actively-displayed image would
+  // go blank while the next preview is still loading.
+  useEffect(() => {
+    return () => { if (previewSrcRef.current) URL.revokeObjectURL(previewSrcRef.current); };
+  }, []);
 
   const [files, setFiles] = useState<OutFile[]>([]);
   const [warnings, setWarnings] = useState<string[]>([]);
@@ -103,7 +112,10 @@ export function SliceClient({ hasAi }: { hasAi: boolean }) {
   }
 
   useEffect(() => {
-    if (!runId || !confidential) { setPreviewSrc(null); return; }
+    if (!runId || !confidential) {
+      setPreviewSrc((old) => { if (old) URL.revokeObjectURL(old); return null; });
+      return;
+    }
     const controller = new AbortController();
     const timer = setTimeout(async () => {
       setPreviewLoading(true);
@@ -119,6 +131,7 @@ export function SliceClient({ hasAi }: { hasAi: boolean }) {
         if (!res.ok) throw new Error("Preview failed");
         const blob = await res.blob();
         setPreviewSrc((old) => { if (old) URL.revokeObjectURL(old); return URL.createObjectURL(blob); });
+        setError(null);
       } catch (e) {
         if (!(e instanceof DOMException && e.name === "AbortError")) {
           setError(e instanceof Error ? e.message : String(e));
@@ -127,7 +140,10 @@ export function SliceClient({ hasAi }: { hasAi: boolean }) {
         setPreviewLoading(false);
       }
     }, 300);
-    return () => { clearTimeout(timer); controller.abort(); };
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [runId, confidential, previewPage, watermark, rotationDeg, sizeScale, opacity]);
 
