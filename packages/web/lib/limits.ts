@@ -2,7 +2,7 @@ export const MB = 1_000_000;
 export const GB = 1_000_000_000;
 
 const CLASSES: Array<{ prefixes: string[]; cap: number }> = [
-  { prefixes: ["/api/video", "/api/splice"], cap: 2 * GB },
+  { prefixes: ["/api/video", "/api/splice", "/api/workflow/upload"], cap: 2 * GB },
   { prefixes: ["/api/convert", "/api/transcribe"], cap: 500 * MB },
 ];
 

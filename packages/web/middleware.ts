@@ -48,6 +48,6 @@ export const config = {
   // decided inside the middleware via isPublicAsset() so that /api/... paths
   // ending in an asset extension can never bypass auth or upload caps.
   matcher: [
-    "/((?!_next/|mediapipe/|api/slice/convert|api/video|api/splice|api/transcribe|api/convert/file|api/heic|api/resize|api/pdf/process|api/studio/upload).*)",
+    "/((?!_next/|mediapipe/|api/slice/convert|api/video|api/splice|api/transcribe|api/convert/file|api/heic|api/resize|api/pdf/process|api/studio/upload|api/workflow/upload).*)",
   ],
 };

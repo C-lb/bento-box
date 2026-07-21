@@ -22,6 +22,7 @@ export const UPLOAD_ROUTE_PREFIXES = [
   "/api/resize",
   "/api/pdf/process",
   "/api/studio/upload",
+  "/api/workflow/upload",
 ] as const;
 
 function readCookie(req: Request, name: string): string | undefined {
