@@ -21,9 +21,9 @@ describe("categoryForFile", () => {
 
 describe("outputsFor", () => {
   it("lists outputs in display order, first is default", () => {
-    expect(outputsFor("image")).toEqual(["png", "jpg", "webp", "pdf"]);
-    expect(outputsFor("heic")).toEqual(["png", "jpg", "pdf"]);
-    expect(outputsFor("pdf")).toEqual(["png", "jpg"]);
+    expect(outputsFor("image")).toEqual(["png", "jpg", "webp", "pdf", "html"]);
+    expect(outputsFor("heic")).toEqual(["png", "jpg", "pdf", "html"]);
+    expect(outputsFor("pdf")).toEqual(["png", "jpg", "html"]);
     expect(outputsFor("audio")).toEqual(["mp3", "wav", "m4a"]);
   });
 });
@@ -36,6 +36,8 @@ describe("isValidConversion", () => {
     expect(isValidConversion("a.mp4", "pdf")).toBe(false);
     expect(isValidConversion("a.png", "mp3")).toBe(false);
     expect(isValidConversion("a.xyz", "png")).toBe(false);
+    expect(isValidConversion("a.pdf", "html")).toBe(true);
+    expect(isValidConversion("a.mp4", "html")).toBe(false);
   });
 });
 
@@ -45,11 +47,13 @@ describe("extFor / isAudioOutput", () => {
     expect(extFor("png")).toBe("png");
     expect(extFor("pdf")).toBe("pdf");
     expect(extFor("m4a")).toBe("m4a");
+    expect(extFor("html")).toBe("html");
   });
   it("flags audio outputs", () => {
     expect(isAudioOutput("mp3")).toBe(true);
     expect(isAudioOutput("wav")).toBe(true);
     expect(isAudioOutput("png")).toBe(false);
+    expect(isAudioOutput("html")).toBe(false);
   });
 });
 

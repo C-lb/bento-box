@@ -1,5 +1,5 @@
 export type ConvertCategory = "image" | "heic" | "pdf" | "audio";
-export type OutputFormat = "png" | "jpg" | "webp" | "pdf" | "mp3" | "wav" | "m4a";
+export type OutputFormat = "png" | "jpg" | "webp" | "pdf" | "mp3" | "wav" | "m4a" | "html";
 
 const EXT_CATEGORY: Record<string, ConvertCategory> = {
   png: "image", jpg: "image", jpeg: "image", webp: "image",
@@ -11,9 +11,9 @@ const EXT_CATEGORY: Record<string, ConvertCategory> = {
 };
 
 const OUTPUTS: Record<ConvertCategory, OutputFormat[]> = {
-  image: ["png", "jpg", "webp", "pdf"],
-  heic: ["png", "jpg", "pdf"],
-  pdf: ["png", "jpg"],
+  image: ["png", "jpg", "webp", "pdf", "html"],
+  heic: ["png", "jpg", "pdf", "html"],
+  pdf: ["png", "jpg", "html"],
   audio: ["mp3", "wav", "m4a"],
 };
 
