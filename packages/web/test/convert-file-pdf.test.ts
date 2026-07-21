@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { PDFDocument } from "pdf-lib";
 import JSZip from "jszip";
-import { pdfToImages } from "@/lib/convert-file";
+import { pdfToImages, renderPdfPages } from "@/lib/convert-file";
 
 async function makePdf(pages: number): Promise<Buffer> {
   const doc = await PDFDocument.create();
@@ -23,5 +23,17 @@ describe("pdfToImages", () => {
     expect(res.ext).toBe("zip");
     const zip = await JSZip.loadAsync(res.data);
     expect(Object.keys(zip.files).length).toBe(2);
+  }, 30000);
+});
+
+describe("renderPdfPages", () => {
+  it("returns one PNG buffer per page, in order", async () => {
+    const pages = await renderPdfPages(await makePdf(3));
+    expect(pages.length).toBe(3);
+    for (const p of pages) {
+      expect(p.length).toBeGreaterThan(0);
+      // PNG signature
+      expect(p.subarray(0, 8).toString("hex")).toBe("89504e470d0a1a0a");
+    }
   }, 30000);
 });

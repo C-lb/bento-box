@@ -40,11 +40,8 @@ export async function imageToPdf(input: Buffer): Promise<Buffer> {
   return Buffer.from(await doc.save());
 }
 
-// Render every PDF page to a raster image at 2x. One page → the image;
-// multiple → a zip of page-1.<ext>, page-2.<ext>, ...
-export async function pdfToImages(
-  input: Buffer, output: "png" | "jpg",
-): Promise<{ data: Buffer; ext: string; zip: boolean }> {
+// Render every PDF page to a raster PNG at the given scale (default 2x).
+export async function renderPdfPages(input: Buffer, scale = 2): Promise<Buffer[]> {
   // Legacy build runs under Node without a DOM. Import lazily so the module
   // only loads server-side when a PDF is actually converted.
   const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
@@ -54,26 +51,39 @@ export async function pdfToImages(
     useSystemFonts: true,
     disableFontFace: true,
   }).promise;
-  const ext = output === "jpg" ? "jpg" : "png";
-  const pages: { name: string; data: Buffer }[] = [];
+  const pages: Buffer[] = [];
   try {
     for (let n = 1; n <= doc.numPages; n++) {
       const page = await doc.getPage(n);
-      const viewport = page.getViewport({ scale: 2 });
+      const viewport = page.getViewport({ scale });
       const canvas = createCanvas(Math.ceil(viewport.width), Math.ceil(viewport.height));
       const ctx = canvas.getContext("2d");
       // pdfjs expects a canvas 2d context; @napi-rs/canvas is compatible.
       await page.render({ canvasContext: ctx as unknown as CanvasRenderingContext2D, viewport }).promise;
-      const data = ext === "jpg"
-        ? await canvas.encode("jpeg", LOSSY_QUALITY)
-        : await canvas.encode("png");
-      pages.push({ name: `page-${n}.${ext}`, data: Buffer.from(data) });
+      pages.push(Buffer.from(await canvas.encode("png")));
       page.cleanup();
     }
   } finally {
     await doc.destroy();
   }
   if (pages.length === 0) throw new Error("The PDF has no pages.");
+  return pages;
+}
+
+// Render every PDF page to a raster image. One page → the image;
+// multiple → a zip of page-1.<ext>, page-2.<ext>, ...
+export async function pdfToImages(
+  input: Buffer, output: "png" | "jpg",
+): Promise<{ data: Buffer; ext: string; zip: boolean }> {
+  const pngPages = await renderPdfPages(input);
+  const ext = output === "jpg" ? "jpg" : "png";
+  const pages: { name: string; data: Buffer }[] = [];
+  for (let i = 0; i < pngPages.length; i++) {
+    const data = ext === "jpg"
+      ? await sharp(pngPages[i]).jpeg({ quality: LOSSY_QUALITY }).toBuffer()
+      : pngPages[i];
+    pages.push({ name: `page-${i + 1}.${ext}`, data });
+  }
   if (pages.length === 1) return { data: pages[0].data, ext, zip: false };
   return { data: await zipFiles(pages), ext: "zip", zip: true };
 }
