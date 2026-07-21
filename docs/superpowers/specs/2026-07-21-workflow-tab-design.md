@@ -64,7 +64,7 @@ Chainable tools and their kinds:
 | `convert` | `file` | `file` | format change; also handles audio-from-link (`url-text` → `file` via `/api/convert/url`) |
 | `heic` | `file` | `file` | |
 | `resize` | `file` | `file` | |
-| `pdf` | `file`/`files` | `file` | merge/split/compress |
+| `pdf` | `file` | `file` | merge/split/compress. `inputKind` is `file`-only in v1 — `StepKind` has no "file or files" union, so a batch (e.g. slice's output) can't chain directly into pdf's merge; pdf still works standalone or after any single-file step. Revisit if batch-into-merge chaining is wanted later. |
 | `video` | `file` | `file` | |
 | `splice` | `files` | `file` | trim/join |
 | `slice` | `file` | `files` | deck → PDF pages, already multi-step internally (convert→segment→export) |
