@@ -31,6 +31,8 @@ export type Tool = {
   defaultGroups: string[]; // group ids from tool-store DEFAULT_GROUP_ORDER (or custom later)
   tags: string[]; // lowercase, author-defined
   requires?: { keys?: ConnectionId[]; deps?: DepId[] };
+  inputKind?: "file" | "files" | "url-text" | "drive-ranked-list" | "doc" | "headshot-batch" | "none";
+  outputKind?: "file" | "files" | "url-text" | "drive-ranked-list" | "doc" | "headshot-batch";
 };
 
 export const TOOLS: Tool[] = [
@@ -43,6 +45,8 @@ export const TOOLS: Tool[] = [
     defaultGroups: ["images", "events"],
     tags: ["rank", "drive", "headshot", "photo", "image"],
     requires: { keys: ["google", "anthropic"] },
+    inputKind: "none",
+    outputKind: "drive-ranked-list",
   },
   {
     id: "studio",
@@ -53,6 +57,8 @@ export const TOOLS: Tool[] = [
     defaultGroups: ["images", "events"],
     tags: ["headshot", "brand", "portrait", "image"],
     requires: { keys: ["google", "canva"] },
+    inputKind: "none",
+    outputKind: "headshot-batch",
   },
   {
     id: "transcribe",
@@ -63,6 +69,8 @@ export const TOOLS: Tool[] = [
     defaultGroups: ["media", "events"],
     tags: ["transcribe", "audio", "speech", "doc", "subtitle"],
     requires: { keys: ["groq", "anthropic", "google"] },
+    inputKind: "file",
+    outputKind: "doc",
   },
   {
     id: "slice",
@@ -73,6 +81,8 @@ export const TOOLS: Tool[] = [
     defaultGroups: ["documents"],
     tags: ["pdf", "deck", "slides", "split", "stamp"],
     requires: { keys: ["anthropic"], deps: ["libreoffice"] },
+    inputKind: "file",
+    outputKind: "files",
   },
   {
     id: "convert",
@@ -82,6 +92,8 @@ export const TOOLS: Tool[] = [
     Icon: ArrowRightLeft,
     defaultGroups: ["media"],
     tags: ["convert", "image", "png", "jpg", "webp", "pdf", "audio", "mp3", "heic", "pdf to png", "png to pdf", "image converter", "file converter"],
+    inputKind: "file",
+    outputKind: "file",
   },
   {
     id: "audio",
@@ -101,6 +113,8 @@ export const TOOLS: Tool[] = [
     Icon: FileImage,
     defaultGroups: ["images"],
     tags: ["heic", "iphone", "jpg", "png", "photo", "image"],
+    inputKind: "file",
+    outputKind: "file",
   },
   {
     id: "resize",
@@ -110,6 +124,8 @@ export const TOOLS: Tool[] = [
     Icon: Shrink,
     defaultGroups: ["images"],
     tags: ["resize", "compress", "image", "shrink", "webp"],
+    inputKind: "file",
+    outputKind: "file",
   },
   {
     id: "pdf",
@@ -119,6 +135,8 @@ export const TOOLS: Tool[] = [
     Icon: Files,
     defaultGroups: ["documents"],
     tags: ["pdf", "merge", "split", "compress", "combine"],
+    inputKind: "file",
+    outputKind: "file",
   },
   {
     id: "video",
@@ -128,6 +146,8 @@ export const TOOLS: Tool[] = [
     Icon: Film,
     defaultGroups: ["media"],
     tags: ["video", "compress", "mp4", "shrink"],
+    inputKind: "file",
+    outputKind: "file",
   },
   {
     id: "splice",
@@ -137,6 +157,8 @@ export const TOOLS: Tool[] = [
     Icon: Combine,
     defaultGroups: ["media"],
     tags: ["video", "audio", "trim", "join", "concat", "edit"],
+    inputKind: "files",
+    outputKind: "file",
   },
   {
     id: "qr",
@@ -146,6 +168,8 @@ export const TOOLS: Tool[] = [
     Icon: QrCode,
     defaultGroups: ["utilities"],
     tags: ["qr", "code", "link", "url"],
+    inputKind: "url-text",
+    outputKind: "file",
   },
   {
     id: "shorten",
@@ -155,6 +179,8 @@ export const TOOLS: Tool[] = [
     Icon: Link,
     defaultGroups: ["utilities"],
     tags: ["link", "url", "shorten", "short", "qr", "custom"],
+    inputKind: "url-text",
+    outputKind: "url-text",
   },
   {
     id: "cutout",
