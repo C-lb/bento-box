@@ -11,7 +11,7 @@ export type PastRunTool = "pdf" | "resize" | "video" | "splice" | "convert" | "a
 // Extensions each file route serves directly; anything else falls back to the
 // route's own default so the link still resolves to a real file.
 const RESIZE_EXTS = new Set(["png", "webp"]);
-const CONVERT_EXTS = new Set(["zip", "pdf", "png", "jpg", "jpeg", "webp", "mp3", "wav", "m4a"]);
+const CONVERT_EXTS = new Set(["zip", "pdf", "png", "jpg", "jpeg", "webp", "mp3", "wav", "m4a", "html"]);
 
 function extOf(filename: string): string {
   return filename.match(/\.([a-z0-9]+)$/i)?.[1]?.toLowerCase() ?? "";

@@ -18,7 +18,7 @@ function recordRun(label: string, id: string, filename: string): void {
   } catch { /* history is non-critical */ }
 }
 
-const OUTPUTS = ["png", "jpg", "webp", "pdf", "mp3", "wav", "m4a"];
+const OUTPUTS = ["png", "jpg", "webp", "pdf", "mp3", "wav", "m4a", "html"];
 
 export async function POST(request: Request) {
   const blocked = await guardUpload(request);
