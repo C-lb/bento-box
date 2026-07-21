@@ -120,6 +120,22 @@ const DDL = [
     outputs TEXT NOT NULL,
     created_at INTEGER NOT NULL DEFAULT 0
   )`,
+  `CREATE TABLE IF NOT EXISTS workflows (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    steps TEXT NOT NULL,
+    created_at INTEGER NOT NULL DEFAULT 0,
+    updated_at INTEGER NOT NULL DEFAULT 0
+  )`,
+  `CREATE TABLE IF NOT EXISTS workflow_runs (
+    id TEXT PRIMARY KEY,
+    workflow_id TEXT,
+    label TEXT NOT NULL,
+    status TEXT NOT NULL,
+    steps TEXT NOT NULL,
+    created_at INTEGER NOT NULL DEFAULT 0,
+    updated_at INTEGER NOT NULL DEFAULT 0
+  )`,
 ];
 
 // Legacy DBs created before 4a have a Canva-only headshots table (NOT NULL

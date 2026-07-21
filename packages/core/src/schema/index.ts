@@ -121,6 +121,31 @@ export const toolRuns = sqliteTable("tool_runs", {
   createdAt: integer("created_at").notNull().default(0),
 });
 
+// Saved, re-runnable chains of tool steps. `steps` is a JSON array of
+// {toolId, params} per step, excluding step 1's input source (that varies
+// per run — see workflowRuns).
+export const workflows = sqliteTable("workflows", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  steps: text("steps").notNull(), // JSON WorkflowStepDef[]
+  createdAt: integer("created_at").notNull().default(0),
+  updatedAt: integer("updated_at").notNull().default(0),
+});
+
+// One row per execution of a chain (saved or ad-hoc). `steps` is a JSON
+// array of per-step progress: {toolId, params, status, startedAt, endedAt,
+// outputRef, errorMessage}. workflowId is null for an unsaved (propose-then-
+// run-without-saving) run.
+export const workflowRuns = sqliteTable("workflow_runs", {
+  id: text("id").primaryKey(),
+  workflowId: text("workflow_id"),
+  label: text("label").notNull(),
+  status: text("status").notNull(), // pending|running|done|error
+  steps: text("steps").notNull(), // JSON WorkflowRunStepRow[]
+  createdAt: integer("created_at").notNull().default(0),
+  updatedAt: integer("updated_at").notNull().default(0),
+});
+
 // One row per converted HEIC photo. batch_id groups the files from a single
 // "Convert all" run so history can bundle a batch and show singles on their own.
 export const heicConversions = sqliteTable("heic_conversions", {
