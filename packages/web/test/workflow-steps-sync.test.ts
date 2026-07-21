@@ -120,6 +120,61 @@ describe("sliceStep adapter", () => {
     expect(readFileSync(out.files[0].path)).toEqual(Buffer.from([1, 2, 3]));
   });
 
+  it("wraps convert -> export into FilesRef output (happy path, range mode with manual groups)", async () => {
+    buildOutputs.mockResolvedValue([{ label: "Intro", filename: "intro.pdf", bytes: new Uint8Array([4, 5, 6]) }]);
+    const { sliceStep } = await import("../lib/workflow/steps/slice.js");
+    const uploadDir = mkdtempSync(join(tmpdir(), "wf-slice-upload-"));
+    const inPath = join(uploadDir, "my-deck.pptx");
+    writeFileSync(inPath, Buffer.from("fake-pptx-bytes"));
+
+    const out = await sliceStep.run(
+      { path: inPath, filename: "my-deck.pptx" },
+      {
+        by: "range",
+        confidential: false,
+        watermarkText: "",
+        groups: [{ label: "Intro", ranges: "1-2" }],
+      },
+    );
+
+    // Manual "range" mode bypasses AI segmentation entirely.
+    expect(segmentSpeakers).not.toHaveBeenCalled();
+    expect(segmentByTopic).not.toHaveBeenCalled();
+    expect(buildOutputs).toHaveBeenCalledOnce();
+    // planSlices ran for real: the group's ranges ("1-2") must have resolved
+    // to pages [1,2] before buildOutputs was called.
+    const groupsArg = buildOutputs.mock.calls[0][1];
+    expect(groupsArg).toEqual([{ label: "Intro", filename: "Intro.pdf", pages: [1, 2] }]);
+
+    expect(out.files).toHaveLength(1);
+    expect(out.files[0].filename).toBe("intro.pdf");
+    expect(readFileSync(out.files[0].path)).toEqual(Buffer.from([4, 5, 6]));
+  });
+
+  it("throws the range-mode guard when 'by: range' is used without groups", async () => {
+    const { sliceStep } = await import("../lib/workflow/steps/slice.js");
+    const uploadDir = mkdtempSync(join(tmpdir(), "wf-slice-upload-"));
+    const inPath = join(uploadDir, "my-deck.pptx");
+    writeFileSync(inPath, Buffer.from("fake-pptx-bytes"));
+
+    await expect(
+      sliceStep.run(
+        { path: inPath, filename: "my-deck.pptx" },
+        { by: "range", confidential: false, watermarkText: "" },
+      ),
+    ).rejects.toThrow("Slice by range requires at least one group with a page range.");
+
+    // Empty array must also trip the guard, not just undefined.
+    await expect(
+      sliceStep.run(
+        { path: inPath, filename: "my-deck.pptx" },
+        { by: "range", confidential: false, watermarkText: "", groups: [] },
+      ),
+    ).rejects.toThrow("Slice by range requires at least one group with a page range.");
+
+    expect(buildOutputs).not.toHaveBeenCalled();
+  });
+
   it("declares file -> files kinds", async () => {
     const { sliceStep } = await import("../lib/workflow/steps/slice.js");
     expect(sliceStep.inputKind).toBe("file");
