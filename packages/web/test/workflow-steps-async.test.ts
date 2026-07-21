@@ -103,6 +103,26 @@ describe("sorterStep adapter", () => {
       sorterStep.run({ folderId: "f1", folderName: "Folder", platform: "linkedin" }, {}),
     ).rejects.toThrow(/not connected/i);
   });
+
+  it("rejects with the job row's errorMessage when the job ends in status 'error'", async () => {
+    // Drive the job into a real terminal error via startScan's own preflight:
+    // with an empty Drive folder ingest completes fine, but startScan fails
+    // the job when ANTHROPIC_API_KEY is unset, setting a real errorMessage.
+    const savedKey = process.env.ANTHROPIC_API_KEY;
+    delete process.env.ANTHROPIC_API_KEY;
+    try {
+      const { sorterStep } = await import("../lib/workflow/steps/sorter.js");
+      const db = freshDb();
+      await useDb(db);
+
+      await expect(
+        sorterStep.run({ folderId: "f1", folderName: "Folder", platform: "linkedin" }, { includeSubfolders: false }),
+      ).rejects.toThrow(/ANTHROPIC_API_KEY is not set/);
+    } finally {
+      if (savedKey === undefined) delete process.env.ANTHROPIC_API_KEY;
+      else process.env.ANTHROPIC_API_KEY = savedKey;
+    }
+  });
 });
 
 // --- transcribeStep -----------------------------------------------------
@@ -141,6 +161,55 @@ describe("transcribeStep adapter", () => {
     const { transcribeStep } = await import("../lib/workflow/steps/transcribe.js");
     expect(transcribeStep.inputKind).toBe("file");
     expect(transcribeStep.outputKind).toBe("doc");
+  });
+
+  it("rejects with the row's errorMessage when the transcription ends in status 'error'", async () => {
+    const transcriber: any = await import("@/lib/transcriber");
+    transcriber.startTranscription.mockImplementationOnce((db: any, id: number) => {
+      db.update(transcriptions)
+        .set({ status: "error", errorMessage: "whisper backend unreachable", updatedAt: Date.now() })
+        .where(eq(transcriptions.id, id))
+        .run();
+    });
+
+    const { transcribeStep } = await import("../lib/workflow/steps/transcribe.js");
+    const db = freshDb();
+    await useDb(db);
+
+    const uploadDir = mkdtempSync(join(tmpdir(), "wf-transcribe-upload-err-"));
+    const inPath = join(uploadDir, "audio.mp3");
+    writeFileSync(inPath, Buffer.from("fake-audio-bytes"));
+    const dataDir = mkdtempSync(join(tmpdir(), "wf-transcribe-data-err-"));
+    process.env.EE_DATA_DIR = dataDir;
+
+    await expect(transcribeStep.run({ path: inPath, filename: "audio.mp3" }, {})).rejects.toThrow(
+      /whisper backend unreachable/,
+    );
+
+    delete process.env.EE_DATA_DIR;
+  });
+
+  it("falls back to a default message when the errored row has no errorMessage", async () => {
+    const transcriber: any = await import("@/lib/transcriber");
+    transcriber.startTranscription.mockImplementationOnce((db: any, id: number) => {
+      db.update(transcriptions).set({ status: "error", updatedAt: Date.now() }).where(eq(transcriptions.id, id)).run();
+    });
+
+    const { transcribeStep } = await import("../lib/workflow/steps/transcribe.js");
+    const db = freshDb();
+    await useDb(db);
+
+    const uploadDir = mkdtempSync(join(tmpdir(), "wf-transcribe-upload-err2-"));
+    const inPath = join(uploadDir, "audio.mp3");
+    writeFileSync(inPath, Buffer.from("fake-audio-bytes"));
+    const dataDir = mkdtempSync(join(tmpdir(), "wf-transcribe-data-err2-"));
+    process.env.EE_DATA_DIR = dataDir;
+
+    await expect(transcribeStep.run({ path: inPath, filename: "audio.mp3" }, {})).rejects.toThrow(
+      /Transcription failed\./,
+    );
+
+    delete process.env.EE_DATA_DIR;
   });
 });
 
@@ -195,5 +264,59 @@ describe("studioStep adapter", () => {
     await expect(
       studioStep.run({ rows: [{ driveFileId: "d1", nameText: "A", titleText: "B" }], styleId: "clean-band" }, { renderer: "local" }),
     ).rejects.toThrow(/not connected/i);
+  });
+
+  it("rejects when every headshot in the batch ends in status 'error'", async () => {
+    const batch: any = await import("@/lib/batch");
+    batch.runBatch.mockImplementationOnce((db: any, _drive: any, _renderer: string, ids: number[]) => {
+      for (const id of ids) {
+        db.update(headshots)
+          .set({ status: "error", errorMessage: "render failed", updatedAt: Date.now() })
+          .where(eq(headshots.id, id))
+          .run();
+      }
+    });
+
+    const { studioStep } = await import("../lib/workflow/steps/studio.js");
+    const db = freshDb();
+    await useDb(db);
+
+    await expect(
+      studioStep.run(
+        {
+          rows: [{ driveFileId: "d1", nameText: "Alice", titleText: "CEO" }],
+          styleId: "clean-band",
+        },
+        { renderer: "local" },
+      ),
+    ).rejects.toThrow(/1 of 1 headshots failed/);
+  });
+
+  it("rejects when only a subset of the batch ends in status 'error' (partial failure)", async () => {
+    const batch: any = await import("@/lib/batch");
+    batch.runBatch.mockImplementationOnce((db: any, _drive: any, _renderer: string, ids: number[]) => {
+      db.update(headshots).set({ status: "done", updatedAt: Date.now() }).where(eq(headshots.id, ids[0])).run();
+      db.update(headshots)
+        .set({ status: "error", errorMessage: "face not detected", updatedAt: Date.now() })
+        .where(eq(headshots.id, ids[1]))
+        .run();
+    });
+
+    const { studioStep } = await import("../lib/workflow/steps/studio.js");
+    const db = freshDb();
+    await useDb(db);
+
+    await expect(
+      studioStep.run(
+        {
+          rows: [
+            { driveFileId: "d1", nameText: "Alice", titleText: "CEO" },
+            { driveFileId: "d2", nameText: "Bob", titleText: "CTO" },
+          ],
+          styleId: "clean-band",
+        },
+        { renderer: "local" },
+      ),
+    ).rejects.toThrow(/1 of 2 headshots failed.*face not detected/s);
   });
 });

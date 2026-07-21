@@ -45,7 +45,7 @@ export const studioStep: StepAdapter<StudioInput, StudioParams, StudioOutput> = 
     });
     runBatch(db, makeDriveClient(drive), params.renderer, ids);
 
-    await Promise.all(
+    const rows = await Promise.all(
       ids.map((id) =>
         pollUntilTerminal(
           () => db.select().from(headshots).where(eq(headshots.id, id)).all()[0],
@@ -53,6 +53,11 @@ export const studioStep: StepAdapter<StudioInput, StudioParams, StudioOutput> = 
         ),
       ),
     );
+    const failed = rows.filter((r) => r.status === "error");
+    if (failed.length > 0) {
+      const detail = failed.map((r) => r.errorMessage ?? `id ${r.id}`).join("; ");
+      throw new Error(`${failed.length} of ${rows.length} headshots failed: ${detail}`);
+    }
     return { batchId, ids };
   },
 };
