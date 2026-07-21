@@ -22,22 +22,38 @@ export async function extractPages(masterBytes: Uint8Array, pages: number[]): Pr
   return out.save();
 }
 
+export interface StampOpts { rotationDeg?: number; sizeScale?: number; opacity?: number }
+
+function clamp(n: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, n));
+}
+
+/** Fill in defaults (45deg / 1x / 0.22) and clamp to safe ranges. */
+export function clampStampOpts(opts?: StampOpts): { rotationDeg: number; sizeScale: number; opacity: number } {
+  return {
+    rotationDeg: clamp(opts?.rotationDeg ?? 45, -90, 90),
+    sizeScale: clamp(opts?.sizeScale ?? 1, 0.5, 1.5),
+    opacity: clamp(opts?.opacity ?? 0.22, 0.05, 0.6),
+  };
+}
+
 /** Stamp a large diagonal, semi-transparent grey watermark on every page. */
-export async function watermarkPdf(bytes: Uint8Array, text: string): Promise<Uint8Array> {
+export async function watermarkPdf(bytes: Uint8Array, text: string, opts?: StampOpts): Promise<Uint8Array> {
+  const { rotationDeg, sizeScale, opacity } = clampStampOpts(opts);
   const doc = await PDFDocument.load(bytes);
   const font = await doc.embedFont(StandardFonts.HelveticaBold);
   const label = text.trim() || "CONFIDENTIAL";
+  const angle = (rotationDeg * Math.PI) / 180;
   for (const page of doc.getPages()) {
     const { width, height } = page.getSize();
-    const angle = Math.PI / 4; // 45 degrees
     // Scale the font so the stamp runs most of the way across the page diagonal.
-    const target = Math.hypot(width, height) * 0.9;
+    const target = Math.hypot(width, height) * 0.9 * sizeScale;
     const probe = font.widthOfTextAtSize(label, 100);
     const size = (100 * target) / probe;
     const textWidth = font.widthOfTextAtSize(label, size);
     const x = width / 2 - (Math.cos(angle) * textWidth) / 2;
     const y = height / 2 - (Math.sin(angle) * textWidth) / 2;
-    page.drawText(label, { x, y, size, font, color: rgb(0.6, 0.6, 0.6), rotate: degrees(45), opacity: 0.22 });
+    page.drawText(label, { x, y, size, font, color: rgb(0.6, 0.6, 0.6), rotate: degrees(rotationDeg), opacity });
   }
   return doc.save();
 }
@@ -46,13 +62,17 @@ export async function watermarkPdf(bytes: Uint8Array, text: string): Promise<Uin
 export async function buildOutputs(
   masterBytes: Uint8Array,
   groups: PlannedGroup[],
-  opts: { confidential: boolean; watermarkText: string; format?: "pdf" | "html" },
+  opts: { confidential: boolean; watermarkText: string; format?: "pdf" | "html" } & StampOpts,
 ): Promise<OutputFile[]> {
   const format = opts.format ?? "pdf";
   const out: OutputFile[] = [];
   for (const g of groups) {
     let bytes = await extractPages(masterBytes, g.pages);
-    if (opts.confidential) bytes = await watermarkPdf(bytes, opts.watermarkText);
+    if (opts.confidential) {
+      bytes = await watermarkPdf(bytes, opts.watermarkText, {
+        rotationDeg: opts.rotationDeg, sizeScale: opts.sizeScale, opacity: opts.opacity,
+      });
+    }
     if (format === "html") {
       const pages = await renderPdfPages(Buffer.from(bytes));
       const html = pagesToHtml(pages, g.label);

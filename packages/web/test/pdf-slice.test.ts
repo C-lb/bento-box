@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { PDFDocument } from "pdf-lib";
-import { pdfPageCount, extractPages, watermarkPdf, buildOutputs } from "../lib/pdf-slice";
+import { pdfPageCount, extractPages, watermarkPdf, buildOutputs, clampStampOpts } from "../lib/pdf-slice";
 
 async function makePdf(pageCount: number): Promise<Uint8Array> {
   const doc = await PDFDocument.create();
@@ -54,5 +54,36 @@ describe("pdf-slice", () => {
     const groups = [{ label: "Intro", filename: "Intro.pdf", pages: [1] }];
     const out = await buildOutputs(master, groups, { confidential: false, watermarkText: "CONFIDENTIAL" });
     expect(out[0].filename).toBe("Intro.pdf");
+  });
+
+  it("clamps stamp options to safe ranges and fills in defaults", () => {
+    expect(clampStampOpts()).toEqual({ rotationDeg: 45, sizeScale: 1, opacity: 0.22 });
+    expect(clampStampOpts({ rotationDeg: 999, sizeScale: 999, opacity: 999 })).toEqual({ rotationDeg: 90, sizeScale: 1.5, opacity: 0.6 });
+    expect(clampStampOpts({ rotationDeg: -999, sizeScale: -999, opacity: -999 })).toEqual({ rotationDeg: -90, sizeScale: 0.5, opacity: 0.05 });
+    expect(clampStampOpts({ rotationDeg: 10, sizeScale: 0.8, opacity: 0.4 })).toEqual({ rotationDeg: 10, sizeScale: 0.8, opacity: 0.4 });
+  });
+
+  it("watermarkPdf accepts custom rotation/size/opacity and stays a valid PDF", async () => {
+    const out = await watermarkPdf(await makePdf(2), "SECRET", { rotationDeg: 10, sizeScale: 0.6, opacity: 0.5 });
+    expect(await pdfPageCount(out)).toBe(2);
+  });
+
+  it("watermarkPdf with no opts matches the default-opts stamp exactly", async () => {
+    const src = await makePdf(1);
+    const a = await watermarkPdf(src, "SECRET");
+    const b = await watermarkPdf(src, "SECRET", { rotationDeg: 45, sizeScale: 1, opacity: 0.22 });
+    expect(Buffer.from(a).equals(Buffer.from(b))).toBe(true);
+  });
+
+  it("buildOutputs passes stamp options through to watermarkPdf", async () => {
+    const master = await makePdf(2);
+    const groups = [{ label: "Intro", filename: "Intro.pdf", pages: [1, 2] }];
+    const custom = await buildOutputs(master, groups, {
+      confidential: true, watermarkText: "SECRET", rotationDeg: 0, sizeScale: 0.5, opacity: 0.6,
+    });
+    const defaultOpts = await buildOutputs(master, groups, { confidential: true, watermarkText: "SECRET" });
+    // Different stamp geometry/opacity produce different bytes for the same page count.
+    expect(await pdfPageCount(custom[0].bytes)).toBe(2);
+    expect(Buffer.from(custom[0].bytes).equals(Buffer.from(defaultOpts[0].bytes))).toBe(false);
   });
 });
