@@ -15,6 +15,7 @@ export * from "./ranking-context.js";
 export * from "./slice-runs.js";
 export * from "./tool-runs.js";
 export * from "./workflow-runs.js";
+export * from "./workflows.js";
 export * from "./convert.js";
 export * from "./merge.js";
 export * from "./design.js";
