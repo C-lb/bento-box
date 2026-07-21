@@ -105,7 +105,7 @@ export function Nav() {
           data-tip={version ? `Version ${version}` : undefined}
 >
           <svg viewBox="0 0 600 600" className="h-[18px] w-[18px] shrink-0 sm:h-[21px] sm:w-[21px]" aria-hidden>
-            {/* Bento home glyph, layout from Caleb's 1.svg with fatter gaps and
+            {/* Bento Box home glyph, layout from Caleb's 1.svg with fatter gaps and
                 rounder corners. tray = currentColor (ink), compartments = surface,
                 so it reads and inverts cleanly on a light or dark nav.
                 Regenerate/tune via scripts/gen-home-glyph.mjs. */}
@@ -114,7 +114,7 @@ export function Nav() {
             <rect x="314" y="78" width="208" height="179" rx="50" className="fill-surface" />
             <rect x="314" y="343" width="208" height="179" rx="50" className="fill-surface" />
           </svg>
-          <span className="hidden sm:inline">Bento</span>
+          <span className="hidden sm:inline">Bento Box</span>
         </Link>
 
         <div className="flex shrink-0 items-center gap-1">

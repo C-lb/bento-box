@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import { LoginClient } from "./LoginClient";
 
-export const metadata = { title: "Sign in - Bento" };
+export const metadata = { title: "Sign in - Bento Box" };
 
 export default function LoginPage() {
   return (

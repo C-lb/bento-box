@@ -72,7 +72,7 @@ export function TranscribeIllus() {
   );
 }
 
-export function ConvertIllus() {
+export function AudioIllus() {
   const bars = [32, 58, 24, 74, 38, 62, 28, 80, 44, 54, 22, 68, 36, 60, 26, 72, 40, 64, 30, 56, 42, 66, 20, 70];
   // Link chip becomes audio: a link + mp3 pill on top, a full waveform filling below.
   return (
@@ -100,6 +100,41 @@ export function ConvertIllus() {
             style={{ height: `${h}%`, animationDelay: `${i * 38}ms` }}
           />
         ))}
+      </div>
+    </div>
+  );
+}
+
+export function ConvertIllus() {
+  // Generic file tile swaps format: a doc glyph (not the photo icon HeicIllus
+  // already owns, since convert isn't image-specific) crosses an accent arrow
+  // into a target tile whose badge label crossfades between two formats on
+  // hover, reading as "convert to anything" rather than one fixed pair.
+  return (
+    <div className="flex h-full items-stretch gap-3">
+      <div className={`relative flex-1 overflow-hidden rounded-xl ${TILE}`}>
+        <span className="absolute left-2 top-2 rounded-md bg-surface/80 px-1.5 py-0.5 text-[9px] font-semibold text-muted">src</span>
+        <div className="absolute inset-0 grid place-items-center">
+          <svg viewBox="0 0 24 24" className="h-12 w-12 text-[#c3c8d0]" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
+            <polyline points="14 2 14 8 20 8" />
+          </svg>
+        </div>
+      </div>
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 self-center text-muted">
+        <line x1="5" y1="12" x2="19" y2="12" /><polyline points="13 6 19 12 13 18" />
+      </svg>
+      <div className="relative flex-1 overflow-hidden rounded-xl border border-[#e4e7ec] bg-surface transition-transform duration-300 motion-safe:group-hover:-translate-y-1">
+        <span className="absolute left-2 top-2 h-[15px] w-9 overflow-hidden rounded-md bg-accent shadow-soft">
+          <span className="absolute inset-0 flex items-center justify-center text-[9px] font-semibold text-white transition-opacity duration-300 motion-safe:group-hover:opacity-0">jpg</span>
+          <span className="absolute inset-0 flex items-center justify-center text-[9px] font-semibold text-white opacity-0 transition-opacity duration-300 motion-safe:group-hover:opacity-100">mp4</span>
+        </span>
+        <div className="absolute inset-0 grid place-items-center">
+          <svg viewBox="0 0 24 24" className="h-12 w-12 text-[#c3c8d0]" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
+            <polyline points="14 2 14 8 20 8" />
+          </svg>
+        </div>
       </div>
     </div>
   );
@@ -465,6 +500,7 @@ const ILLUSTRATIONS: Record<string, ReactNode> = {
   badge: <BadgeIllus />,
   "place-card": <PlaceCardIllus />,
   ticket: <TicketIllus />,
+  audio: <AudioIllus />,
 };
 
 export function getIllustration(id: string): ReactNode {

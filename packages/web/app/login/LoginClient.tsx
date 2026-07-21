@@ -33,7 +33,7 @@ export function LoginClient() {
     <div className="flex min-h-[70vh] items-center justify-center">
       <form onSubmit={submit} className="w-full max-w-xs rounded-card bg-surface p-6 shadow-soft">
         <div className="text-xs text-muted">Spark team</div>
-        <h1 className="mt-1 text-lg font-semibold text-ink">Sign in to Bento</h1>
+        <h1 className="mt-1 text-lg font-semibold text-ink">Sign in to Bento Box</h1>
         <input
           type="password"
           inputMode="numeric"

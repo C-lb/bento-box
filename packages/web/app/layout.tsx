@@ -4,7 +4,7 @@ import { Nav } from "@/components/Nav";
 import { ToolSearch } from "@/components/ToolSearch";
 import { ToolShellProvider } from "@/components/tool-shell-context";
 
-export const metadata = { title: "Bento", description: "A box of small tools for events, images, media, and documents" };
+export const metadata = { title: "Bento Box", description: "A box of small tools for events, images, media, and documents" };
 
 export const viewport = {
   width: "device-width",
