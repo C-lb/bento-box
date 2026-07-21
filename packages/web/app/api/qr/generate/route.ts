@@ -12,7 +12,7 @@ export async function POST(request: Request) {
   const opts = normalizeQrOpts(body ?? {});
   try {
     const buf = await generateQrBuffer(text, opts);
-    return new NextResponse(buf, {
+    return new NextResponse(new Uint8Array(buf), {
       headers: { "Content-Type": opts.format === "svg" ? "image/svg+xml" : "image/png" },
     });
   } catch (err) {
