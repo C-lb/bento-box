@@ -3,6 +3,7 @@ import { useRef, useState } from "react";
 import { Plus, X, Download, FileArchive, UploadCloud } from "lucide-react";
 import { FileDrop } from "@/components/FileDrop";
 import { StatusBadge } from "@/components/StatusBadge";
+import { Segmented } from "@/components/Segmented";
 import { sliceStatusView } from "@/lib/status";
 import type { SlideText, SpeakerGroup } from "@event-editor/core/pptx";
 import { uploadRawWithProgress } from "@/lib/upload";
@@ -31,6 +32,7 @@ export function SliceClient({ hasAi }: { hasAi: boolean }) {
 
   const [confidential, setConfidential] = useState(false);
   const [watermark, setWatermark] = useState("CONFIDENTIAL");
+  const [format, setFormat] = useState<"pdf" | "html">("pdf");
 
   const [files, setFiles] = useState<OutFile[]>([]);
   const [warnings, setWarnings] = useState<string[]>([]);
@@ -102,7 +104,7 @@ export function SliceClient({ hasAi }: { hasAi: boolean }) {
     try {
       const r = await fetch("/api/slice/export", {
         method: "POST", headers: { "content-type": "application/json" },
-        body: JSON.stringify({ runId, groups: rows, confidential, watermarkText: watermark }),
+        body: JSON.stringify({ runId, groups: rows, confidential, watermarkText: watermark, format }),
       });
       const data = await jsonOr401(r);
       if (!r.ok) throw new Error(data.error ?? "Export failed");
@@ -191,7 +193,7 @@ export function SliceClient({ hasAi }: { hasAi: boolean }) {
     setWarnings([]); setStatus("idle"); setError(null);
     setRows([{ label: "Part 1", ranges: "" }]);
     setDriveFileId(""); setPickedName(null);
-    setMode("manual"); setConfidential(false); setWatermark("CONFIDENTIAL"); setDriveFolder("");
+    setMode("manual"); setConfidential(false); setWatermark("CONFIDENTIAL"); setDriveFolder(""); setFormat("pdf");
     if (fileRef.current) fileRef.current.value = "";
   }
 
@@ -326,6 +328,13 @@ export function SliceClient({ hasAi }: { hasAi: boolean }) {
           {/* Export */}
           <div className="card">
             <p className="eyebrow">4. Export</p>
+            <div className="mt-3">
+              <Segmented
+                options={[{ value: "pdf", label: "PDF" }, { value: "html", label: "HTML" }]}
+                value={format}
+                onChange={(v) => setFormat(v as "pdf" | "html")}
+              />
+            </div>
             <div className="mt-3 flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-3">
               <button
                 type="button"
@@ -333,7 +342,7 @@ export function SliceClient({ hasAi }: { hasAi: boolean }) {
                 onClick={exportPdfs}
                 disabled={busy}
               >
-                {status === "exporting" ? "Building…" : "Build PDFs"}
+                {status === "exporting" ? "Building…" : format === "html" ? "Build HTML pages" : "Build PDFs"}
               </button>
               <button
                 type="button"
