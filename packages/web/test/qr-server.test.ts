@@ -13,4 +13,12 @@ describe("generateQrBuffer", () => {
     const buf = await generateQrBuffer("https://example.com", { size: 256, ecc: "M", fg: "#000000", bg: "#ffffff", format: "svg" });
     expect(buf.toString("utf8")).toContain("<svg");
   });
+
+  it("throws error when text exceeds QR capacity", async () => {
+    // Extremely long text with minimal QR size/capacity causes overflow
+    const longText = "a".repeat(3000);
+    await expect(
+      generateQrBuffer(longText, { size: 1, ecc: "H", fg: "#000000", bg: "#ffffff", format: "png" })
+    ).rejects.toThrow(/too big/);
+  });
 });

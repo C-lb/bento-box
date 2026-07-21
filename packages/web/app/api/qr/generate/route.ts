@@ -10,8 +10,15 @@ export async function POST(request: Request) {
   if (!text) return NextResponse.json({ error: "text is required" }, { status: 400 });
 
   const opts = normalizeQrOpts(body ?? {});
-  const buf = await generateQrBuffer(text, opts);
-  return new NextResponse(buf, {
-    headers: { "Content-Type": opts.format === "svg" ? "image/svg+xml" : "image/png" },
-  });
+  try {
+    const buf = await generateQrBuffer(text, opts);
+    return new NextResponse(buf, {
+      headers: { "Content-Type": opts.format === "svg" ? "image/svg+xml" : "image/png" },
+    });
+  } catch (err) {
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : String(err) },
+      { status: 400 },
+    );
+  }
 }
