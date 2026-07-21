@@ -1,5 +1,8 @@
 import { PDFDocument, StandardFonts, degrees, rgb } from "pdf-lib";
 import type { PlannedGroup } from "@event-editor/core/slice-plan";
+import { swapExt } from "@event-editor/core/names";
+import { renderPdfPages } from "@/lib/convert-file";
+import { pagesToHtml } from "@/lib/pdf-to-html";
 
 export interface OutputFile { label: string; filename: string; bytes: Uint8Array }
 
@@ -39,16 +42,23 @@ export async function watermarkPdf(bytes: Uint8Array, text: string): Promise<Uin
   return doc.save();
 }
 
-/** Build one PDF per planned group, watermarking when confidential. */
+/** Build one PDF (or HTML) per planned group, watermarking when confidential. */
 export async function buildOutputs(
   masterBytes: Uint8Array,
   groups: PlannedGroup[],
-  opts: { confidential: boolean; watermarkText: string },
+  opts: { confidential: boolean; watermarkText: string; format?: "pdf" | "html" },
 ): Promise<OutputFile[]> {
+  const format = opts.format ?? "pdf";
   const out: OutputFile[] = [];
   for (const g of groups) {
     let bytes = await extractPages(masterBytes, g.pages);
     if (opts.confidential) bytes = await watermarkPdf(bytes, opts.watermarkText);
+    if (format === "html") {
+      const pages = await renderPdfPages(Buffer.from(bytes));
+      const html = pagesToHtml(pages, g.label);
+      out.push({ label: g.label, filename: swapExt(g.filename, "html"), bytes: html });
+      continue;
+    }
     out.push({ label: g.label, filename: g.filename, bytes });
   }
   return out;

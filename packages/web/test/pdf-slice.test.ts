@@ -38,4 +38,21 @@ describe("pdf-slice", () => {
     expect(await pdfPageCount(marked[0].bytes)).toBe(2);
     expect(marked[0].bytes.byteLength).toBeGreaterThan(plain[0].bytes.byteLength);
   });
+
+  it("builds HTML output per group when format is html", async () => {
+    const master = await makePdf(4);
+    const groups = [{ label: "Intro", filename: "Intro.pdf", pages: [1, 2] }];
+    const out = await buildOutputs(master, groups, { confidential: false, watermarkText: "CONFIDENTIAL", format: "html" });
+    expect(out[0].filename).toBe("Intro.html");
+    const html = Buffer.from(out[0].bytes).toString("utf8");
+    expect(html).toContain("<!DOCTYPE html>");
+    expect((html.match(/data:image\/png;base64,/g) ?? []).length).toBe(2);
+  }, 30000);
+
+  it("defaults to pdf format when format is omitted", async () => {
+    const master = await makePdf(2);
+    const groups = [{ label: "Intro", filename: "Intro.pdf", pages: [1] }];
+    const out = await buildOutputs(master, groups, { confidential: false, watermarkText: "CONFIDENTIAL" });
+    expect(out[0].filename).toBe("Intro.pdf");
+  });
 });
