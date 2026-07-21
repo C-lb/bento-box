@@ -86,4 +86,98 @@ describe("run + poll + retry routes", () => {
     const pollRes = await GET_RUN(new Request("http://x"), params({ runId }));
     expect((await pollRes.json()).run.id).toBe(runId);
   });
+
+  it("retries from a step > 0 without requiring freshFirstInput", async () => {
+    const engine = await import("../lib/workflow/engine.js");
+    const { POST: SAVE } = await import("../app/api/workflow/route.js");
+    const saveRes = await SAVE(
+      new Request("http://x/api/workflow", {
+        method: "POST",
+        body: JSON.stringify({ name: "R2", steps: [{ toolId: "resize", params: {} }, { toolId: "resize", params: {} }] }),
+      }),
+    );
+    const { id } = await saveRes.json();
+
+    const { POST: RUN } = await import("../app/api/workflow/[id]/run/route.js");
+    const runRes = await RUN(new Request("http://x", { method: "POST", body: JSON.stringify({ firstInput: { path: "/x", filename: "a.png" } }) }), params({ id }));
+    const { runId } = await runRes.json();
+
+    const { POST: RETRY } = await import("../app/api/workflow/runs/[runId]/retry/route.js");
+    const retryRes = await RETRY(
+      new Request("http://x", { method: "POST", body: JSON.stringify({ stepIndex: 1 }) }),
+      params({ runId }),
+    );
+    expect(retryRes.status).toBe(200);
+    expect((await retryRes.json()).ok).toBe(true);
+    expect(engine.retryWorkflowFrom).toHaveBeenCalledWith(expect.anything(), runId, 1, undefined);
+  });
+
+  it("retries from step 0 with a freshFirstInput", async () => {
+    const engine = await import("../lib/workflow/engine.js");
+    const { POST: SAVE } = await import("../app/api/workflow/route.js");
+    const saveRes = await SAVE(
+      new Request("http://x/api/workflow", { method: "POST", body: JSON.stringify({ name: "R3", steps: [{ toolId: "resize", params: {} }] }) }),
+    );
+    const { id } = await saveRes.json();
+
+    const { POST: RUN } = await import("../app/api/workflow/[id]/run/route.js");
+    const runRes = await RUN(new Request("http://x", { method: "POST", body: JSON.stringify({ firstInput: { path: "/x", filename: "a.png" } }) }), params({ id }));
+    const { runId } = await runRes.json();
+
+    const { POST: RETRY } = await import("../app/api/workflow/runs/[runId]/retry/route.js");
+    const freshFirstInput = { path: "/y", filename: "b.png" };
+    const retryRes = await RETRY(
+      new Request("http://x", { method: "POST", body: JSON.stringify({ stepIndex: 0, freshFirstInput }) }),
+      params({ runId }),
+    );
+    expect(retryRes.status).toBe(200);
+    expect(engine.retryWorkflowFrom).toHaveBeenCalledWith(expect.anything(), runId, 0, freshFirstInput);
+  });
+
+  it("400s retrying from step 0 without freshFirstInput", async () => {
+    const { POST: SAVE } = await import("../app/api/workflow/route.js");
+    const saveRes = await SAVE(
+      new Request("http://x/api/workflow", { method: "POST", body: JSON.stringify({ name: "R4", steps: [{ toolId: "resize", params: {} }] }) }),
+    );
+    const { id } = await saveRes.json();
+
+    const { POST: RUN } = await import("../app/api/workflow/[id]/run/route.js");
+    const runRes = await RUN(new Request("http://x", { method: "POST", body: JSON.stringify({ firstInput: { path: "/x", filename: "a.png" } }) }), params({ id }));
+    const { runId } = await runRes.json();
+
+    const { POST: RETRY } = await import("../app/api/workflow/runs/[runId]/retry/route.js");
+    const retryRes = await RETRY(
+      new Request("http://x", { method: "POST", body: JSON.stringify({ stepIndex: 0 }) }),
+      params({ runId }),
+    );
+    expect(retryRes.status).toBe(400);
+  });
+
+  it("404s retrying a nonexistent runId", async () => {
+    const { POST: RETRY } = await import("../app/api/workflow/runs/[runId]/retry/route.js");
+    const retryRes = await RETRY(
+      new Request("http://x", { method: "POST", body: JSON.stringify({ stepIndex: 0, freshFirstInput: {} }) }),
+      params({ runId: "does-not-exist" }),
+    );
+    expect(retryRes.status).toBe(404);
+  });
+
+  it("400s retrying with an out-of-range stepIndex", async () => {
+    const { POST: SAVE } = await import("../app/api/workflow/route.js");
+    const saveRes = await SAVE(
+      new Request("http://x/api/workflow", { method: "POST", body: JSON.stringify({ name: "R5", steps: [{ toolId: "resize", params: {} }] }) }),
+    );
+    const { id } = await saveRes.json();
+
+    const { POST: RUN } = await import("../app/api/workflow/[id]/run/route.js");
+    const runRes = await RUN(new Request("http://x", { method: "POST", body: JSON.stringify({ firstInput: { path: "/x", filename: "a.png" } }) }), params({ id }));
+    const { runId } = await runRes.json();
+
+    const { POST: RETRY } = await import("../app/api/workflow/runs/[runId]/retry/route.js");
+    const retryRes = await RETRY(
+      new Request("http://x", { method: "POST", body: JSON.stringify({ stepIndex: 5 }) }),
+      params({ runId }),
+    );
+    expect(retryRes.status).toBe(400);
+  });
 });

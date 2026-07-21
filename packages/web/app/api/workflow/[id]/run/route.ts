@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getWorkflow, createWorkflowRun } from "@event-editor/core";
+import { getWorkflow, createWorkflowRun, updateWorkflowRun } from "@event-editor/core";
 import { getDb } from "@/lib/db";
 import { runWorkflow } from "@/lib/workflow/engine";
 
@@ -28,6 +28,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     })),
   });
 
-  void runWorkflow(db, runId, body.firstInput);
+  void runWorkflow(db, runId, body.firstInput).catch((err) => {
+    const message = err instanceof Error ? err.message : String(err);
+    updateWorkflowRun(db, runId, { status: "error" });
+    console.error(`workflow run ${runId} failed unexpectedly:`, message);
+  });
   return NextResponse.json({ runId });
 }
