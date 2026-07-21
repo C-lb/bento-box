@@ -1,4 +1,4 @@
-import type { StepKind } from "./types.js";
+import type { StepKind } from "./types";
 
 export interface ChainableToolKind {
   toolId: string;

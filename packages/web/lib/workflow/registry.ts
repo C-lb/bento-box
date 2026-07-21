@@ -1,16 +1,16 @@
-import { resizeStep } from "./steps/resize.js";
-import { heicStep } from "./steps/heic.js";
-import { convertStep } from "./steps/convert.js";
-import { pdfStep } from "./steps/pdf.js";
-import { videoStep } from "./steps/video.js";
-import { spliceStep } from "./steps/splice.js";
-import { sliceStep } from "./steps/slice.js";
-import { shortenStep } from "./steps/shorten.js";
-import { qrStep } from "./steps/qr.js";
-import { sorterStep } from "./steps/sorter.js";
-import { transcribeStep } from "./steps/transcribe.js";
-import { studioStep } from "./steps/studio.js";
-import type { StepAdapter } from "./types.js";
+import { resizeStep } from "./steps/resize";
+import { heicStep } from "./steps/heic";
+import { convertStep } from "./steps/convert";
+import { pdfStep } from "./steps/pdf";
+import { videoStep } from "./steps/video";
+import { spliceStep } from "./steps/splice";
+import { sliceStep } from "./steps/slice";
+import { shortenStep } from "./steps/shorten";
+import { qrStep } from "./steps/qr";
+import { sorterStep } from "./steps/sorter";
+import { transcribeStep } from "./steps/transcribe";
+import { studioStep } from "./steps/studio";
+import type { StepAdapter } from "./types";
 
 export const STEP_REGISTRY: Record<string, StepAdapter<any, any, any>> = {
   resize: resizeStep,

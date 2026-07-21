@@ -5,7 +5,7 @@ import {
   classifyCreatePhp,
   classifyTinyurl,
 } from "@/lib/shorten";
-import type { StepAdapter } from "../types.js";
+import type { StepAdapter } from "../types";
 
 // Corrected vs. an earlier planning pass: `validateLongUrl` returns an error
 // `string | null` (not the URL itself), `ShortenService` is "is.gd" | "v.gd"

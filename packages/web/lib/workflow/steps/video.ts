@@ -1,8 +1,8 @@
 import { dirname, join } from "node:path";
 import { compressVideo } from "@/lib/video";
 import { videoOutName, type VideoScale } from "@event-editor/core/video";
-import type { StepAdapter } from "../types.js";
-import type { FileRef } from "../StepIO.js";
+import type { StepAdapter } from "../types";
+import type { FileRef } from "../StepIO";
 
 export interface VideoParams {
   crf: number;

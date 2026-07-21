@@ -1,8 +1,8 @@
 import { dirname, join } from "node:path";
 import { spliceClips } from "@/lib/splice";
 import { spliceOutName, type Clip, type SpliceKind, type SpliceScale } from "@event-editor/core/splice";
-import type { StepAdapter } from "../types.js";
-import type { FileRef, FilesRef } from "../StepIO.js";
+import type { StepAdapter } from "../types";
+import type { FileRef, FilesRef } from "../StepIO";
 
 export interface SpliceParams {
   kind: SpliceKind;

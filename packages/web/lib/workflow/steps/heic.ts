@@ -2,8 +2,8 @@ import { readFile, writeFile } from "node:fs/promises";
 import { basename, dirname, extname, join } from "node:path";
 import { heicToImage } from "@/lib/heic";
 import type { HeicOpts } from "@event-editor/core/heic";
-import type { StepAdapter } from "../types.js";
-import type { FileRef } from "../StepIO.js";
+import type { StepAdapter } from "../types";
+import type { FileRef } from "../StepIO";
 
 export const heicStep: StepAdapter<FileRef, HeicOpts, FileRef> = {
   inputKind: "file",

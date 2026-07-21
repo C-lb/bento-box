@@ -2,8 +2,8 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { newJobId, jobDir, sweepOldJobs } from "@/lib/jobs";
 import { generateQrBuffer, type QrGenOpts } from "@/lib/qr-server";
-import type { StepAdapter } from "../types.js";
-import type { FileRef } from "../StepIO.js";
+import type { StepAdapter } from "../types";
+import type { FileRef } from "../StepIO";
 
 export const qrStep: StepAdapter<{ text: string }, QrGenOpts, FileRef> = {
   inputKind: "url-text",

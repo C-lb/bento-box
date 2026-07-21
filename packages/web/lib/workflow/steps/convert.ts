@@ -3,8 +3,8 @@ import { join } from "node:path";
 import { newConvertId, convertDir } from "@/lib/convert";
 import { convertUploaded } from "@/lib/convert-file";
 import type { OutputFormat } from "@event-editor/core/convert-formats";
-import type { StepAdapter } from "../types.js";
-import type { FileRef } from "../StepIO.js";
+import type { StepAdapter } from "../types";
+import type { FileRef } from "../StepIO";
 
 export interface ConvertParams {
   output: OutputFormat;

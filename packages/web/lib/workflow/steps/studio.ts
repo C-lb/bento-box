@@ -6,8 +6,8 @@ import { getDb } from "@/lib/db";
 import { runBatch } from "@/lib/batch";
 import { authedDriveClient } from "@/lib/google/oauth";
 import { makeDriveClient } from "@/lib/google/drive";
-import { pollUntilTerminal } from "./poll.js";
-import type { StepAdapter } from "../types.js";
+import { pollUntilTerminal } from "./poll";
+import type { StepAdapter } from "../types";
 
 export interface StudioInput {
   rows: { driveFileId: string; nameText: string; titleText: string }[];

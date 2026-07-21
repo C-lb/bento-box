@@ -2,8 +2,8 @@ import { readFile, writeFile } from "node:fs/promises";
 import { basename, dirname, extname, join } from "node:path";
 import { resizeImage } from "@/lib/resize";
 import type { ResizeFormat } from "@event-editor/core/resize";
-import type { StepAdapter } from "../types.js";
-import type { FileRef } from "../StepIO.js";
+import type { StepAdapter } from "../types";
+import type { FileRef } from "../StepIO";
 
 export interface ResizeParams {
   maxW: number | null;

@@ -1,8 +1,8 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { mergePdfs, splitPdf, resavePdf, zipFiles } from "@/lib/pdf";
-import type { StepAdapter } from "../types.js";
-import type { FileRef, FilesRef } from "../StepIO.js";
+import type { StepAdapter } from "../types";
+import type { FileRef, FilesRef } from "../StepIO";
 
 export interface PdfParams {
   mode: "merge" | "split" | "compress";

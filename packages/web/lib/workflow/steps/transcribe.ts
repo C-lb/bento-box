@@ -6,9 +6,9 @@ import { createTranscription } from "@event-editor/core/transcription";
 import { getDb } from "@/lib/db";
 import { startTranscription } from "@/lib/transcriber";
 import { dataRoot } from "@/lib/jobs";
-import { pollUntilTerminal } from "./poll.js";
-import type { StepAdapter } from "../types.js";
-import type { FileRef } from "../StepIO.js";
+import { pollUntilTerminal } from "./poll";
+import type { StepAdapter } from "../types";
+import type { FileRef } from "../StepIO";
 
 export interface TranscribeOutput {
   transcriptionId: number;

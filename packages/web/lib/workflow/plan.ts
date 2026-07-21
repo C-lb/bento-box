@@ -1,5 +1,5 @@
 import type Anthropic from "@anthropic-ai/sdk";
-import { CHAINABLE_KINDS, canFollow, isChainable, kindsFor } from "./compat.js";
+import { CHAINABLE_KINDS, canFollow, isChainable, kindsFor } from "./compat";
 
 const PLANNER_MODEL = process.env.EE_PLANNER_MODEL ?? "claude-opus-4-8";
 

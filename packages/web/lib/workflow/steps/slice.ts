@@ -5,8 +5,8 @@ import { pdfPageCount, buildOutputs } from "@/lib/pdf-slice";
 import { planSlices, type GroupInput } from "@event-editor/core/slice-plan";
 import { visionClient, segmentSpeakers, segmentByTopic } from "@/lib/anthropic";
 import { runDir, newRunId, deckPath, masterPdfPath, outDir } from "@/lib/slice";
-import type { StepAdapter } from "../types.js";
-import type { FileRef, FilesRef } from "../StepIO.js";
+import type { StepAdapter } from "../types";
+import type { FileRef, FilesRef } from "../StepIO";
 
 export interface SliceParams {
   by: "range" | "speaker" | "topic";

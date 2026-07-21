@@ -5,8 +5,8 @@ import { getDb } from "@/lib/db";
 import { startScan } from "@/lib/sorter";
 import { authedDriveClient } from "@/lib/google/oauth";
 import { makeDriveClient } from "@/lib/google/drive";
-import { pollUntilTerminal } from "./poll.js";
-import type { StepAdapter } from "../types.js";
+import { pollUntilTerminal } from "./poll";
+import type { StepAdapter } from "../types";
 
 export interface SorterInput {
   folderId: string;

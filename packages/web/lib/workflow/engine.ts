@@ -1,6 +1,6 @@
 import type { BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
 import { getWorkflowRun, updateWorkflowRun, type WorkflowRunStepRow } from "@event-editor/core";
-import { STEP_REGISTRY } from "./registry.js";
+import { STEP_REGISTRY } from "./registry";
 
 export interface OutputRef {
   kind: string;
