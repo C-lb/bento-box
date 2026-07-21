@@ -7,6 +7,7 @@ export interface WorkflowStepUI {
   instructionText: string;
   params: Record<string, unknown>;
   kindError?: string;
+  uid: string;
 }
 
 export function StepCard({

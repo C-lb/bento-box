@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useLayoutEffect, useRef, useState, useTransition } from "react";
-import { ArrowLeft, ArrowRight, RotateCw, Settings, Star } from "lucide-react";
+import { ArrowLeft, ArrowRight, RotateCw, Settings, Star, Workflow } from "lucide-react";
 import { useToolShell } from "@/components/tool-shell-context";
 import { ALL, FAV } from "@/components/tool-store";
 
@@ -206,6 +206,15 @@ export function Nav() {
             className="pointer-events-none absolute inset-y-0 right-0 w-6 bg-gradient-to-l from-canvas to-transparent sm:hidden"
           />
         </div>
+
+        <Link
+          href="/workflow"
+          aria-label="Workflow"
+          aria-current={path.startsWith("/workflow") ? "page" : undefined}
+          className="flex min-h-9 min-w-9 shrink-0 items-center justify-center rounded-lg px-1.5 py-1.5 text-muted hover:text-ink sm:min-h-[44px] sm:min-w-[44px] sm:px-2 sm:py-2"
+        >
+          <Workflow size={18} strokeWidth={1.75} className="h-4 w-4 sm:h-[18px] sm:w-[18px]" aria-hidden />
+        </Link>
 
         <Link
           href="/settings"

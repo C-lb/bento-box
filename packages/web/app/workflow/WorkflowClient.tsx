@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRef, useState } from "react";
 import { kindsFor, canFollow } from "@/lib/workflow/compat";
 import type { StepKind } from "@/lib/workflow/types";
@@ -25,6 +26,7 @@ export function WorkflowClient() {
   const [pickerOpen, setPickerOpen] = useState(false);
   const [running, setRunning] = useState(false);
   const [runId, setRunId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const dragIdx = useRef<number | null>(null);
   const listRef = useRef<HTMLUListElement | null>(null);
 
@@ -32,10 +34,18 @@ export function WorkflowClient() {
 
   async function propose() {
     setProposing(true);
+    setError(null);
     try {
       const res = await fetch("/api/workflow/propose", { method: "POST", body: JSON.stringify({ goal }) });
+      if (!res.ok) {
+        setError("Couldn't propose a chain for that goal. Try again.");
+        return;
+      }
       const body = await res.json();
-      setSteps(validateChain(body.steps ?? []));
+      const proposed = (body.steps ?? []).map((s: Omit<WorkflowStepUI, "uid">) => ({ ...s, uid: crypto.randomUUID() }));
+      setSteps(validateChain(proposed));
+    } catch {
+      setError("Couldn't propose a chain for that goal. Try again.");
     } finally {
       setProposing(false);
     }
@@ -102,7 +112,7 @@ export function WorkflowClient() {
   }
 
   function addStep(toolId: string) {
-    setSteps((prev) => validateChain([...prev, { toolId, instructionText: "", params: {} }]));
+    setSteps((prev) => validateChain([...prev, { toolId, instructionText: "", params: {}, uid: crypto.randomUUID() }]));
     setPickerOpen(false);
   }
   function removeStep(i: number) {
@@ -111,15 +121,26 @@ export function WorkflowClient() {
 
   async function run() {
     setRunning(true);
+    setError(null);
     try {
       const saveRes = await fetch("/api/workflow", {
         method: "POST",
         body: JSON.stringify({ name: goal || "Untitled workflow", steps: steps.map((s) => ({ toolId: s.toolId, params: s.params })) }),
       });
+      if (!saveRes.ok) {
+        setError("Couldn't save the workflow. Try again.");
+        return;
+      }
       const { id } = await saveRes.json();
       const runRes = await fetch(`/api/workflow/${id}/run`, { method: "POST", body: JSON.stringify({ firstInput: null }) });
+      if (!runRes.ok) {
+        setError("Couldn't start the run. Try again.");
+        return;
+      }
       const { runId } = await runRes.json();
       setRunId(runId);
+    } catch {
+      setError("Couldn't run the workflow. Try again.");
     } finally {
       setRunning(false);
     }
@@ -130,6 +151,9 @@ export function WorkflowClient() {
   return (
     <div className="mx-auto max-w-2xl p-4">
       <h1 className="text-lg font-semibold">Workflow</h1>
+      <Link href="/workflows" className="mt-1 inline-block text-xs underline underline-offset-2">
+        Saved workflows
+      </Link>
       <textarea
         className="mt-3 w-full rounded-md border border-line/60 bg-transparent p-2 text-sm"
         placeholder="Describe what you want to do…"
@@ -149,7 +173,7 @@ export function WorkflowClient() {
       <ul ref={listRef} className="mt-4 space-y-2" onPointerMove={onPointerMove} onPointerUp={onPointerUp}>
         {steps.map((step, i) => (
           <StepCard
-            key={i}
+            key={step.uid}
             step={step}
             index={i}
             onPointerDown={(e) => onPointerDown(e, i)}
@@ -174,6 +198,7 @@ export function WorkflowClient() {
         </button>
       </div>
       {runId && <p className="mt-2 text-xs text-muted">Run started: {runId}</p>}
+      {error && <p className="mt-2 text-xs text-red-600 dark:text-red-400">{error}</p>}
     </div>
   );
 }
