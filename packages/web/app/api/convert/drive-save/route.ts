@@ -18,6 +18,7 @@ const CONTENT_TYPES: Record<string, string> = {
   mp3: "audio/mpeg",
   wav: "audio/wav",
   m4a: "audio/mp4",
+  html: "text/html",
 };
 
 export async function POST(request: Request) {
