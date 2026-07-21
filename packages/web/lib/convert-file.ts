@@ -7,6 +7,7 @@ import { heicToImage } from "@/lib/heic";
 import { normalizeHeicOpts } from "@event-editor/core/heic";
 import { zipFiles } from "@/lib/pdf";
 import { convertDir, transcodeAudio } from "@/lib/convert";
+import { pagesToHtml, imageToHtml } from "@/lib/pdf-to-html";
 import {
   categoryForFile, isAudioOutput, extFor, type OutputFormat,
 } from "@event-editor/core/convert-formats";
@@ -106,6 +107,12 @@ export async function convertUploaded(
   const input = await readFile(inPath);
 
   if (category === "pdf") {
+    if (output === "html") {
+      const pages = await renderPdfPages(input);
+      const html = pagesToHtml(pages, inputName);
+      await writeFile(resolve(dir, "out.html"), html);
+      return { ext: "html", zip: false };
+    }
     if (output !== "png" && output !== "jpg") throw new Error(`Cannot convert a PDF to ${output}.`);
     const { data, ext, zip } = await pdfToImages(input, output);
     await writeFile(resolve(dir, `out.${ext}`), data);
@@ -113,6 +120,12 @@ export async function convertUploaded(
   }
 
   if (category === "image" || category === "heic") {
+    if (output === "html") {
+      const png = category === "heic" ? await heicToRaster(input, "png") : await imageToRaster(input, "png");
+      const html = imageToHtml(png, "image/png", inputName);
+      await writeFile(resolve(dir, "out.html"), html);
+      return { ext: "html", zip: false };
+    }
     if (output === "pdf") {
       const png = category === "heic" ? await heicToRaster(input, "png") : input;
       const data = await imageToPdf(png);
