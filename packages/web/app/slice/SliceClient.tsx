@@ -1,5 +1,5 @@
 "use client";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Plus, X, Download, FileArchive, UploadCloud } from "lucide-react";
 import { FileDrop } from "@/components/FileDrop";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -33,6 +33,12 @@ export function SliceClient({ hasAi }: { hasAi: boolean }) {
   const [confidential, setConfidential] = useState(false);
   const [watermark, setWatermark] = useState("CONFIDENTIAL");
   const [format, setFormat] = useState<"pdf" | "html">("pdf");
+  const [previewPage, setPreviewPage] = useState(1);
+  const [rotationDeg, setRotationDeg] = useState(45);
+  const [sizeScale, setSizeScale] = useState(1);
+  const [opacity, setOpacity] = useState(0.22);
+  const [previewSrc, setPreviewSrc] = useState<string | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
 
   const [files, setFiles] = useState<OutFile[]>([]);
   const [warnings, setWarnings] = useState<string[]>([]);
@@ -96,6 +102,35 @@ export function SliceClient({ hasAi }: { hasAi: boolean }) {
     }
   }
 
+  useEffect(() => {
+    if (!runId || !confidential) { setPreviewSrc(null); return; }
+    const controller = new AbortController();
+    const timer = setTimeout(async () => {
+      setPreviewLoading(true);
+      try {
+        const params = new URLSearchParams({
+          page: String(previewPage),
+          text: watermark,
+          rotationDeg: String(rotationDeg),
+          sizeScale: String(sizeScale),
+          opacity: String(opacity),
+        });
+        const res = await fetch(`/api/slice/${runId}/stamp-preview?${params}`, { signal: controller.signal });
+        if (!res.ok) throw new Error("Preview failed");
+        const blob = await res.blob();
+        setPreviewSrc((old) => { if (old) URL.revokeObjectURL(old); return URL.createObjectURL(blob); });
+      } catch (e) {
+        if (!(e instanceof DOMException && e.name === "AbortError")) {
+          setError(e instanceof Error ? e.message : String(e));
+        }
+      } finally {
+        setPreviewLoading(false);
+      }
+    }, 300);
+    return () => { clearTimeout(timer); controller.abort(); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [runId, confidential, previewPage, watermark, rotationDeg, sizeScale, opacity]);
+
   async function exportPdfs() {
     if (!runId) return;
     setError(null);
@@ -104,7 +139,7 @@ export function SliceClient({ hasAi }: { hasAi: boolean }) {
     try {
       const r = await fetch("/api/slice/export", {
         method: "POST", headers: { "content-type": "application/json" },
-        body: JSON.stringify({ runId, groups: rows, confidential, watermarkText: watermark, format }),
+        body: JSON.stringify({ runId, groups: rows, confidential, watermarkText: watermark, format, rotationDeg, sizeScale, opacity }),
       });
       const data = await jsonOr401(r);
       if (!r.ok) throw new Error(data.error ?? "Export failed");
@@ -194,6 +229,9 @@ export function SliceClient({ hasAi }: { hasAi: boolean }) {
     setRows([{ label: "Part 1", ranges: "" }]);
     setDriveFileId(""); setPickedName(null);
     setMode("manual"); setConfidential(false); setWatermark("CONFIDENTIAL"); setDriveFolder(""); setFormat("pdf");
+    setPreviewPage(1); setRotationDeg(45); setSizeScale(1); setOpacity(0.22);
+    if (previewSrc) URL.revokeObjectURL(previewSrc);
+    setPreviewSrc(null);
     if (fileRef.current) fileRef.current.value = "";
   }
 
@@ -319,9 +357,37 @@ export function SliceClient({ hasAi }: { hasAi: boolean }) {
               Stamp every page with a confidential watermark
             </label>
             {confidential && (
-              <label className="mt-3 block text-sm font-medium">Watermark text
-                <input className="field mt-1 w-full max-w-xs min-h-[44px] sm:min-h-0" value={watermark} onChange={(e) => setWatermark(e.target.value)} />
-              </label>
+              <div className="mt-3 grid gap-4 sm:grid-cols-[minmax(0,320px)_1fr]">
+                <div className="space-y-3">
+                  <label className="block text-sm font-medium">Watermark text
+                    <input className="field mt-1 w-full min-h-[44px] sm:min-h-0" value={watermark} onChange={(e) => setWatermark(e.target.value)} />
+                  </label>
+                  <label className="block text-sm font-medium">Preview page
+                    <input
+                      type="number" min={1} max={pageCount || 1} value={previewPage}
+                      onChange={(e) => setPreviewPage(Math.min(Math.max(1, Number(e.target.value) || 1), pageCount || 1))}
+                      className="field mt-1 w-24 min-h-[44px] sm:min-h-0"
+                    />
+                  </label>
+                  <label className="block text-sm font-medium">Rotation ({rotationDeg}°)
+                    <input type="range" min={-90} max={90} value={rotationDeg} onChange={(e) => setRotationDeg(Number(e.target.value))} className="mt-1 w-full" />
+                  </label>
+                  <label className="block text-sm font-medium">Size ({Math.round(sizeScale * 100)}%)
+                    <input type="range" min={0.5} max={1.5} step={0.05} value={sizeScale} onChange={(e) => setSizeScale(Number(e.target.value))} className="mt-1 w-full" />
+                  </label>
+                  <label className="block text-sm font-medium">Opacity ({Math.round(opacity * 100)}%)
+                    <input type="range" min={0.05} max={0.6} step={0.01} value={opacity} onChange={(e) => setOpacity(Number(e.target.value))} className="mt-1 w-full" />
+                  </label>
+                </div>
+                <div className="relative flex min-h-[220px] items-center justify-center rounded-lg border border-line bg-[#f4f4f5] p-2">
+                  {previewSrc
+                    ? <img src={previewSrc} alt="Watermark preview" className="max-h-[320px] w-auto" />
+                    : <span className="text-sm text-muted">{previewLoading ? "Loading preview…" : "Preview will appear here"}</span>}
+                  {previewLoading && previewSrc && (
+                    <span className="absolute right-2 top-2 rounded-full bg-white/80 px-2 py-0.5 text-xs text-muted shadow-soft">Updating…</span>
+                  )}
+                </div>
+              </div>
             )}
           </div>
 

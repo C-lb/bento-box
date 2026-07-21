@@ -11,12 +11,15 @@ export const runtime = "nodejs";
 
 export async function POST(request: Request) {
   try {
-    const { runId, groups, confidential, watermarkText, format } = (await request.json()) as {
+    const { runId, groups, confidential, watermarkText, format, rotationDeg, sizeScale, opacity } = (await request.json()) as {
       runId: string;
       groups: GroupInput[];
       confidential: boolean;
       watermarkText?: string;
       format?: "pdf" | "html";
+      rotationDeg?: number;
+      sizeScale?: number;
+      opacity?: number;
     };
     if (!runId || !Array.isArray(groups)) {
       return NextResponse.json({ error: "runId and groups required" }, { status: 400 });
@@ -37,6 +40,7 @@ export async function POST(request: Request) {
       confidential: !!confidential,
       watermarkText: watermarkText ?? "CONFIDENTIAL",
       format: format === "html" ? "html" : "pdf",
+      rotationDeg, sizeScale, opacity,
     });
     for (const o of outputs) await writeFile(join(dir, o.filename), Buffer.from(o.bytes));
     // Best-effort history: the outputs are already on disk, so a slice_runs
