@@ -71,7 +71,11 @@ export function WorkflowsClient() {
   function onRunClick(w: WorkflowListItem) {
     const first = w.steps[0];
     const kinds = first ? kindsFor(first.toolId) : undefined;
-    if (!kinds || kinds.inputKind === "none") return; // disabled in the UI, no-op
+    // Allowlist: only these two inputKinds have a matching prompt UI below.
+    // Everything else (e.g. "none" for sorter/studio, "files" for splice's
+    // multi-clip input) is disabled rather than falling through to a
+    // mismatched prompt — see runDisabled below, which mirrors this check.
+    if (!kinds || (kinds.inputKind !== "file" && kinds.inputKind !== "url-text")) return; // disabled in the UI, no-op
     if (kinds.inputKind === "file") {
       setPrompt({ workflowId: w.id, kind: "file" });
       // Defer to next tick so the (now-rendered) hidden input exists before we click it.
@@ -122,7 +126,10 @@ export function WorkflowsClient() {
         {workflows.map((w) => {
           const first = w.steps[0];
           const kinds = first ? kindsFor(first.toolId) : undefined;
-          const runDisabled = !kinds || kinds.inputKind === "none";
+          // Allowlist, matching onRunClick: only "file" and "url-text" have a
+          // prompt UI below. Any other inputKind (including "none" for
+          // sorter/studio and "files" for splice's multi-clip input) disables Run.
+          const runDisabled = !kinds || (kinds.inputKind !== "file" && kinds.inputKind !== "url-text");
           const status = runStatus[w.id];
           const isBusy = busyId === w.id;
           const isPrompting = prompt?.workflowId === w.id;
@@ -167,7 +174,8 @@ export function WorkflowsClient() {
 
               {runDisabled && (
                 <p className="mt-2 text-xs text-muted">
-                  Re-running sorter/studio workflows from a saved chain isn&apos;t supported yet. Build a new one from{" "}
+                  Re-running this workflow from a saved chain isn&apos;t supported yet (its first step doesn&apos;t take a
+                  single file or link as input). Build a new one from{" "}
                   <Link className="underline underline-offset-2" href="/workflow">
                     /workflow
                   </Link>{" "}
