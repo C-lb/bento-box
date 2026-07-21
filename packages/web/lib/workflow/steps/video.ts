@@ -15,7 +15,7 @@ export const videoStep: StepAdapter<FileRef, VideoParams, FileRef> = {
   paramsSchema: {
     type: "object",
     properties: {
-      crf: { type: "integer", minimum: 0, maximum: 51 },
+      crf: { type: "integer", description: "0-51" },
       scale: { type: "string", enum: ["keep", "1080", "720"] },
     },
     required: ["crf", "scale"],

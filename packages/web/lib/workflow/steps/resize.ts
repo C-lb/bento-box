@@ -23,7 +23,7 @@ export const resizeStep: StepAdapter<FileRef, ResizeParams, FileRef> = {
       // Real ResizeFormat (packages/core/src/resize.ts) is "keep"|"jpg"|"png"|"webp" —
       // note "jpg" not "jpeg", and "keep" preserves the source format.
       format: { type: "string", enum: ["keep", "jpg", "png", "webp"] },
-      quality: { type: "integer", minimum: 1, maximum: 100 },
+      quality: { type: "integer", description: "1-100" },
     },
     required: ["maxW", "maxH", "format", "quality"],
     additionalProperties: false,

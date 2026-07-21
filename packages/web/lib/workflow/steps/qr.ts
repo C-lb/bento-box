@@ -11,7 +11,7 @@ export const qrStep: StepAdapter<{ text: string }, QrGenOpts, FileRef> = {
   paramsSchema: {
     type: "object",
     properties: {
-      size: { type: "integer", minimum: 128, maximum: 1024 },
+      size: { type: "integer", description: "128-1024" },
       ecc: { type: "string", enum: ["L", "M", "Q", "H"] },
       fg: { type: "string" },
       bg: { type: "string" },

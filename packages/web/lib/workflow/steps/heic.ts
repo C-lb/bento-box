@@ -13,7 +13,7 @@ export const heicStep: StepAdapter<FileRef, HeicOpts, FileRef> = {
     properties: {
       // Real HeicFormat (packages/core/src/heic.ts) is "jpg"|"png" — not "jpeg".
       format: { type: "string", enum: ["png", "jpg"] },
-      quality: { type: "integer", minimum: 1, maximum: 100 },
+      quality: { type: "integer", description: "1-100" },
       saturation: { type: "number" },
       brightness: { type: "number" },
       haze: { type: "number" },
