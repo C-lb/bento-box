@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { Download, Loader2, UploadCloud } from "lucide-react";
+import { Download, FileText, Loader2, UploadCloud } from "lucide-react";
 import { Segmented } from "@/components/Segmented";
 import { PastRuns } from "@/components/PastRuns";
 import { runFileUrl } from "@/lib/past-runs";
@@ -30,6 +30,10 @@ export function AudioClient({ ytDlp }: { ytDlp: boolean }) {
   const [driveSaving, setDriveSaving] = useState(false);
   const [driveUrl, setDriveUrl] = useState<string | null>(null);
   const [driveError, setDriveError] = useState<string | null>(null);
+
+  const [transcribing, setTranscribing] = useState(false);
+  const [transcribed, setTranscribed] = useState(false);
+  const [transcribeError, setTranscribeError] = useState<string | null>(null);
 
   const isUrl = (v: string) => /^https?:\/\//i.test(v.trim());
 
@@ -85,6 +89,8 @@ export function AudioClient({ ytDlp }: { ytDlp: boolean }) {
     setStatus(null);
     setDriveUrl(null);
     setDriveError(null);
+    setTranscribed(false);
+    setTranscribeError(null);
     setBusy(true);
     try {
       const r = await fetch("/api/convert/url", {
@@ -148,6 +154,28 @@ export function AudioClient({ ytDlp }: { ytDlp: boolean }) {
       picker.setVisible(true);
     } catch (e) {
       setDriveError(e instanceof Error ? e.message : String(e));
+    }
+  }
+
+  // Sends the converted file server-side into the transcription pipeline;
+  // progress and the finished doc live on the transcribe page.
+  async function transcribe() {
+    if (!result || transcribing) return;
+    setTranscribeError(null);
+    setTranscribing(true);
+    try {
+      const r = await fetch("/api/transcribe/from-convert", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ convertId: result.id, filename: result.filename, ext: result.ext ?? "mp3" }),
+      });
+      const data = await readJsonOrThrow(r);
+      if (!r.ok) throw new Error(data?.error ?? "Could not start the transcription");
+      setTranscribed(true);
+    } catch (e) {
+      setTranscribeError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setTranscribing(false);
     }
   }
 
@@ -277,7 +305,24 @@ export function AudioClient({ ytDlp }: { ytDlp: boolean }) {
                 ? <><Loader2 className="w-4 h-4 animate-spin" strokeWidth={1.75} /> Saving…</>
                 : <><UploadCloud className="w-4 h-4" strokeWidth={1.75} /> Save to Drive</>}
             </button>
+            <button
+              type="button"
+              className="btn inline-flex items-center justify-center gap-2 min-h-[44px] sm:min-h-0 w-full sm:w-auto"
+              onClick={transcribe}
+              disabled={transcribing || transcribed}
+            >
+              {transcribing
+                ? <><Loader2 className="w-4 h-4 animate-spin" strokeWidth={1.75} /> Starting…</>
+                : <><FileText className="w-4 h-4" strokeWidth={1.75} /> Transcribe</>}
+            </button>
           </div>
+
+          {transcribed && (
+            <p className="mt-3 text-sm text-success">
+              Transcription started. <a className="underline" href="/transcribe">Follow it on the transcribe page</a>
+            </p>
+          )}
+          {transcribeError && <p className="mt-3 text-sm text-danger">{transcribeError}</p>}
 
           {driveUrl && (
             <p className="mt-3 text-sm text-success">
