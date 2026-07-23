@@ -1,6 +1,7 @@
 // packages/desktop/main.js
-const { app, BrowserWindow, dialog, ipcMain } = require("electron");
+const { app, BrowserWindow, dialog, ipcMain, Menu } = require("electron");
 const { fork } = require("node:child_process");
+const { buildMenuTemplate } = require("./lib/menu.js");
 
 // Force the app name so userData resolves to ".../Application Support/Bento"
 // (the package name "@event-editor/desktop" would otherwise create an ugly nested
@@ -169,6 +170,31 @@ function portInUse() {
   });
 }
 
+// --- menu / shortcuts ---------------------------------------------------------
+function focusedContents() {
+  const win = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0];
+  return win && !win.isDestroyed() ? win.webContents : null;
+}
+
+function installMenu() {
+  const template = buildMenuTemplate({
+    isMac: process.platform === "darwin",
+    appName: "Bento Box",
+    // The renderer does client-side routing, so navigation goes over IPC (a
+    // loadURL here would full-reload the Next app on every Cmd+1/2).
+    nav: (p) => focusedContents()?.send("ee:nav", p),
+    back: () => {
+      const wc = focusedContents();
+      if (wc?.navigationHistory.canGoBack()) wc.navigationHistory.goBack();
+    },
+    forward: () => {
+      const wc = focusedContents();
+      if (wc?.navigationHistory.canGoForward()) wc.navigationHistory.goForward();
+    },
+  });
+  Menu.setApplicationMenu(Menu.buildFromTemplate(template));
+}
+
 // --- window -----------------------------------------------------------------
 function createWindow() {
   const win = new BrowserWindow({
@@ -180,6 +206,7 @@ function createWindow() {
 }
 
 async function boot() {
+  installMenu();
   const devUrl = process.env.EE_DESKTOP_DEV_URL;
   if (devUrl) {
     // dev: assume `npm run dev` is already serving; just open a window on it.

@@ -38,6 +38,7 @@ export function ToolSearch() {
       <div className="mx-auto flex max-w-5xl items-center gap-2 px-3 py-0.5 sm:px-6 sm:py-2">
         <Search size={16} strokeWidth={1.75} className="h-3.5 w-3.5 text-muted sm:h-4 sm:w-4" aria-hidden />
         <input
+          id="tool-search-input"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search tools by name or tag"

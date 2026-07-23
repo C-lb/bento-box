@@ -8,7 +8,10 @@ import { KEY_GUIDES } from "./key-guides";
 
 declare global {
   interface Window {
-    ee?: { relaunch: () => Promise<void> };
+    ee?: {
+      relaunch: () => Promise<void>;
+      onNav?: (cb: (path: string) => void) => void;
+    };
   }
 }
 

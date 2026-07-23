@@ -1,5 +1,6 @@
 import "./globals.css";
 import type { ReactNode } from "react";
+import { DesktopShortcuts } from "@/components/DesktopShortcuts";
 import { Nav } from "@/components/Nav";
 import { ToolSearch } from "@/components/ToolSearch";
 import { ToolShellProvider } from "@/components/tool-shell-context";
@@ -22,6 +23,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     <html lang="en">
       <body>
         <ToolShellProvider>
+          <DesktopShortcuts />
           {/* Opaque cap over the Dynamic Island / notch zone so cards scrolling
               under the sticky search bar never peek out beside the island. Zero
               height (invisible) on devices with no top inset. */}
