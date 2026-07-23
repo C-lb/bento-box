@@ -10,6 +10,7 @@ import { getDb } from "@/lib/db";
 import { startTranscription } from "@/lib/transcriber";
 import { convertDir, sanitizeConvertId } from "@/lib/convert";
 import { dataRoot } from "@/lib/jobs";
+import { guardUpload } from "@/lib/upload-guard";
 
 export const runtime = "nodejs";
 
@@ -23,6 +24,11 @@ function safeName(name: string): string {
 // pipeline: copy (not move, so Download/Drive still work) into the uploads
 // layout the transcriber expects, then start the normal job.
 export async function POST(request: Request) {
+  // Lives under the middleware-exempt /api/transcribe prefix, so auth must run
+  // here (see lib/upload-guard.ts) even though this route takes no file body.
+  const blocked = await guardUpload(request);
+  if (blocked) return blocked;
+
   const { convertId, filename, ext: rawExt } = (await request.json().catch(() => ({}))) as {
     convertId?: string; filename?: string; ext?: string;
   };
