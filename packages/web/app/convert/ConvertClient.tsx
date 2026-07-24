@@ -29,6 +29,7 @@ export function ConvertClient() {
   const [hasFile, setHasFile] = useState(false);
   const [fileName, setFileName] = useState("");
   const [output, setOutput] = useState<OutputFormat>("png");
+  const [lossless, setLossless] = useState(false);
 
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -70,6 +71,7 @@ export function ConvertClient() {
       fd.append("file", f);
       fd.append("filename", filename);
       fd.set("output", output);
+      if (output === "webp" && lossless) fd.set("lossless", "true");
       const r = await uploadWithProgress("/api/convert/file", fd, setProgress);
       const data = await readJsonOrThrow(r);
       if (!r.ok || !data?.id) throw new Error(data?.error ?? "Conversion failed");
@@ -178,6 +180,18 @@ export function ConvertClient() {
                   onChange={(v) => setOutput(v as OutputFormat)}
                 />
               </div>
+              {output === "webp" && (
+                <label className="mt-3 flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 accent-accent"
+                    checked={lossless}
+                    onChange={(e) => setLossless(e.target.checked)}
+                  />
+                  <span>Lossless</span>
+                  <span className="text-muted">exact quality, larger file</span>
+                </label>
+              )}
             </div>
           )}
           {unsupported && (

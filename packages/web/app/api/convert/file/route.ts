@@ -31,6 +31,7 @@ export async function POST(request: Request) {
   }
   const rawOut = form.get("output");
   const output = (typeof rawOut === "string" && OUTPUTS.includes(rawOut) ? rawOut : "mp3") as OutputFormat;
+  const lossless = form.get("lossless") === "true" && output === "webp";
 
   if (!isValidConversion(file.name, output)) {
     return NextResponse.json({ error: `Can't convert this file to ${output}.` }, { status: 400 });
@@ -55,7 +56,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ id, filename: mp3Name, ext: "mp3" });
     }
 
-    const { ext, zip } = await convertUploaded(inPath, file.name, id, output);
+    const { ext, zip } = await convertUploaded(inPath, file.name, id, output, lossless);
     const outName = convertOutName(file.name, output, zip);
     recordRun(file.name || "file", id, outName);
     return NextResponse.json({ id, filename: outName, ext });

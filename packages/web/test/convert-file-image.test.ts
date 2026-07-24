@@ -18,6 +18,15 @@ describe("imageToRaster", () => {
     const out = await imageToRaster(await tinyPng(), "webp");
     expect((await sharp(out).metadata()).format).toBe("webp");
   });
+  it("produces a lossless WEBP that preserves pixels exactly", async () => {
+    const src = await tinyPng();
+    const out = await imageToRaster(src, "webp", true);
+    expect((await sharp(out).metadata()).format).toBe("webp");
+    // Lossless: decoding the webp yields the identical raw pixels as the source.
+    const srcRaw = await sharp(src).raw().toBuffer();
+    const outRaw = await sharp(out).raw().toBuffer();
+    expect(outRaw.equals(srcRaw)).toBe(true);
+  });
 });
 
 describe("imageToPdf", () => {

@@ -15,10 +15,17 @@ import {
 const LOSSY_QUALITY = 82;
 
 // Raster image → png/jpg/webp. No resize (the resize tool owns that).
-export async function imageToRaster(input: Buffer, output: "png" | "jpg" | "webp"): Promise<Buffer> {
+// `lossless` only affects webp (png is always lossless, jpeg never is).
+export async function imageToRaster(
+  input: Buffer, output: "png" | "jpg" | "webp", lossless = false,
+): Promise<Buffer> {
   const img = sharp(input, { failOn: "none" });
   if (output === "png") return img.png().toBuffer();
-  if (output === "webp") return img.webp({ quality: LOSSY_QUALITY }).toBuffer();
+  if (output === "webp") {
+    return lossless
+      ? img.webp({ lossless: true }).toBuffer()
+      : img.webp({ quality: LOSSY_QUALITY }).toBuffer();
+  }
   return img.jpeg({ quality: LOSSY_QUALITY }).toBuffer();
 }
 
@@ -92,7 +99,7 @@ export async function pdfToImages(
 // Reads the uploaded file, routes by category to the right engine, and
 // writes out.<ext> in the job's convert dir.
 export async function convertUploaded(
-  inPath: string, inputName: string, id: string, output: OutputFormat,
+  inPath: string, inputName: string, id: string, output: OutputFormat, lossless = false,
 ): Promise<{ ext: string; zip: boolean }> {
   const category = categoryForFile(inputName);
   if (category === null) throw new Error("This file type isn't supported yet.");
@@ -139,7 +146,7 @@ export async function convertUploaded(
       return { ext: extFor(output), zip: false };
     }
     if (output === "png" || output === "jpg" || output === "webp") {
-      const data = await imageToRaster(input, output);
+      const data = await imageToRaster(input, output, lossless);
       await writeFile(resolve(dir, `out.${extFor(output)}`), data);
       return { ext: extFor(output), zip: false };
     }
