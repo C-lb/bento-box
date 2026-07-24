@@ -3,7 +3,17 @@
 import { createHash, timingSafeEqual } from "node:crypto";
 import { upsertEnvKeys, upsertRawEnvKeys, readEnvValues, ENV_KEYS, type EnvKey } from "@event-editor/core/settings";
 import { envFilePath } from "./env-path";
-import { PRESET_KEYS, PRESET_LABELS, presetSourcePath, resolvePreset, parseExtraCodes, EXTRA_CODES_KEY } from "./preset";
+import {
+  PRESET_KEYS,
+  PRESET_LABELS,
+  PRESET_GROUPS,
+  presetSourcePath,
+  resolvePreset,
+  parseExtraCodes,
+  parseCodeEntry,
+  scopedKeys,
+  EXTRA_CODES_KEY,
+} from "./preset";
 
 export type SaveState = { ok: boolean; message: string } | null;
 
@@ -42,15 +52,18 @@ export async function applyUnlockCode(_prev: SaveState, formData: FormData): Pro
     const presetFile = readEnvValues(presetSourcePath(), ["EE_UNLOCK_CODE", EXTRA_CODES_KEY, ...PRESET_KEYS]);
     const userExtras = readEnvValues(envFilePath(), [EXTRA_CODES_KEY]);
     const preset = resolvePreset(presetFile, process.env);
-    const accepted = [...new Set([...preset.codes, ...parseExtraCodes(userExtras[EXTRA_CODES_KEY])])];
-    if (!accepted.some((c) => codesMatch(given.trim(), c))) {
+    const accepted = [...preset.codes, ...parseExtraCodes(userExtras[EXTRA_CODES_KEY])];
+    const matched = accepted.find((c) => codesMatch(given.trim(), c.code));
+    if (!matched) {
       return { ok: false, message: "That code didn't match." };
     }
-    const found = PRESET_KEYS.filter((k) => preset.keys[k]);
+    // A scoped code only fills the keys its groups cover.
+    const allowed = scopedKeys(matched, preset.keys);
+    const found = PRESET_KEYS.filter((k) => allowed[k]);
     if (found.length === 0) {
       return { ok: false, message: "Code accepted, but no preset keys were found on this machine." };
     }
-    upsertEnvKeys(envFilePath(), preset.keys);
+    upsertEnvKeys(envFilePath(), allowed);
     const names = found.map((k) => PRESET_LABELS[k]);
     const list = names.length > 1 ? `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}` : names[0];
     return { ok: true, message: `Filled in the ${list} key${found.length > 1 ? "s" : ""}. Restart the app to apply.` };
@@ -67,16 +80,26 @@ export async function addSetupCode(_prev: SaveState, formData: FormData): Promis
   if (typeof given !== "string" || given.trim() === "") {
     return { ok: false, message: "Enter a setup code to save." };
   }
-  const code = given.trim();
-  if (code.includes(",")) {
+  const entryText = given.trim();
+  if (entryText.includes(",")) {
     return { ok: false, message: "Setup codes can't contain a comma." };
   }
+  // `name` unlocks every preset key; `name:groq|claude` unlocks only those groups.
+  const entry = parseCodeEntry(entryText);
+  if (!entry) {
+    return { ok: false, message: "Enter a setup code to save." };
+  }
+  if (entry.scope !== null && entry.scope.length === 0) {
+    const names = Object.keys(PRESET_GROUPS).join(", ");
+    return { ok: false, message: `Unknown key group. Use one or more of: ${names}.` };
+  }
   try {
-    const existing = parseExtraCodes(readEnvValues(envFilePath(), [EXTRA_CODES_KEY])[EXTRA_CODES_KEY]);
-    if (existing.includes(code)) {
+    const raw = readEnvValues(envFilePath(), [EXTRA_CODES_KEY])[EXTRA_CODES_KEY];
+    const existing = parseExtraCodes(raw);
+    if (existing.some((e) => e.code === entry.code)) {
       return { ok: true, message: "That setup code is already saved." };
     }
-    const next = [...existing, code];
+    const next = [...(raw ?? "").split(",").map((c) => c.trim()).filter(Boolean), entryText];
     upsertRawEnvKeys(envFilePath(), { [EXTRA_CODES_KEY]: next.join(",") });
     return { ok: true, message: `Saved. ${next.length} setup code${next.length > 1 ? "s" : ""} now unlock the keys.` };
   } catch (e) {

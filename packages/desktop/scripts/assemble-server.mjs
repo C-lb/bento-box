@@ -221,10 +221,15 @@ writeFileSync(serverJs, serverSrc);
 // can say "no preset keys in this build" instead of failing on a missing file.
 const PRESET_BAKE_KEYS = [
   "EE_UNLOCK_CODE",
+  "EE_UNLOCK_CODES",
   "GROQ_API_KEY",
   "ANTHROPIC_API_KEY",
   "GOOGLE_CLIENT_ID",
   "GOOGLE_CLIENT_SECRET",
+  "GOOGLE_PICKER_API_KEY",
+  "GOOGLE_PICKER_APP_ID",
+  "SPOTIFY_CLIENT_ID",
+  "SPOTIFY_CLIENT_SECRET",
 ];
 const rootEnvPath = resolve(repo, ".env");
 const rootEnvLines = existsSync(rootEnvPath) ? readFileSync(rootEnvPath, "utf8").split(/\r?\n/) : [];
