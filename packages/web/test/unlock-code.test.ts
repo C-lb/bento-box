@@ -32,9 +32,9 @@ describe("resolvePreset", () => {
 
 describe("parseExtraCodes", () => {
   it("treats a bare code as unlocking everything and a suffixed one as scoped", () => {
-    expect(parseExtraCodes("plain,dewibento:groq|claude")).toEqual([
+    expect(parseExtraCodes("plain,sparkbento:groq|claude")).toEqual([
       { code: "plain", scope: null },
-      { code: "dewibento", scope: ["GROQ_API_KEY", "ANTHROPIC_API_KEY"] },
+      { code: "sparkbento", scope: ["GROQ_API_KEY", "ANTHROPIC_API_KEY"] },
     ]);
   });
 
@@ -86,10 +86,10 @@ describe("applyUnlockCode", () => {
 
   it("a scoped extra code fills only the keys its groups cover", async () => {
     const dest = setup(
-      "EE_UNLOCK_CODE=letmein\nEE_UNLOCK_CODES=dewibento:groq|claude\n" +
+      "EE_UNLOCK_CODE=letmein\nEE_UNLOCK_CODES=sparkbento:groq|claude\n" +
         "GROQ_API_KEY=gsk_1\nANTHROPIC_API_KEY=sk-ant-2\nGOOGLE_CLIENT_ID=goog_3\nSPOTIFY_CLIENT_ID=spot_4\n",
     );
-    const res = await applyUnlockCode(null, form("dewibento"));
+    const res = await applyUnlockCode(null, form("sparkbento"));
     expect(res?.ok).toBe(true);
     const out = readFileSync(dest, "utf8");
     expect(out).toMatch(/^GROQ_API_KEY=gsk_1$/m);

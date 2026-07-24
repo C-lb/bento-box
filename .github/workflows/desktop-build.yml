@@ -32,6 +32,10 @@ jobs:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
           GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+          # extra setup codes, comma-separated, each optionally scoped to key
+          # groups (e.g. "sparkbento:groq|claude"). Kept in a secret because the
+          # repo is public and a code hands out the baked keys.
+          EE_UNLOCK_CODES: ${{ secrets.EE_UNLOCK_CODES }}
       - uses: softprops/action-gh-release@v2
         with:
           files: |

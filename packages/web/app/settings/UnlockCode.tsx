@@ -52,7 +52,7 @@ export function UnlockCode() {
         <p className="text-sm font-medium">Add a setup code</p>
         <p className="mt-1 text-sm text-muted">
           Save your own code so it unlocks the keys on this machine from now on. The built-in code keeps working too.
-          To hand out only some keys, add the groups after a colon, like <span className="font-mono text-ink">dewibento:groq|claude</span>. Groups are
+          To hand out only some keys, add the groups after a colon, like <span className="font-mono text-ink">sparkbento:groq|claude</span>. Groups are
           groq, claude, google and spotify.
         </p>
         <form action={addAction} className="mt-3 flex flex-col gap-3 sm:flex-row">

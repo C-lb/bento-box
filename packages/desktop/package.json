@@ -1,6 +1,6 @@
 {
   "name": "@event-editor/desktop",
-  "version": "0.0.32",
+  "version": "0.0.33",
   "private": true,
   "description": "Bento Box desktop app",
   "author": "Spark",
@@ -12,9 +12,9 @@
     "dist": "npm run -w @event-editor/core build && npm run -w @event-editor/web build && npm run assemble && node scripts/rebuild-native.mjs && electron-builder"
   },
   "devDependencies": {
+    "@electron/rebuild": "^3.6.0",
     "electron": "33.4.11",
-    "electron-builder": "^25.0.0",
-    "@electron/rebuild": "^3.6.0"
+    "electron-builder": "^25.0.0"
   },
   "build": {
     "appId": "sg.spark.eventeditor",
