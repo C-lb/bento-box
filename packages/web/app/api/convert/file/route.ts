@@ -24,7 +24,20 @@ export async function POST(request: Request) {
   const blocked = await guardUpload(request);
   if (blocked) return blocked;
 
-  const form = await request.formData();
+  // Must be inside a try: a truncated or malformed multipart body (aborted
+  // upload, a proxy cutting the request) makes formData() throw, and an
+  // uncaught throw here returns Next's own empty 500 — which the client can't
+  // parse as JSON, so it falls back to a bare "Conversion failed".
+  let form: FormData;
+  try {
+    form = await request.formData();
+  } catch {
+    return NextResponse.json(
+      { error: "The upload didn't finish. Check the connection and try again." },
+      { status: 400 },
+    );
+  }
+
   const file = form.get("file");
   if (!(file instanceof File) || file.size === 0) {
     return NextResponse.json({ error: "A file is required" }, { status: 400 });

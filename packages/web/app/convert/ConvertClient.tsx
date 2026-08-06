@@ -74,7 +74,10 @@ export function ConvertClient() {
       if (output === "webp" && lossless) fd.set("lossless", "true");
       const r = await uploadWithProgress("/api/convert/file", fd, setProgress);
       const data = await readJsonOrThrow(r);
-      if (!r.ok || !data?.id) throw new Error(data?.error ?? "Conversion failed");
+      // A body we couldn't parse means the server (or something in front of it)
+      // failed before our handler could answer — keep the status so that case is
+      // still diagnosable instead of collapsing to a bare "Conversion failed".
+      if (!r.ok || !data?.id) throw new Error(data?.error ?? `Conversion failed (HTTP ${r.status})`);
       setResult({ id: data.id, filename: data.filename ?? filename, ext: data.ext });
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
