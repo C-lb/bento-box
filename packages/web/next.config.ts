@@ -21,7 +21,25 @@ const nextConfig: NextConfig = {
   reactStrictMode: true,
   output: "standalone",
   outputFileTracingRoot: resolve(here, "../.."),
-  serverExternalPackages: ["better-sqlite3", "sharp", "@anthropic-ai/sdk", "ffmpeg-static", "ffprobe-static", "@napi-rs/canvas"],
+  // pdfjs-dist must stay external: bundled, its "fake worker" fallback tries to
+  // import pdf.worker.mjs next to the rewritten chunk, which the build never
+  // emits, so every server-side PDF raster (convert PDF->png/jpg/html) 500s with
+  // "Setting up fake worker failed". Required at runtime it resolves normally.
+  serverExternalPackages: ["better-sqlite3", "sharp", "@anthropic-ai/sdk", "ffmpeg-static", "ffprobe-static", "@napi-rs/canvas", "pdfjs-dist"],
+  // Under Node there is no Worker global, so pdfjs loads its worker through the
+  // "fake worker" path: a dynamic import of pdf.worker.mjs sitting next to
+  // pdf.mjs. That import is invisible to the file tracer, so the worker never
+  // reaches .next/standalone and PDF rasterising 500s. Ship it explicitly.
+  outputFileTracingIncludes: {
+    "/api/convert/file": [
+      "node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs",
+      "../../node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs",
+    ],
+    "/api/pdf/process/[mode]": [
+      "node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs",
+      "../../node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs",
+    ],
+  },
 };
 
 export default nextConfig;
