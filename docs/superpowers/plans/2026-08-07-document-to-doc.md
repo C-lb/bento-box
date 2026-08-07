@@ -1685,3 +1685,21 @@ Scope grants and Drive permissions have no meaningful test double. After Task 10
 5. Pick a Doc you only have view access to. Confirm the error reads "You don't have edit access to that document."
 6. Drop a `.docx` and confirm a new Google Doc appears in My Drive named without the extension.
 7. Drop a scanned PDF and confirm the "may be scanned images" message.
+
+Added by the final whole-branch review, since these only appear once the tasks
+combine:
+
+8. Pick a Doc that **already has tabs**. Confirm the export captured its content,
+   exactly one tab was added, and every pre-existing tab is untouched. This is
+   the data-loss case the whole design guards against.
+9. On a gdoc row, edit the LinkedIn draft and tab straight into the article draft
+   so two saves fire together. Count the "Summary" tabs afterwards: there must be
+   exactly one.
+10. Force the scope 403 on a token minted before the `documents` scope, reconnect
+    Google, then press "Try again". It must complete rather than dead-end.
+11. Pick a Doc over 400,000 characters and confirm the cap message, not a raw
+    model error.
+
+Known limit, deliberately not addressed: the concurrency guard is per-process.
+Two Node instances against one sqlite file could still race. The app is
+single-process, so this is a note, not a gap.
