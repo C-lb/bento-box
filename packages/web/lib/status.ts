@@ -18,6 +18,7 @@ export function jobStatusView(status: string): StatusView {
 export function transcriptionStatusView(status: string): StatusView {
   switch (status) {
     case "uploading": return { tone: "active", label: "Uploading" };
+    case "reading": return { tone: "active", label: "Reading the document" };
     case "transcribing": return { tone: "active", label: "Transcribing audio" };
     case "summarizing": return { tone: "active", label: "Summarizing with Claude" };
     case "creating_doc": return { tone: "active", label: "Creating the Google Doc" };
