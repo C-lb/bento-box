@@ -109,7 +109,7 @@ describe("buildDocHtml over sections", () => {
       { heading: "Transcript", body: { kind: "segments", segments: [{ startSec: 61, text: "hi" }] } },
     ];
     expect(buildDocHtml(sections)).toBe(
-      "<h1>Summary</h1><p>a &amp; b</p><h1>Transcript</h1><p>[01:01] hi</p>",
+      "<h1>Summary</h1><p>a &amp; b</p><h1>Transcript</h1><p>[00:01:01] hi</p>",
     );
   });
 });
@@ -305,7 +305,7 @@ describe("buildTabRequests", () => {
       { heading: "Transcript", body: { kind: "segments", segments: [{ startSec: 0, text: "hi" }, { startSec: 61, text: "there" }] } },
     ];
     const { text } = applyRequests(buildTabRequests(s, "t.3"), "t.3");
-    expect(text).toBe("Transcript\n[00:00] hi\n[01:01] there\n");
+    expect(text).toBe("Transcript\n[00:00:00] hi\n[00:01:01] there\n");
   });
 
   it("emits no requests for no sections", () => {
