@@ -1,6 +1,6 @@
 import { google } from "googleapis";
 import type { OAuth2Client } from "google-auth-library";
-import type { drive_v3 } from "googleapis";
+import type { drive_v3, docs_v1 } from "googleapis";
 import { getToken, saveToken, type TokenInput } from "@event-editor/core/tokens";
 import { openDb } from "@event-editor/core/db";
 import { publicUrl } from "../paths";
@@ -8,6 +8,7 @@ import { publicUrl } from "../paths";
 export const DRIVE_SCOPE = "https://www.googleapis.com/auth/drive.readonly";
 export const DRIVE_FILE_SCOPE = "https://www.googleapis.com/auth/drive.file";
 export const SHEETS_SCOPE = "https://www.googleapis.com/auth/spreadsheets.readonly";
+export const DOCS_SCOPE = "https://www.googleapis.com/auth/documents";
 
 export function makeOAuthClient(): OAuth2Client {
   return new google.auth.OAuth2(
@@ -21,7 +22,7 @@ export function buildAuthUrl(client: OAuth2Client): string {
   return client.generateAuthUrl({
     access_type: "offline",
     prompt: "consent",
-    scope: [DRIVE_SCOPE, DRIVE_FILE_SCOPE, SHEETS_SCOPE],
+    scope: [DRIVE_SCOPE, DRIVE_FILE_SCOPE, SHEETS_SCOPE, DOCS_SCOPE],
   });
 }
 
@@ -79,4 +80,26 @@ export async function authedDriveClient(
     });
   });
   return google.drive({ version: "v3", auth: client });
+}
+
+export async function authedDocsClient(
+  db: ReturnType<typeof openDb>,
+): Promise<docs_v1.Docs | null> {
+  const stored = getToken(db, "google");
+  if (!stored) return null;
+  const client = makeOAuthClient();
+  client.setCredentials({
+    access_token: stored.accessToken,
+    refresh_token: stored.refreshToken ?? undefined,
+    expiry_date: stored.expiryMs ?? undefined,
+  });
+  client.on("tokens", (t) => {
+    saveToken(db, "google", {
+      accessToken: t.access_token ?? stored.accessToken,
+      refreshToken: t.refresh_token ?? null,
+      expiryMs: t.expiry_date ?? null,
+      scope: t.scope ?? null,
+    });
+  });
+  return google.docs({ version: "v1", auth: client });
 }
