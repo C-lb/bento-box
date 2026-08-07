@@ -58,33 +58,64 @@ function escapeHtml(s: string): string {
     .replace(/>/g, "&gt;");
 }
 
-function textParas(text: string): string {
-  return text
+export type DocSourceKind = "audio" | "document" | "gdoc";
+
+export type DocBody =
+  | { kind: "paras"; text: string }
+  | { kind: "segments"; segments: MergedSegment[] };
+
+export type DocSection = { heading: string; body: DocBody };
+
+export interface DocSectionInput {
+  sourceKind: DocSourceKind | null;
+  summary: string;
+  linkedin?: string | null;
+  article?: string | null;
+  segments?: MergedSegment[];
+  sourceText?: string | null;
+}
+
+// The single place that decides which sections a generated doc has.
+// A gdoc row gets no source section: the original is the sibling tab in the
+// same file, so copying it in would be pure duplication.
+export function buildDocSections(input: DocSectionInput): DocSection[] {
+  const sections: DocSection[] = [
+    { heading: "Summary", body: { kind: "paras", text: input.summary } },
+  ];
+  if (input.linkedin) {
+    sections.push({ heading: "LinkedIn post", body: { kind: "paras", text: input.linkedin } });
+  }
+  if (input.article) {
+    sections.push({ heading: "Article", body: { kind: "paras", text: input.article } });
+  }
+  const kind = input.sourceKind ?? "audio";
+  if (kind === "audio") {
+    sections.push({ heading: "Transcript", body: { kind: "segments", segments: input.segments ?? [] } });
+  } else if (kind === "document" && input.sourceText) {
+    sections.push({ heading: "Source document", body: { kind: "paras", text: input.sourceText } });
+  }
+  return sections;
+}
+
+/** Plain-text paragraphs of a section body, one string per paragraph. Shared
+ *  by both renderers so HTML and Docs output can't drift. */
+export function sectionParagraphs(body: DocBody): string[] {
+  if (body.kind === "segments") {
+    return body.segments.map((seg) => `[${formatTimestamp(seg.startSec)}] ${seg.text}`);
+  }
+  return body.text
     .split(/\n{2,}|\n/)
     .map((p) => p.trim())
-    .filter(Boolean)
-    .map((p) => `<p>${escapeHtml(p)}</p>`)
-    .join("");
+    .filter(Boolean);
 }
 
-export type DocDrafts = { linkedin?: string | null; article?: string | null };
-
-// Full doc body. Drafts (when present) sit between the summary and the
-// transcript so the shareable content reads top-down: summary, LinkedIn post,
-// article, then the raw timestamped transcript.
-export function buildDocHtml(summary: string, segments: MergedSegment[], drafts: DocDrafts = {}): string {
-  const sections = [`<h1>Summary</h1>${textParas(summary)}`];
-  if (drafts.linkedin) sections.push(`<h1>LinkedIn post</h1>${textParas(drafts.linkedin)}`);
-  if (drafts.article) sections.push(`<h1>Article</h1>${textParas(drafts.article)}`);
-  const lines = segments
-    .map((seg) => `<p>[${formatTimestamp(seg.startSec)}] ${escapeHtml(seg.text)}</p>`)
+export function buildDocHtml(sections: DocSection[]): string {
+  return sections
+    .map((s) => {
+      const paras = sectionParagraphs(s.body).map((p) => `<p>${escapeHtml(p)}</p>`).join("");
+      return `<h1>${escapeHtml(s.heading)}</h1>${paras}`;
+    })
     .join("");
-  sections.push(`<h1>Transcript</h1>${lines}`);
-  return sections.join("");
-}
-
-export function buildTranscriptHtml(summary: string, segments: MergedSegment[]): string {
-  return buildDocHtml(summary, segments);
 }
 
 const MEDIA_EXTS = new Set([

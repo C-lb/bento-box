@@ -3,8 +3,9 @@ import {
   planChunks,
   mergeSegments,
   formatTimestamp,
-  buildTranscriptHtml,
+  buildDocSections,
   buildDocHtml,
+  type DocSection,
   buildSummaryPrompt,
   buildEventDetailsPrompt,
   buildLinkedInPrompt,
@@ -58,9 +59,15 @@ describe("formatTimestamp", () => {
   });
 });
 
-describe("buildTranscriptHtml", () => {
+describe("buildTranscriptHtml (audio doc via sections)", () => {
   it("renders summary and timestamped transcript sections, escaping html", () => {
-    const html = buildTranscriptHtml("A <b>summary</b>", [{ startSec: 5, text: "first & line" }]);
+    const html = buildDocHtml(
+      buildDocSections({
+        sourceKind: "audio",
+        summary: "A <b>summary</b>",
+        segments: [{ startSec: 5, text: "first & line" }],
+      }),
+    );
     expect(html).toContain("<h1>Summary</h1>");
     expect(html).toContain("A &lt;b&gt;summary&lt;/b&gt;");
     expect(html).toContain("<h1>Transcript</h1>");
@@ -68,12 +75,17 @@ describe("buildTranscriptHtml", () => {
   });
 });
 
-describe("buildDocHtml", () => {
+describe("buildDocHtml (audio doc via sections)", () => {
   it("slots drafts between the summary and the transcript, in linkedin-then-article order", () => {
-    const html = buildDocHtml("the summary", [{ startSec: 0, text: "words" }], {
-      linkedin: "post text",
-      article: "article text",
-    });
+    const html = buildDocHtml(
+      buildDocSections({
+        sourceKind: "audio",
+        summary: "the summary",
+        segments: [{ startSec: 0, text: "words" }],
+        linkedin: "post text",
+        article: "article text",
+      }),
+    );
     const order = ["<h1>Summary</h1>", "<h1>LinkedIn post</h1>", "<h1>Article</h1>", "<h1>Transcript</h1>"].map((h) =>
       html.indexOf(h),
     );
@@ -82,9 +94,74 @@ describe("buildDocHtml", () => {
   });
 
   it("omits draft sections that are missing or empty", () => {
-    const html = buildDocHtml("s", [], { linkedin: null, article: "" });
+    const html = buildDocHtml(
+      buildDocSections({ sourceKind: "audio", summary: "s", segments: [], linkedin: null, article: "" }),
+    );
     expect(html).not.toContain("LinkedIn post");
     expect(html).not.toContain("<h1>Article</h1>");
+  });
+});
+
+describe("buildDocSections", () => {
+  const base = { summary: "the summary", segments: [{ startSec: 0, text: "hello" }] };
+
+  it("gives an audio row a timestamped Transcript section last", () => {
+    const s = buildDocSections({ ...base, sourceKind: "audio" });
+    expect(s.map((x) => x.heading)).toEqual(["Summary", "Transcript"]);
+    expect(s[1].body).toEqual({ kind: "segments", segments: [{ startSec: 0, text: "hello" }] });
+  });
+
+  it("treats a null sourceKind as audio so old rows keep working", () => {
+    const s = buildDocSections({ ...base, sourceKind: null });
+    expect(s.map((x) => x.heading)).toEqual(["Summary", "Transcript"]);
+  });
+
+  it("gives a dragged document a plain Source document section last", () => {
+    const s = buildDocSections({
+      sourceKind: "document",
+      summary: "the summary",
+      sourceText: "para one\n\npara two",
+    });
+    expect(s.map((x) => x.heading)).toEqual(["Summary", "Source document"]);
+    expect(s[1].body).toEqual({ kind: "paras", text: "para one\n\npara two" });
+  });
+
+  it("gives a gdoc row no source section at all", () => {
+    const s = buildDocSections({
+      sourceKind: "gdoc",
+      summary: "the summary",
+      sourceText: "ignored",
+    });
+    expect(s.map((x) => x.heading)).toEqual(["Summary"]);
+  });
+
+  it("places drafts between the summary and the source", () => {
+    const s = buildDocSections({
+      ...base,
+      sourceKind: "audio",
+      linkedin: "the post",
+      article: "the article",
+    });
+    expect(s.map((x) => x.heading)).toEqual([
+      "Summary", "LinkedIn post", "Article", "Transcript",
+    ]);
+  });
+
+  it("omits drafts that are null or empty", () => {
+    const s = buildDocSections({ ...base, sourceKind: "audio", linkedin: "", article: null });
+    expect(s.map((x) => x.heading)).toEqual(["Summary", "Transcript"]);
+  });
+});
+
+describe("buildDocHtml over sections", () => {
+  it("renders headings and paragraphs, escaping the text", () => {
+    const sections: DocSection[] = [
+      { heading: "Summary", body: { kind: "paras", text: "a & b" } },
+      { heading: "Transcript", body: { kind: "segments", segments: [{ startSec: 61, text: "hi" }] } },
+    ];
+    expect(buildDocHtml(sections)).toBe(
+      "<h1>Summary</h1><p>a &amp; b</p><h1>Transcript</h1><p>[00:01:01] hi</p>",
+    );
   });
 });
 

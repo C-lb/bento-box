@@ -1,4 +1,4 @@
-import { buildDocHtml, type MergedSegment } from "@event-editor/core/transcribe";
+import { buildDocSections, buildDocHtml, type MergedSegment } from "@event-editor/core/transcribe";
 import type { openDb } from "@event-editor/core/db";
 import { authedDriveClient } from "./google/oauth";
 import { updateGoogleDoc } from "./google/docs";
@@ -35,10 +35,15 @@ export async function syncTranscriptionDoc(db: Db, row: DocSyncRow): Promise<boo
   try {
     const drive = await authedDriveClient(db);
     if (!drive) return false;
-    const html = buildDocHtml(row.summaryText, segmentsOf(row), {
-      linkedin: row.summaryLinkedin,
-      article: row.summaryArticle,
-    });
+    const html = buildDocHtml(
+      buildDocSections({
+        sourceKind: "audio",
+        summary: row.summaryText,
+        linkedin: row.summaryLinkedin,
+        article: row.summaryArticle,
+        segments: segmentsOf(row),
+      }),
+    );
     await updateGoogleDoc(drive, row.docId, html);
     return true;
   } catch {
