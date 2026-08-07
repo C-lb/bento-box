@@ -7,6 +7,7 @@ import {
   buildDocHtml,
   type DocSection,
   buildSummaryPrompt,
+  buildDocumentSummaryPrompt,
   buildEventDetailsPrompt,
   buildLinkedInPrompt,
   buildArticlePrompt,
@@ -171,6 +172,20 @@ describe("buildSummaryPrompt", () => {
     expect(msgs).toHaveLength(1);
     expect(msgs[0].role).toBe("user");
     expect(msgs[0].content).toContain("the words");
+  });
+});
+
+describe("buildDocumentSummaryPrompt", () => {
+  it("frames the input as a document, not a recording", () => {
+    const [msg] = buildDocumentSummaryPrompt("the document body");
+    expect(msg.role).toBe("user");
+    expect(msg.content).toContain("document");
+    expect(msg.content).not.toContain("audio recording");
+    expect(msg.content).toContain("the document body");
+  });
+  it("keeps the no-em-dashes instruction", () => {
+    const [msg] = buildDocumentSummaryPrompt("x");
+    expect(msg.content).toContain("Do not use em dashes");
   });
 });
 

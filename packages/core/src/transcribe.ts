@@ -149,6 +149,21 @@ export function buildSummaryPrompt(transcript: string): { role: "user"; content:
   ];
 }
 
+export function buildDocumentSummaryPrompt(text: string): { role: "user"; content: string }[] {
+  return [
+    {
+      role: "user",
+      content:
+        "You are summarizing a document. " +
+        "Write a concise summary in clear prose: open with one sentence on what the document is about, " +
+        "then the key points and any decisions or action items as short paragraphs. " +
+        "Do not use em dashes. Return only the summary text, no preamble.\n\n" +
+        "Document:\n" +
+        text,
+    },
+  ];
+}
+
 export interface EventDetails {
   eventName: string;
   eventDescription: string;

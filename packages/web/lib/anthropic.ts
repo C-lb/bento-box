@@ -1,6 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { buildVisionPrompt, type VisionScore } from "@event-editor/core/rank";
-import { buildSummaryPrompt, buildEventDetailsPrompt, buildLinkedInPrompt, buildArticlePrompt, buildSelectionRewritePrompt, type EventDetails } from "@event-editor/core/transcribe";
+import { buildSummaryPrompt, buildDocumentSummaryPrompt, buildEventDetailsPrompt, buildLinkedInPrompt, buildArticlePrompt, buildSelectionRewritePrompt, type EventDetails } from "@event-editor/core/transcribe";
 import { buildSpeakerSegmentPrompt, buildTopicSegmentPrompt, normalizeSpeakerGroups, type SlideText, type SpeakerGroup } from "@event-editor/core/pptx";
 
 export const VISION_MODEL = process.env.EE_VISION_MODEL ?? "claude-opus-4-8";
@@ -124,18 +124,26 @@ export async function regenerateSelection(client: Anthropic, format: "linkedin" 
   return text.trim();
 }
 
-export async function summarizeTranscript(client: Anthropic, transcript: string): Promise<string> {
+async function summarise(client: Anthropic, messages: any, subject: string): Promise<string> {
   const res: any = await client.messages.create({
     model: SUMMARY_MODEL,
     max_tokens: 2048,
-    messages: buildSummaryPrompt(transcript),
+    messages,
   } as any);
   if (res.stop_reason === "refusal") {
-    throw new Error("summary model refused to summarize this transcript");
+    throw new Error(`summary model refused to summarize this ${subject}`);
   }
   const text = (res.content ?? []).find((b: any) => b.type === "text")?.text ?? "";
   if (!text.trim()) throw new Error("summary model returned empty output");
   return text.trim();
+}
+
+export async function summarizeTranscript(client: Anthropic, transcript: string): Promise<string> {
+  return summarise(client, buildSummaryPrompt(transcript), "transcript");
+}
+
+export async function summarizeDocument(client: Anthropic, text: string): Promise<string> {
+  return summarise(client, buildDocumentSummaryPrompt(text), "document");
 }
 
 export async function segmentSpeakers(client: Anthropic, slides: SlideText[]): Promise<SpeakerGroup[]> {
