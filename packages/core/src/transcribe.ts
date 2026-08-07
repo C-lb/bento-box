@@ -123,13 +123,15 @@ const MEDIA_EXTS = new Set([
   "mp4", "mov", "webm", "mkv", "m4v",
 ]);
 
+const DOC_EXTS = new Set(["txt", "md", "markdown", "html", "pdf", "docx", "pptx"]);
+
 // Drop a single trailing extension only when it's a recognized audio/video
-// extension, so "notes.txt" and "talk.mp3.bak" are left untouched.
+// or document extension, so "talk.mp3.bak" is left untouched.
 export function docBaseName(filename: string): string {
   const dot = filename.lastIndexOf(".");
   if (dot <= 0) return filename;
   const ext = filename.slice(dot + 1).toLowerCase();
-  return MEDIA_EXTS.has(ext) ? filename.slice(0, dot) : filename;
+  return MEDIA_EXTS.has(ext) || DOC_EXTS.has(ext) ? filename.slice(0, dot) : filename;
 }
 
 export function buildSummaryPrompt(transcript: string): { role: "user"; content: string }[] {

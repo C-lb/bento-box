@@ -245,9 +245,22 @@ describe("docBaseName", () => {
     expect(docBaseName("Team Sync.mp3")).toBe("Team Sync");
     expect(docBaseName("clip.MP4")).toBe("clip");
   });
-  it("leaves non-media names unchanged", () => {
-    expect(docBaseName("notes.txt")).toBe("notes.txt");
+  it("leaves unrecognized extensions unchanged", () => {
     expect(docBaseName("talk.mp3.bak")).toBe("talk.mp3.bak");
     expect(docBaseName("plain")).toBe("plain");
+  });
+});
+
+describe("docBaseName over documents", () => {
+  it("strips document extensions so the doc is not named report.pdf", () => {
+    expect(docBaseName("report.pdf")).toBe("report");
+    expect(docBaseName("Board Pack.docx")).toBe("Board Pack");
+    expect(docBaseName("deck.pptx")).toBe("deck");
+  });
+  it("still strips media extensions", () => {
+    expect(docBaseName("talk.mp3")).toBe("talk");
+  });
+  it("still leaves unknown extensions alone", () => {
+    expect(docBaseName("talk.mp3.bak")).toBe("talk.mp3.bak");
   });
 });
