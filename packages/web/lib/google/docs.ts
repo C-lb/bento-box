@@ -55,8 +55,11 @@ export async function writeDocTab(
   return { tabId };
 }
 
-/** Best-effort delete. A 404 means the user deleted our tab by hand, which is
- *  fine: the caller adds a fresh one straight after. */
+/** Best-effort delete. A 404 means the user deleted our tab by hand; a 400
+ *  INVALID_ARGUMENT means the id we were given is stale (e.g. a lost
+ *  write-back pointed us at a tab that's already gone). Either way the tab is
+ *  already absent, which is the state this call is trying to reach, so a
+ *  stale id must never block a subsequent write. */
 export async function deleteDocTab(
   docs: docs_v1.Docs,
   docId: string,
@@ -68,7 +71,7 @@ export async function deleteDocTab(
       requestBody: { requests: [{ deleteTab: { tabId } }] as any },
     });
   } catch (err: any) {
-    if (err?.code === 404) return;
+    if (err?.code === 404 || err?.code === 400) return;
     throw err;
   }
 }

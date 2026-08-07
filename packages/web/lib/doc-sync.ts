@@ -54,26 +54,39 @@ export async function syncTranscriptionDoc(db: Db, row: DocSyncRow): Promise<boo
       sourceText: row.transcriptText,
     });
 
-    if (kind === "gdoc") {
+    // Route on more than `sourceKind` alone: a gdoc row's docId always equals
+    // its sourceDocId (the summary tab lives inside the user's own document),
+    // so that equality is itself evidence of a tab-backed doc even if
+    // `sourceKind` were ever wrong (bad migration, backfill, manual edit).
+    // Treating either signal as authoritative is what makes updateGoogleDoc
+    // provably unreachable for a tab-backed row, not just unreachable by
+    // convention.
+    const tabBacked = kind === "gdoc" || (!!row.sourceDocId && row.docId === row.sourceDocId);
+
+    if (tabBacked) {
       if (!row.sourceDocId) return false;
       const docs = await authedDocsClient(db);
       if (!docs) return false;
-      if (row.docTabId) await deleteDocTab(docs, row.sourceDocId, row.docTabId);
+      // Order matters: write the new tab and persist its id BEFORE deleting the
+      // old one. If the persist step fails partway, the row still points at the
+      // OLD tab, which still exists — so the next sync's delete is still valid
+      // and self-heals. Deleting first (and persisting after) would instead
+      // leave a permanently wedged row whenever the persist is lost: the next
+      // sync would try to delete an id that's already gone.
       const { tabId } = await writeDocTab(docs, row.sourceDocId, "Summary", sections);
-      // Best-effort write-back: writeDocTab mints a fresh tabId every call, so
-      // if this doesn't stick the next sync will try to delete a tab that no
-      // longer exists. Still, a metadata-write failure shouldn't undo a doc
-      // write that already succeeded.
-      try {
-        db.update(transcriptions)
-          .set({ docTabId: tabId, updatedAt: Date.now() })
-          .where(eq(transcriptions.id, row.id))
-          .run();
-      } catch {}
+      db.update(transcriptions)
+        .set({ docTabId: tabId, updatedAt: Date.now() })
+        .where(eq(transcriptions.id, row.id))
+        .run();
+      if (row.docTabId) await deleteDocTab(docs, row.sourceDocId, row.docTabId);
       return true;
     }
 
     if (!row.docId) return false;
+    // Defense in depth: even if the tabBacked check above is ever bypassed by
+    // a future refactor, never let updateGoogleDoc run against a doc that
+    // also serves as a source doc for tabs.
+    if (row.sourceDocId && row.docId === row.sourceDocId) return false;
     const drive = await authedDriveClient(db);
     if (!drive) return false;
     await updateGoogleDoc(drive, row.docId, buildDocHtml(sections));
