@@ -5,7 +5,7 @@ import { eq } from "drizzle-orm";
 import { transcriptions } from "@event-editor/core/schema";
 import { visionClient, summarizeDocument, extractEventDetails } from "./anthropic";
 import { authedDriveClient, authedDocsClient } from "./google/oauth";
-import { createGoogleDoc, writeDocTab, deleteDocTab, docTabUrl, friendlyDocsError } from "./google/docs";
+import { createGoogleDoc, writeDocTab, docTabUrl, friendlyDocsError } from "./google/docs";
 import { withBackoff } from "./backoff";
 
 type Db = ReturnType<typeof openDb>;
