@@ -12,6 +12,13 @@ interface Item {
   createdAt: number;
   hasLinkedin: boolean;
   hasArticle: boolean;
+  sourceKind: string | null;
+}
+
+function sourceLabel(sourceKind: string | null): string | null {
+  if (sourceKind === "document") return "Document";
+  if (sourceKind === "gdoc") return "Google Doc";
+  return null;
 }
 
 function when(ms: number): string {
@@ -113,6 +120,7 @@ export function PastTranscriptions() {
                       </div>
                       <div className="mt-1 flex flex-wrap items-center gap-2">
                         <span className="text-xs text-muted">{when(it.createdAt)}</span>
+                        {sourceLabel(it.sourceKind) && <span className="text-xs text-muted">· {sourceLabel(it.sourceKind)}</span>}
                         {it.hasLinkedin && <span className="text-xs text-muted">· LinkedIn</span>}
                         {it.hasArticle && <span className="text-xs text-muted">· Article</span>}
                       </div>

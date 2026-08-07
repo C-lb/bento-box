@@ -31,6 +31,7 @@ export async function GET() {
       createdAt: r.createdAt,
       hasLinkedin: !!r.summaryLinkedin,
       hasArticle: !!r.summaryArticle,
+      sourceKind: r.sourceKind,
     })),
   });
 }

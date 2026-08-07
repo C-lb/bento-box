@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Smile } from "lucide-react";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -9,8 +9,9 @@ import { CopyButton } from "@/components/CopyButton";
 import { summaryToHtml, summaryToPlain } from "@/lib/render-summary";
 import { EventDetailsPanel } from "./EventDetailsPanel";
 import { FileDrop } from "@/components/FileDrop";
+import { DocPicker, type PickedDoc } from "@/components/DocPicker";
 import { usePollWhileVisible } from "@/lib/use-visible-poll";
-import { uploadRawWithProgress } from "@/lib/upload";
+import { uploadRawWithProgress, uploadWithProgress } from "@/lib/upload";
 
 // Shared 401 handling for the tool's other POST endpoints (summary, retry,
 // like): bounce to login instead of failing silently.
@@ -24,6 +25,7 @@ async function jsonOr401(r: Response) {
 const AUDIO_FORMATS = ["MP3", "M4A", "WAV", "FLAC", "OGG", "AAC", "AIFF", "WMA"];
 const VIDEO_FORMATS = ["MP4", "MOV", "WEBM", "MKV"];
 const ACCEPT = "audio/*,video/*,.m4a,.mp3,.wav,.flac,.ogg,.oga,.aac,.aiff,.wma,.mp4,.mov,.webm,.mkv";
+const DOCUMENT_ACCEPT = ".txt,.md,.markdown,.html,.pdf,.docx,.pptx";
 
 interface Transcription {
   id: number;
@@ -52,6 +54,10 @@ export function TranscribeClient() {
   const fileRef = useRef<HTMLInputElement>(null);
   const ctxRef = useRef<HTMLInputElement>(null);
   const CONTEXT_ACCEPT = ".md,.markdown,.html,.pdf,.pptx";
+
+  const [source, setSource] = useState<"audio" | "document">("audio");
+  const docFileRef = useRef<HTMLInputElement>(null);
+  const [hasDocFile, setHasDocFile] = useState(false);
 
   const [format, setFormat] = useState<"general" | "linkedin" | "article">("general");
   const [formatText, setFormatText] = useState<Record<string, string>>({});
@@ -155,6 +161,55 @@ export function TranscribeClient() {
     }
   }
 
+  async function uploadDocument() {
+    const file = docFileRef.current?.files?.[0];
+    if (!file) return;
+    setBusy(true);
+    setProgress(0);
+    setTx(null);
+    setUploadError(null);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const r = await uploadWithProgress("/api/transcribe/document", fd, setProgress);
+      if (r.status === 401) { window.location.assign("/login"); return; }
+      const data: any = await r.json().catch(() => null);
+      if (!r.ok || !data?.id) {
+        setUploadError(data?.error ?? `Upload failed (HTTP ${r.status})`);
+        return;
+      }
+      setId(data.id);
+    } catch (err) {
+      setUploadError(err instanceof Error ? err.message : "Upload failed. Please try again.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function pickDoc(file: PickedDoc) {
+    setBusy(true);
+    setTx(null);
+    setUploadError(null);
+    try {
+      const r = await fetch("/api/transcribe/document", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ fileId: file.id, name: file.name }),
+      });
+      if (r.status === 401) { window.location.assign("/login"); return; }
+      const data: any = await r.json().catch(() => null);
+      if (!r.ok || !data?.id) {
+        setUploadError(data?.error ?? `Upload failed (HTTP ${r.status})`);
+        return;
+      }
+      setId(data.id);
+    } catch (err) {
+      setUploadError(err instanceof Error ? err.message : "Upload failed. Please try again.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function retry() {
     if (id == null) return;
     setBusy(true);
@@ -173,6 +228,8 @@ export function TranscribeClient() {
     setUploadError(null);
     setHasFile(false);
     if (fileRef.current) fileRef.current.value = "";
+    setHasDocFile(false);
+    if (docFileRef.current) docFileRef.current.value = "";
   }
 
   async function loadFormat(fmt: "general" | "linkedin" | "article") {
@@ -255,52 +312,101 @@ export function TranscribeClient() {
 
   return (
     <div className="mt-8">
-      <div className="card flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-3">
-        <div className="w-full sm:min-w-[260px] sm:flex-1">
-          <FileDrop
-            inputRef={fileRef}
-            accept={ACCEPT}
-            onChange={setHasFile}
-            label="Drop an audio or video file here, or click to browse"
-          />
-        </div>
-        <button
-          className={`btn min-h-[44px] sm:min-h-0 w-full sm:w-auto justify-center ${inProgress ? "btn-progress" : "btn-accent"}`}
-          onClick={upload}
-          disabled={inProgress || !hasFile}
-        >
-          {inProgress ? "Transcribing!" : "Transcribe"}
-        </button>
-        {!hasFile && <span className="text-sm text-muted">Add a file first</span>}
-        {busy && (
-          <div className="basis-full">
-            <div className="flex items-center justify-between text-sm text-muted">
-              <span>Uploading</span>
-              <span>{Math.round(progress * 100)}%</span>
-            </div>
-            <div className="mt-1.5 h-1.5 w-full rounded-full bg-line overflow-hidden">
-              <div
-                className="h-1.5 rounded-full bg-accent transition-[width]"
-                style={{ width: `${Math.round(progress * 100)}%` }}
+      <Segmented
+        options={[{ value: "audio", label: "Audio or video" }, { value: "document", label: "Document" }]}
+        value={source}
+        onChange={(v) => { setSource(v as "audio" | "document"); setUploadError(null); }}
+      />
+      <div className="card mt-3 flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-3">
+        {source === "audio" ? (
+          <Fragment key="audio">
+            <div className="w-full sm:min-w-[260px] sm:flex-1">
+              <FileDrop
+                inputRef={fileRef}
+                accept={ACCEPT}
+                onChange={setHasFile}
+                label="Drop an audio or video file here, or click to browse"
               />
             </div>
-          </div>
+            <button
+              className={`btn min-h-[44px] sm:min-h-0 w-full sm:w-auto justify-center ${inProgress ? "btn-progress" : "btn-accent"}`}
+              onClick={upload}
+              disabled={inProgress || !hasFile}
+            >
+              {inProgress ? "Transcribing!" : "Transcribe"}
+            </button>
+            {!hasFile && <span className="text-sm text-muted">Add a file first</span>}
+            {busy && (
+              <div className="basis-full">
+                <div className="flex items-center justify-between text-sm text-muted">
+                  <span>Uploading</span>
+                  <span>{Math.round(progress * 100)}%</span>
+                </div>
+                <div className="mt-1.5 h-1.5 w-full rounded-full bg-line overflow-hidden">
+                  <div
+                    className="h-1.5 rounded-full bg-accent transition-[width]"
+                    style={{ width: `${Math.round(progress * 100)}%` }}
+                  />
+                </div>
+              </div>
+            )}
+            <div className="basis-full text-sm text-muted">
+              <p>Audio: {AUDIO_FORMATS.join(", ")}.</p>
+              <p className="mt-1">Video (audio is extracted): {VIDEO_FORMATS.join(", ")}.</p>
+            </div>
+            <div className="basis-full mt-2">
+              <p className="text-sm font-medium">Optional: add context (agenda, deck, or notes)</p>
+              <div className="mt-1">
+                <FileDrop
+                  inputRef={ctxRef}
+                  accept={CONTEXT_ACCEPT}
+                  label="Drop a context file here, or click to browse"
+                />
+              </div>
+              <p className="mt-1 text-sm text-muted">Accepted: Markdown, HTML, PDF, PPTX. Used to ground the summaries with names and sponsors.</p>
+            </div>
+          </Fragment>
+        ) : (
+          <Fragment key="document">
+            <div className="w-full sm:min-w-[260px] sm:flex-1">
+              <FileDrop
+                inputRef={docFileRef}
+                accept={DOCUMENT_ACCEPT}
+                onChange={setHasDocFile}
+                label="Drop a document here, or click to browse"
+              />
+            </div>
+            <button
+              className={`btn min-h-[44px] sm:min-h-0 w-full sm:w-auto justify-center ${inProgress ? "btn-progress" : "btn-accent"}`}
+              onClick={uploadDocument}
+              disabled={inProgress || !hasDocFile}
+            >
+              {inProgress ? "Reading!" : "Transcribe"}
+            </button>
+            {!hasDocFile && <span className="text-sm text-muted">Add a file first</span>}
+            {busy && (
+              <div className="basis-full">
+                <div className="flex items-center justify-between text-sm text-muted">
+                  <span>Uploading</span>
+                  <span>{Math.round(progress * 100)}%</span>
+                </div>
+                <div className="mt-1.5 h-1.5 w-full rounded-full bg-line overflow-hidden">
+                  <div
+                    className="h-1.5 rounded-full bg-accent transition-[width]"
+                    style={{ width: `${Math.round(progress * 100)}%` }}
+                  />
+                </div>
+              </div>
+            )}
+            <div className="basis-full text-sm text-muted">
+              <p>Accepted: {DOCUMENT_ACCEPT.split(",").join(", ")}.</p>
+            </div>
+            <div className="basis-full mt-2 flex flex-col sm:flex-row sm:items-center gap-3">
+              <span className="text-sm text-muted">Or pick a document already in Google Drive:</span>
+              <DocPicker onPick={pickDoc} disabled={inProgress} />
+            </div>
+          </Fragment>
         )}
-        <div className="basis-full text-sm text-muted">
-          <p>Audio: {AUDIO_FORMATS.join(", ")}.</p>
-          <p className="mt-1">Video (audio is extracted): {VIDEO_FORMATS.join(", ")}.</p>
-        </div>
-        <div className="basis-full mt-2">
-          <p className="text-sm font-medium">Optional: add context (agenda, deck, or notes)</p>
-          <div className="mt-1">
-            <FileDrop
-              inputRef={ctxRef}
-              accept={CONTEXT_ACCEPT}
-              label="Drop a context file here, or click to browse"
-            />
-          </div>
-          <p className="mt-1 text-sm text-muted">Accepted: Markdown, HTML, PDF, PPTX. Used to ground the summaries with names and sponsors.</p>
-        </div>
       </div>
       {uploadError && <p className="mt-3 text-danger">{uploadError}</p>}
 
