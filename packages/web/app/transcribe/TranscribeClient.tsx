@@ -12,6 +12,7 @@ import { FileDrop } from "@/components/FileDrop";
 import { DocPicker, type PickedDoc } from "@/components/DocPicker";
 import { usePollWhileVisible } from "@/lib/use-visible-poll";
 import { uploadRawWithProgress, uploadWithProgress } from "@/lib/upload";
+import { resetFileStageOnModeSwitch } from "@/lib/transcribe-mode";
 
 // Shared 401 handling for the tool's other POST endpoints (summary, retry,
 // like): bounce to login instead of failing silently.
@@ -315,7 +316,20 @@ export function TranscribeClient() {
       <Segmented
         options={[{ value: "audio", label: "Audio or video" }, { value: "document", label: "Document" }]}
         value={source}
-        onChange={(v) => { setSource(v as "audio" | "document"); setUploadError(null); }}
+        onChange={(v) => {
+          const next = v as "audio" | "document";
+          setSource(next);
+          setUploadError(null);
+          // A file staged in one mode must not survive a switch to the other:
+          // each FileDrop remounts clean (keyed Fragment), but the parent's
+          // hasFile/hasDocFile flags would otherwise outlive the input that
+          // set them, leaving Transcribe enabled over an empty drop zone.
+          const reset = resetFileStageOnModeSwitch({ hasFile, hasDocFile }, next);
+          setHasFile(reset.hasFile);
+          setHasDocFile(reset.hasDocFile);
+          if (fileRef.current) fileRef.current.value = "";
+          if (docFileRef.current) docFileRef.current.value = "";
+        }}
       />
       <div className="card mt-3 flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-3">
         {source === "audio" ? (
