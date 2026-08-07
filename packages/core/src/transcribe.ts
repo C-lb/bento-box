@@ -237,6 +237,50 @@ export function buildArticlePrompt(
   ];
 }
 
+/** Structural subset of the Docs API request shapes we emit. Declared here so
+ *  core needs no googleapis dependency; the web layer passes these straight to
+ *  documents.batchUpdate. */
+export type TabRequest =
+  | { insertText: { location: { index: number; tabId: string }; text: string } }
+  | {
+      updateParagraphStyle: {
+        range: { startIndex: number; endIndex: number; tabId: string };
+        paragraphStyle: { namedStyleType: string };
+        fields: string;
+      };
+    };
+
+// A tab's body content starts at index 1, not 0.
+const TAB_BODY_START = 1;
+
+export function buildTabRequests(sections: DocSection[], tabId: string): TabRequest[] {
+  let text = "";
+  const headings: { start: number; end: number }[] = [];
+  for (const section of sections) {
+    const start = text.length;
+    text += section.heading + "\n";
+    // The range covers the trailing newline: a Docs paragraph includes it, and
+    // paragraph styling applies to whole paragraphs the range touches.
+    headings.push({ start, end: text.length });
+    for (const para of sectionParagraphs(section.body)) text += para + "\n";
+  }
+  if (!text) return [];
+  return [
+    { insertText: { location: { index: TAB_BODY_START, tabId }, text } },
+    ...headings.map((h) => ({
+      updateParagraphStyle: {
+        range: {
+          startIndex: TAB_BODY_START + h.start,
+          endIndex: TAB_BODY_START + h.end,
+          tabId,
+        },
+        paragraphStyle: { namedStyleType: "HEADING_1" },
+        fields: "namedStyleType",
+      },
+    })),
+  ];
+}
+
 export function buildSelectionRewritePrompt(
   format: "linkedin" | "article",
   fullDraft: string,
