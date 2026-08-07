@@ -33,6 +33,34 @@ describe("writeDocTab", () => {
     const { docs } = fakeDocs({ addDocumentTab: {} });
     await expect(writeDocTab(docs, "doc1", "Summary", sections)).rejects.toThrow(/tab id/i);
   });
+
+  it("bins the empty tab when the fill fails, and surfaces the original error", async () => {
+    // The tab was added but its id is never persisted, so nothing will come
+    // back for it: leaving it behind strands an empty "Summary" in the user's
+    // document.
+    const calls: any[] = [];
+    const batchUpdate = vi.fn().mockImplementation(async (arg: any) => {
+      calls.push(arg.requestBody.requests[0]);
+      if (calls.length === 2) throw new Error("fill exploded");
+      return { data: { replies: [{ addDocumentTab: { tabProperties: { tabId: "t.new" } } }] } };
+    });
+    const docs = { documents: { batchUpdate } } as any;
+
+    await expect(writeDocTab(docs, "doc1", "Summary", sections)).rejects.toThrow("fill exploded");
+    expect(batchUpdate).toHaveBeenCalledTimes(3);
+    expect(calls[2]).toEqual({ deleteTab: { tabId: "t.new" } });
+  });
+
+  it("lets the original error through even when the cleanup delete also fails", async () => {
+    const batchUpdate = vi
+      .fn()
+      .mockResolvedValueOnce({ data: { replies: [{ addDocumentTab: { tabProperties: { tabId: "t.new" } } }] } })
+      .mockRejectedValueOnce(new Error("fill exploded"))
+      .mockRejectedValueOnce(Object.assign(new Error("cleanup exploded"), { code: 500 }));
+    const docs = { documents: { batchUpdate } } as any;
+
+    await expect(writeDocTab(docs, "doc1", "Summary", sections)).rejects.toThrow("fill exploded");
+  });
 });
 
 describe("deleteDocTab", () => {
@@ -41,6 +69,16 @@ describe("deleteDocTab", () => {
     err.code = 404;
     const docs = { documents: { batchUpdate: vi.fn().mockRejectedValue(err) } } as any;
     await expect(deleteDocTab(docs, "doc1", "t.gone")).resolves.toBeUndefined();
+  });
+
+  // The owner's ruling widened this from 404 to 404-or-400: a 400
+  // INVALID_ARGUMENT means the id is stale, and a stale id must never block a
+  // subsequent write.
+  it("swallows a 400 so a stale tab id does not wedge the next write", async () => {
+    const err: any = new Error("Invalid tab id");
+    err.code = 400;
+    const docs = { documents: { batchUpdate: vi.fn().mockRejectedValue(err) } } as any;
+    await expect(deleteDocTab(docs, "doc1", "t.stale")).resolves.toBeUndefined();
   });
 
   it("rethrows anything else", async () => {

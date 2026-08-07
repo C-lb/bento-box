@@ -48,10 +48,22 @@ export async function writeDocTab(
   const tabId = added.data.replies?.[0]?.addDocumentTab?.tabProperties?.tabId;
   if (!tabId) throw new Error("Docs did not return a tab id");
 
-  await docs.documents.batchUpdate({
-    documentId: docId,
-    requestBody: { requests: buildTabRequests(sections, tabId) as any },
-  });
+  try {
+    await docs.documents.batchUpdate({
+      documentId: docId,
+      requestBody: { requests: buildTabRequests(sections, tabId) as any },
+    });
+  } catch (err) {
+    // The tab exists but is empty and its id was never persisted, so nothing
+    // will ever come back for it: bin it rather than leave a stray "Summary"
+    // in the user's document. The cleanup is best-effort and must not mask
+    // the real failure, so its own errors are swallowed and the original
+    // error is rethrown.
+    try {
+      await deleteDocTab(docs, docId, tabId);
+    } catch {}
+    throw err;
+  }
   return { tabId };
 }
 
