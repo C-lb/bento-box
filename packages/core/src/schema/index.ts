@@ -85,6 +85,9 @@ export const transcriptions = sqliteTable("transcriptions", {
   summaryLinkedin: text("summary_linkedin"),
   summaryArticle: text("summary_article"),
   transcriptSegments: text("transcript_segments"), // JSON MergedSegment[] so the doc can be rebuilt later
+  sourceKind: text("source_kind"),        // audio|document|gdoc; null reads as audio
+  sourceDocId: text("source_doc_id"),     // Google Doc a tab was written into
+  docTabId: text("doc_tab_id"),           // the tab we own inside that doc
 });
 
 export const styleExamples = sqliteTable("style_examples", {
