@@ -4,7 +4,9 @@ import { createTranscription } from "@event-editor/core/transcription";
 import { transcriptions } from "@event-editor/core/schema";
 import { getDb } from "@/lib/db";
 import { authedDriveClient } from "@/lib/google/oauth";
-import { documentExtFromName, extractDocumentText, DOCUMENT_EXTS } from "@/lib/context";
+import {
+  documentExtFromName, extractDocumentText, assertDocumentLength, DOCUMENT_EXTS,
+} from "@/lib/context";
 import { startDocumentSummary } from "@/lib/document-runner";
 import { guardUpload } from "@/lib/upload-guard";
 
@@ -41,6 +43,10 @@ export async function POST(request: Request) {
       const res = await drive.files.export({ fileId, mimeType: "text/plain" });
       text = String(res.data ?? "").trim();
       if (!text) return NextResponse.json({ error: "That document is empty." }, { status: 400 });
+      // Same cap as the dragged-file path: without it a huge picked Doc goes
+      // straight to the model and comes back as a raw context-length error,
+      // after the token spend.
+      assertDocumentLength(text);
       name = safeName(given || "document");
       sourceKind = "gdoc";
       sourceDocId = fileId;

@@ -74,6 +74,27 @@ describe("POST /api/transcribe/document", () => {
     expect(startDocumentSummary).toHaveBeenCalledOnce();
   });
 
+  // The dragged-file path caps inside extractDocumentText; the Picker path
+  // never calls it, so without an explicit cap a 600k-character Doc goes
+  // straight to the model and comes back as a raw context-length error, after
+  // the token spend.
+  it("caps a picked Google Doc at the same length as a dragged file", async () => {
+    const { MAX_DOC_CHARS } = await import("@/lib/context");
+    exportFn.mockResolvedValue({ data: "a".repeat(MAX_DOC_CHARS + 1) });
+    const res = await POST(jsonRequest({ fileId: "huge", name: "Huge" }));
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toMatch(/too long to summarise/i);
+    expect(startDocumentSummary).not.toHaveBeenCalled();
+  });
+
+  it("accepts a picked Google Doc exactly at the cap", async () => {
+    const { MAX_DOC_CHARS } = await import("@/lib/context");
+    exportFn.mockResolvedValue({ data: "a".repeat(MAX_DOC_CHARS) });
+    const res = await POST(jsonRequest({ fileId: "atcap", name: "At cap" }));
+    expect(res.status).toBe(200);
+    expect(startDocumentSummary).toHaveBeenCalledOnce();
+  });
+
   it("requires either a file or a fileId", async () => {
     const res = await POST(jsonRequest({}));
     expect(res.status).toBe(400);

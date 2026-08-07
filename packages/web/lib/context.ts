@@ -50,6 +50,16 @@ export const DOCUMENT_EXTS: DocumentExt[] = ["txt", "md", "markdown", "html", "p
  *  this is an error rather than a truncation. Roughly 100k tokens. */
 export const MAX_DOC_CHARS = 400_000;
 
+/** Both input shapes (dragged file, exported Google Doc) go through this, so
+ *  the cap cannot be bypassed by whichever path skips extractDocumentText. */
+export function assertDocumentLength(text: string): void {
+  if (text.length > MAX_DOC_CHARS) {
+    throw new Error(
+      `This document is too long to summarise in one pass (${text.length.toLocaleString()} characters, limit ${MAX_DOC_CHARS.toLocaleString()}).`,
+    );
+  }
+}
+
 export function documentExtFromName(filename: string): DocumentExt | null {
   const dot = filename.lastIndexOf(".");
   if (dot < 0) return null;
@@ -74,11 +84,7 @@ export async function extractDocumentText(buffer: Buffer, ext: DocumentExt): Pro
         : "No text found in this document.",
     );
   }
-  if (text.length > MAX_DOC_CHARS) {
-    throw new Error(
-      `This document is too long to summarise in one pass (${text.length.toLocaleString()} characters, limit ${MAX_DOC_CHARS.toLocaleString()}).`,
-    );
-  }
+  assertDocumentLength(text);
   return text;
 }
 
