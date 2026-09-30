@@ -25,6 +25,7 @@ const KEY_LABEL: Record<ConnectionId, string> = {
 const DEP_LABEL: Record<DepId, string> = {
   ffmpeg: "FFmpeg",
   ytdlp: "yt-dlp",
+  deno: "Deno",
   libreoffice: "LibreOffice",
 };
 

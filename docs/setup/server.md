@@ -61,7 +61,15 @@ First boot runs core's DB migrations automatically (idempotent — safe on every
 curl https://bento.yourdomain.com/api/health
 ```
 
-Expect `{"ok":true,"deps":[{"id":"ffmpeg","ready":true},{"id":"ytdlp","ready":true,...},{"id":"libreoffice","ready":true}]}`. If any dep is `ready:false`, check `docker compose logs bento` — see the Dockerfile comments for where each binary lives (`ffmpeg-static`/`ffprobe-static` npm packages, `/usr/local/bin/yt-dlp`, `/usr/bin/soffice` from `libreoffice-impress`).
+Expect `{"ok":true,"deps":[{"id":"ffmpeg","ready":true},{"id":"ytdlp","ready":true,...},{"id":"deno","ready":true},{"id":"libreoffice","ready":true}]}`. If any dep is `ready:false`, check `docker compose logs bento` — see the Dockerfile comments for where each binary lives (`ffmpeg-static`/`ffprobe-static` npm packages, `/usr/local/bin/yt-dlp`, `/usr/local/bin/deno`, `/usr/bin/soffice` from `libreoffice-impress`).
+
+### YouTube links: yt-dlp, deno and cookies
+
+yt-dlp needs a JavaScript runtime to solve YouTube's player challenges. Without one, extraction is deprecated upstream and YouTube often answers `Sign in to confirm you're not a bot`. The image installs deno at `/usr/local/bin/deno` and the server passes `--js-runtimes deno:<path>` on every call. On a Mac dev box: `brew install deno` (the server also looks in `~/.deno/bin`), or point `EE_DENO_PATH` at a binary.
+
+Keep yt-dlp current; YouTube breaks old versions within weeks. Rebuild the image, or on a Mac `brew upgrade yt-dlp`. The server passes `--no-update`, so yt-dlp never tries to update itself.
+
+If YouTube still refuses after that, hand yt-dlp a browser's cookies: set `EE_YTDLP_COOKIES_BROWSER=chrome` (or `firefox`, `safari`, `edge`, `brave`) in the server env. Only do this on a machine where that browser is signed in to YouTube; on macOS the first run prompts for Keychain access to read Chrome's cookie store.
 
 ## 7. Updating
 

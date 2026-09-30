@@ -4,7 +4,8 @@ import { existsSync } from "node:fs";
 import { rm, readdir, stat } from "node:fs/promises";
 import { spawn } from "node:child_process";
 import ffmpegPath from "ffmpeg-static";
-import { ytDlpTitleArgs, ytDlpSearchArgs, ytDlpExtractArgs, ffmpegMp3Args, audioArgs } from "@event-editor/core/convert";
+import { ytDlpTitleArgs, ytDlpSearchArgs, ytDlpExtractArgs, ytDlpBaseArgs, ffmpegMp3Args, audioArgs } from "@event-editor/core/convert";
+import { homedir } from "node:os";
 
 const COMMON = ["/opt/homebrew/bin", "/usr/local/bin", "/usr/bin"];
 
@@ -30,6 +31,32 @@ export function ytDlpCandidates(env: Partial<NodeJS.ProcessEnv>, platform: NodeJ
   out.push(managed);
   for (const dir of COMMON) out.push(`${dir}/${exe}`);
   return out;
+}
+
+// yt-dlp needs a JavaScript runtime for YouTube; deno is the one it enables by
+// default. The app may be launched from Finder or a Docker entrypoint with a
+// PATH that never saw /opt/homebrew/bin, so resolve it ourselves.
+export function denoCandidates(env: Partial<NodeJS.ProcessEnv>, platform: NodeJS.Platform, home: string): string[] {
+  const exe = platform === "win32" ? "deno.exe" : "deno";
+  const out: string[] = [];
+  if (env.EE_DENO_PATH) out.push(env.EE_DENO_PATH);
+  for (const dir of COMMON) out.push(`${dir}/${exe}`);
+  out.push(join(home, ".deno", "bin", exe));
+  return out;
+}
+export function denoBin(): string | null {
+  return resolveExisting(denoCandidates(process.env, process.platform, homedir()), existsSync);
+}
+export function hasDeno(): boolean {
+  return denoBin() !== null;
+}
+// Opt-in: EE_YTDLP_COOKIES_BROWSER=chrome|firefox|safari|edge|brave.
+export function cookiesBrowser(env: Partial<NodeJS.ProcessEnv> = process.env): string | null {
+  const v = (env.EE_YTDLP_COOKIES_BROWSER ?? "").trim().toLowerCase();
+  return /^[a-z]+$/.test(v) ? v : null;
+}
+export function ytDlpEnvArgs(): string[] {
+  return ytDlpBaseArgs({ jsRuntimePath: denoBin(), cookiesBrowser: cookiesBrowser() });
 }
 
 export function resolveExisting(candidates: string[], exists: (p: string) => boolean): string | null {
@@ -80,9 +107,18 @@ export async function sweepOldConverts(maxAgeMs: number): Promise<void> {
   }
 }
 
+// Child PATH also gets the common tool dirs so yt-dlp can find deno (and
+// ffprobe etc.) even when the parent was launched with a bare PATH.
+export function childEnv(env: Partial<NodeJS.ProcessEnv> = process.env): NodeJS.ProcessEnv {
+  const extra = [...COMMON, join(homedir(), ".deno", "bin")];
+  const have = (env.PATH ?? "").split(":").filter(Boolean);
+  const merged = [...have, ...extra.filter((d) => !have.includes(d))];
+  return { ...env, PATH: merged.join(":") } as NodeJS.ProcessEnv;
+}
+
 function run(bin: string, args: string[]): Promise<string> {
   return new Promise((res, rej) => {
-    const proc = spawn(bin, args);
+    const proc = spawn(bin, args, { env: childEnv() });
     let out = "", err = "";
     proc.stdout.on("data", (d) => (out += d.toString()));
     proc.stderr.on("data", (d) => (err += d.toString()));
@@ -94,7 +130,7 @@ function run(bin: string, args: string[]): Promise<string> {
 export async function fetchTitle(url: string): Promise<string> {
   const bin = ytDlpBin();
   if (!bin) throw new Error("yt-dlp is not installed");
-  const out = await run(bin, ytDlpTitleArgs(url));
+  const out = await run(bin, [...ytDlpEnvArgs(), ...ytDlpTitleArgs(url)]);
   return out.split("\n").map((l) => l.trim()).find((l) => l.length > 0) ?? "";
 }
 
@@ -103,7 +139,7 @@ export async function fetchTitle(url: string): Promise<string> {
 export async function searchYouTube(query: string): Promise<{ id: string; title: string }> {
   const bin = ytDlpBin();
   if (!bin) throw new Error("yt-dlp is not installed");
-  const out = await run(bin, ytDlpSearchArgs(query));
+  const out = await run(bin, [...ytDlpEnvArgs(), ...ytDlpSearchArgs(query)]);
   const line = out.split("\n").map((l) => l.trim()).find((l) => l.length > 0) ?? "";
   const tab = line.indexOf("\t");
   const vid = tab >= 0 ? line.slice(0, tab) : line;
@@ -119,7 +155,7 @@ export async function extractFromUrl(
   if (!bin) throw new Error("yt-dlp is not installed");
   // yt-dlp writes <stem>.<format>; stem is the output path without the extension.
   const stem = audioOutPath(id, format).replace(new RegExp(`\\.${format}$`), "");
-  await run(bin, ytDlpExtractArgs(url, stem, ffmpegDir(), format));
+  await run(bin, [...ytDlpEnvArgs(), ...ytDlpExtractArgs(url, stem, ffmpegDir(), format)]);
 }
 
 export async function transcodeToMp3(inPath: string, id: string): Promise<void> {

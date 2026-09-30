@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { audioArgs } from "./convert";
+import { audioArgs, ytDlpBaseArgs } from "./convert";
 
 describe("audioArgs", () => {
   it("mp3 uses libmp3lame at 192k", () => {
@@ -16,5 +16,19 @@ describe("audioArgs", () => {
     expect(audioArgs("in", "out.m4a", "m4a")).toEqual(
       ["-y", "-i", "in", "-vn", "-c:a", "aac", "-b:a", "192k", "out.m4a"],
     );
+  });
+});
+
+describe("ytDlpBaseArgs", () => {
+  it("always suppresses the self-update nag", () => {
+    expect(ytDlpBaseArgs()).toEqual(["--no-update"]);
+  });
+  it("points yt-dlp at deno when a runtime path is known", () => {
+    expect(ytDlpBaseArgs({ jsRuntimePath: "/opt/homebrew/bin/deno" }))
+      .toEqual(["--no-update", "--js-runtimes", "deno:/opt/homebrew/bin/deno"]);
+  });
+  it("adds browser cookies only when asked", () => {
+    expect(ytDlpBaseArgs({ cookiesBrowser: "chrome" })).toContain("--cookies-from-browser");
+    expect(ytDlpBaseArgs({ cookiesBrowser: null })).not.toContain("--cookies-from-browser");
   });
 });

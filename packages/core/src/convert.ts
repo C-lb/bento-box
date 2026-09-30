@@ -29,6 +29,23 @@ export function defaultNameFromSource(name: string): string {
   return base || "audio";
 }
 
+// Flags every yt-dlp call shares. Without a JS runtime yt-dlp cannot solve
+// YouTube's player challenges (deprecated since 2025) and starts refusing with
+// "Sign in to confirm you're not a bot"; pointing it at deno fixes most of
+// that. Cookies from a browser profile are the fallback for the rest, opt-in
+// because reading Chrome's cookie store prompts for Keychain access on macOS.
+// --no-update silences the "older than 90 days" nag; updates are ours to run.
+export interface YtDlpEnvOpts {
+  jsRuntimePath?: string | null;   // absolute path to a deno binary
+  cookiesBrowser?: string | null;  // e.g. "chrome", "firefox", "safari"
+}
+export function ytDlpBaseArgs(opts: YtDlpEnvOpts = {}): string[] {
+  const out = ["--no-update"];
+  if (opts.jsRuntimePath) out.push("--js-runtimes", `deno:${opts.jsRuntimePath}`);
+  if (opts.cookiesBrowser) out.push("--cookies-from-browser", opts.cookiesBrowser);
+  return out;
+}
+
 export function ytDlpTitleArgs(url: string): string[] {
   return ["--no-playlist", "--print", "title", url];
 }

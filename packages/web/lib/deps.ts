@@ -3,7 +3,7 @@ import { createHash } from "node:crypto";
 import { spawn } from "node:child_process";
 import ffmpegPath from "ffmpeg-static";
 import { getToken } from "@event-editor/core/tokens";
-import { binDir, managedYtDlpPath, ytDlpBin, hasYtDlp } from "./convert";
+import { binDir, managedYtDlpPath, ytDlpBin, hasYtDlp, hasDeno } from "./convert";
 import { findSoffice } from "./pptx-convert";
 import { getDb } from "./db";
 
@@ -76,7 +76,7 @@ export async function downloadYtDlp(): Promise<{ version: string }> {
 }
 
 export interface Dep {
-  id: "ffmpeg" | "ytdlp" | "libreoffice";
+  id: "ffmpeg" | "ytdlp" | "deno" | "libreoffice";
   label: string;
   ready: boolean;
   managed: boolean;      // true if the app can fetch/manage it in-app
@@ -116,6 +116,14 @@ export async function dependencyStatuses(): Promise<Dep[]> {
       ready: hasYtDlp(),
       managed: true,
       version: ytVersion ?? undefined,
+    },
+    {
+      id: "deno",
+      label: "Deno (JavaScript runtime for yt-dlp)",
+      ready: hasDeno(),
+      managed: false,
+      installUrl: "https://docs.deno.com/runtime/getting_started/installation/",
+      hint: "Needed for YouTube links: without it yt-dlp can hit \"Sign in to confirm you're not a bot\". On Mac: brew install deno. If YouTube still refuses, set EE_YTDLP_COOKIES_BROWSER=chrome in the server env.",
     },
     {
       id: "libreoffice",

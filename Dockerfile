@@ -26,6 +26,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN curl -fsSL -o /usr/local/bin/yt-dlp \
       https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp \
     && chmod +x /usr/local/bin/yt-dlp && yt-dlp --version
+# deno is the JS runtime yt-dlp uses for YouTube's player challenges; without
+# it YouTube extraction is deprecated and often answers "confirm you're not a bot".
+RUN curl -fsSL https://deno.land/install.sh | DENO_INSTALL=/usr/local sh -s -- --no-modify-path \
+    && /usr/local/bin/deno --version
 WORKDIR /app
 COPY --from=build /app/packages/web/.next/standalone ./
 COPY --from=build /app/packages/web/.next/static ./packages/web/.next/static
@@ -35,7 +39,7 @@ COPY docker-entrypoint.sh /docker-entrypoint.sh
 RUN chmod +x /docker-entrypoint.sh
 ENV NODE_ENV=production PORT=3000 HOSTNAME=0.0.0.0 \
     EE_DATA_DIR=/data EE_DB_PATH=/data/app.db EE_THUMBS_DIR=/data/thumbs \
-    EE_BIN_DIR=/data/bin EE_YTDLP_PATH=/usr/local/bin/yt-dlp
+    EE_BIN_DIR=/data/bin EE_YTDLP_PATH=/usr/local/bin/yt-dlp EE_DENO_PATH=/usr/local/bin/deno
 VOLUME /data
 EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s \
